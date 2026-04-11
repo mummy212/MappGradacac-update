@@ -1,0 +1,130 @@
+{
+  "project_name": "Gradačac City Guide",
+  "platform": "Expo React Native (with NativeWind/Tailwind)",
+  "theme": "Light",
+  "archetype": "Archetype 1: Organic & Earthy",
+  "design_philosophy": "A context-aware, thumb-friendly map interface that feels tactile and welcoming. Breaks the cold utility of standard map apps by using earthy tones (Sage and Terracotta), crisp 1px borders, and generous padding. The design relies on a layered spatial hierarchy: base map, floating controls, and a prominent bottom sheet for location discovery.",
+  "colors": {
+    "background": "#FAF9F6",
+    "surface": "#FFFFFF",
+    "primary": "#4A5D4E",
+    "primary_foreground": "#FFFFFF",
+    "accent": "#D97757",
+    "accent_foreground": "#FFFFFF",
+    "text_primary": "#1C1C1C",
+    "text_secondary": "#6B6B6B",
+    "border": "#E5E4E2",
+    "overlay": "rgba(28, 28, 28, 0.4)",
+    "map_route": "#4A5D4E"
+  },
+  "typography": {
+    "anti_default_rule": "Inter, Roboto, and Open Sans are STRICTLY BANNED. Use the specified fonts below.",
+    "heading_font": "Outfit",
+    "body_font": "Manrope",
+    "scales": {
+      "h1": "text-4xl tracking-tighter font-bold",
+      "h2": "text-2xl tracking-tight font-semibold",
+      "h3": "text-xl tracking-tight font-medium",
+      "body": "text-base leading-relaxed",
+      "label": "text-sm tracking-[0.05em] uppercase font-bold text-text_secondary",
+      "caption": "text-xs text-text_secondary"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous Spacing. Use 2-3x more spacing than typical apps. Ensure optical alignment.",
+    "padding_rules": {
+      "screen_edge": "px-6",
+      "card_inner": "p-5",
+      "chip_inner": "px-5 py-2.5",
+      "section_gap": "gap-8"
+    },
+    "border_radius": {
+      "cards": "rounded-2xl",
+      "chips": "rounded-full",
+      "bottom_sheet": "rounded-t-3xl",
+      "buttons": "rounded-xl"
+    }
+  },
+  "components": {
+    "map_layer": {
+      "description": "The base layer spanning the entire screen (absolute fill). Needs a subtle, clean map style (hide generic POIs if possible to let custom markers pop).",
+      "markers": "Custom views using the Accent color (#D97757). Do not use default iOS/Android blue pins. Use a rounded pin shape with an inner white circle and a shadow."
+    },
+    "search_bar": {
+      "position": "Absolute top, overlapping the map. SafeArea inset top + 16px.",
+      "style": "bg-surface border border-border shadow-[0_8px_32px_rgba(0,0,0,0.08)] rounded-full flex-row items-center px-5 py-4 mx-6",
+      "text_input": "font-body text-base flex-1 ml-3 text-text_primary placeholder-text_secondary"
+    },
+    "category_filter": {
+      "position": "Absolute, below search bar (e.g., top: 90px).",
+      "behavior": "Horizontal ScrollView, showsScrollIndicator=false.",
+      "item_style_default": "bg-surface border border-border rounded-full px-5 py-2.5 mx-1.5 flex-row items-center shadow-sm",
+      "item_style_active": "bg-primary border-primary rounded-full px-5 py-2.5 mx-1.5 flex-row items-center shadow-md",
+      "text_style_default": "font-body text-sm font-medium text-text_primary ml-2",
+      "text_style_active": "font-body text-sm font-medium text-primary_foreground ml-2",
+      "icons": "Use Lucide React Native icons (e.g., Coffee, Wrench, ShoppingCart, Cross, Fuel, Utensils)."
+    },
+    "bottom_sheet_list": {
+      "position": "Absolute bottom, covering the lower 40-50% of the screen. Can be a swipeable bottom sheet or a fixed highly-styled view.",
+      "style": "bg-surface rounded-t-[32px] shadow-[0_-8px_32px_rgba(0,0,0,0.05)] pt-6 px-6",
+      "header": "Contains a small drag handle (w-12 h-1.5 bg-border rounded-full self-center mb-6) and a section title.",
+      "list_behavior": "Vertical FlatList. gap-4."
+    },
+    "location_card": {
+      "style": "flex-row items-center bg-background border border-border rounded-2xl p-3 mb-4",
+      "image": "w-20 h-20 rounded-xl bg-border",
+      "content": "flex-1 ml-4 justify-center",
+      "title": "font-heading text-lg font-semibold text-text_primary mb-1 tracking-tight",
+      "subtitle": "font-body text-sm text-text_secondary",
+      "action_icon": "p-2 bg-surface rounded-full border border-border shadow-sm"
+    },
+    "detail_modal": {
+      "type": "Full screen modal or expanded bottom sheet.",
+      "style": "bg-background flex-1",
+      "hero_image": "w-full h-[35vh] bg-border object-cover",
+      "close_button": "Absolute top-safe-area right-6 p-3 bg-white/70 backdrop-blur-md rounded-full border border-white/20 shadow-sm",
+      "content_container": "bg-surface -mt-8 rounded-t-[32px] p-6 flex-1",
+      "title": "font-heading text-3xl font-bold tracking-tighter text-text_primary mb-2",
+      "category_badge": "bg-background border border-border rounded-full px-3 py-1 self-start mb-6",
+      "info_rows": "flex-row items-center mb-4 gap-3",
+      "action_buttons_container": "flex-row gap-4 mt-auto pt-6 border-t border-border",
+      "button_primary": "flex-1 bg-accent rounded-xl py-4 flex-row justify-center items-center shadow-md",
+      "button_primary_text": "text-accent_foreground font-body font-bold text-base ml-2",
+      "button_secondary": "flex-1 bg-surface border border-border rounded-xl py-4 flex-row justify-center items-center",
+      "button_secondary_text": "text-text_primary font-body font-bold text-base ml-2"
+    }
+  },
+  "interactions_and_motion": {
+    "touchables": "All interactive elements must use TouchableOpacity with activeOpacity={0.7} or Pressable with slight scale down on press.",
+    "sheet_motion": "Bottom sheet should use spring physics (e.g., via react-native-reanimated or @gorhom/bottom-sheet) for a fluid, physical feel.",
+    "accessibility": "Ensure high contrast on active states. Use hitSlop={{top: 10, bottom: 10, left: 10, right: 10}} on small icons/buttons."
+  },
+  "media": {
+    "images": [
+      {
+        "category": "hero_castle",
+        "description": "Scenic view of Gradačac Castle with lush greenery, highlighting Ottoman architecture. Use for the city overview or map placeholder hero.",
+        "url": "https://images.pexels.com/photos/32247015/pexels-photo-32247015.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+      },
+      {
+        "category": "location_cafe",
+        "description": "A bright modern cozy cafe interior. Use as a placeholder for cafe locations.",
+        "url": "https://images.unsplash.com/photo-1773927005455-8efc55a8d512?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBjb3p5JTIwY2FmZSUyMGludGVyaW9yfGVufDB8fHx8MTc3NTkzMzA5Nnww&ixlib=rb-4.1.0&q=85"
+      },
+      {
+        "category": "location_restaurant",
+        "description": "A table set for a formal dinner with candles and greenery. Use as a placeholder for restaurant locations.",
+        "url": "https://images.unsplash.com/photo-1646473322803-94253d1dcbff?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHw0fHxyZXN0YXVyYW50JTIwdGFibGUlMjBmb29kfGVufDB8fHx8MTc3NTkzMzA5Nnww&ixlib=rb-4.1.0&q=85"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "CRITICAL: This is an Expo React Native app. Apply styling using NativeWind (className) or standard StyleSheet mapped to these Tailwind rules.",
+    "Use 'lucide-react-native' for all icons.",
+    "Use '@gorhom/bottom-sheet' if available, otherwise implement a sliding View for the bottom list.",
+    "Map implementation should use 'react-native-maps'. Avoid default iOS/Android markers; create custom Views wrapped in the Marker component.",
+    "Do NOT use pure #000000 or #FFFFFF for backgrounds endlessly without structure; follow the surface vs background distinction provided.",
+    "All interactive elements must have a testID attribute (e.g., testID='search-input', testID='category-restaurant').",
+    "Font loading: Load 'Outfit' and 'Manrope' via Expo Google Fonts (@expo-google-fonts/outfit, @expo-google-fonts/manrope). If unable to load, fallback to standard sans-serif but keep the weights and tracking rules."
+  ]
+}
