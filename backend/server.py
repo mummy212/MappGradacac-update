@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response, Depends, UploadFile, File, Form
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -13,12 +13,12 @@ import logging
 import bcrypt
 import jwt
 import secrets
+import base64
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 
-# MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
@@ -75,6 +75,11 @@ class Location(BaseModel):
     description: Optional[str] = None
     working_hours: Optional[str] = None
     is_premium: bool = False
+    images: List[str] = []  # base64 encoded images
+    service_tags: List[str] = []  # e.g. ["Ćevapi", "Pizza", "Domaća hrana"]
+    price_level: int = 0  # 0=not set, 1=€, 2=€€, 3=€€€
+    avg_rating: float = 0.0
+    review_count: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class LocationCreate(BaseModel):
@@ -87,6 +92,8 @@ class LocationCreate(BaseModel):
     description: Optional[str] = None
     working_hours: Optional[str] = None
     is_premium: bool = False
+    service_tags: List[str] = []
+    price_level: int = 0
 
 class LocationUpdate(BaseModel):
     name: Optional[str] = None
@@ -98,6 +105,21 @@ class LocationUpdate(BaseModel):
     description: Optional[str] = None
     working_hours: Optional[str] = None
     is_premium: Optional[bool] = None
+    service_tags: Optional[List[str]] = None
+    price_level: Optional[int] = None
+
+class Review(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    location_id: str
+    author_name: str
+    stars: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ReviewCreate(BaseModel):
+    author_name: str
+    stars: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
 
 class LoginRequest(BaseModel):
     email: str
@@ -119,49 +141,52 @@ CATEGORIES = [
 ]
 
 SAMPLE_LOCATIONS = [
-    {"name": "Restoran Stari Grad", "category": "restaurant", "address": "Husein-kapetana Gradaščevića bb", "latitude": 44.8797, "longitude": 18.4275, "phone": "+387 35 817 000", "description": "Tradicionalna bosanska kuhinja", "working_hours": "08:00 - 23:00"},
-    {"name": "Restoran Zmaj", "category": "restaurant", "address": "Zmaja od Bosne 12", "latitude": 44.8785, "longitude": 18.4290, "phone": "+387 35 818 111", "description": "Roštilj i domaća jela", "working_hours": "10:00 - 23:00"},
-    {"name": "Ćevabdžinica Kod Mehmeda", "category": "restaurant", "address": "Trg Husein-kapetana 5", "latitude": 44.8802, "longitude": 18.4268, "phone": "+387 35 817 222", "description": "Najbolji ćevapi u gradu", "working_hours": "08:00 - 22:00"},
-    {"name": "Bingo", "category": "market", "address": "Željeznička bb", "latitude": 44.8770, "longitude": 18.4310, "phone": "+387 35 816 000", "description": "Supermarket", "working_hours": "07:00 - 22:00"},
-    {"name": "Konzum", "category": "market", "address": "Titova 45", "latitude": 44.8792, "longitude": 18.4255, "phone": "+387 35 815 500", "description": "Prodavnica mješovite robe", "working_hours": "07:00 - 21:00"},
-    {"name": "Robot", "category": "market", "address": "Alije Izetbegovića 18", "latitude": 44.8812, "longitude": 18.4240, "phone": "+387 35 814 333", "description": "Mali market", "working_hours": "06:00 - 22:00"},
-    {"name": "Auto Servis Čamdžić", "category": "auto_service", "address": "Industrijska zona bb", "latitude": 44.8750, "longitude": 18.4350, "phone": "+387 35 820 100", "description": "Opravka svih vrsta vozila", "working_hours": "08:00 - 17:00"},
-    {"name": "Vulkanizer Mehić", "category": "auto_service", "address": "Magistralni put bb", "latitude": 44.8730, "longitude": 18.4380, "phone": "+387 35 821 200", "description": "Gume i vulkanizacija", "working_hours": "07:00 - 19:00"},
-    {"name": "Auto Perionica", "category": "auto_service", "address": "Orašje put 5", "latitude": 44.8820, "longitude": 18.4200, "phone": "+387 35 822 300", "description": "Pranje vozila", "working_hours": "08:00 - 20:00"},
-    {"name": "Caffe Bar Central", "category": "cafe", "address": "Trg Husein-kapetana 1", "latitude": 44.8800, "longitude": 18.4270, "phone": "+387 35 817 444", "description": "Kafa i kolači", "working_hours": "07:00 - 24:00"},
-    {"name": "Caffé di Milano", "category": "cafe", "address": "H.K. Gradaščevića 25", "latitude": 44.8795, "longitude": 18.4282, "phone": "+387 35 818 555", "description": "Espresso bar", "working_hours": "08:00 - 23:00"},
-    {"name": "Slastičarna Ledo", "category": "cafe", "address": "Titova 30", "latitude": 44.8788, "longitude": 18.4260, "phone": "+387 35 819 666", "description": "Sladoled i kolači", "working_hours": "09:00 - 22:00"},
-    {"name": "Apoteka Gradačac", "category": "pharmacy", "address": "Titova 10", "latitude": 44.8798, "longitude": 18.4265, "phone": "+387 35 815 111", "description": "Glavna gradska apoteka", "working_hours": "07:00 - 20:00"},
-    {"name": "Apoteka Zdravlje", "category": "pharmacy", "address": "Alije Izetbegovića 5", "latitude": 44.8808, "longitude": 18.4250, "phone": "+387 35 816 222", "description": "Apoteka sa širokim asortimanom", "working_hours": "08:00 - 21:00"},
-    {"name": "NIS Petrol", "category": "gas_station", "address": "Magistralni put bb", "latitude": 44.8720, "longitude": 18.4400, "phone": "+387 35 825 000", "description": "Benzinska pumpa", "working_hours": "00:00 - 24:00"},
-    {"name": "Hifa Petrol", "category": "gas_station", "address": "Ulaz u grad bb", "latitude": 44.8850, "longitude": 18.4150, "phone": "+387 35 826 000", "description": "Benzinska i auto gas", "working_hours": "06:00 - 22:00"},
+    {"name": "Restoran Stari Grad", "category": "restaurant", "address": "Husein-kapetana Gradaščevića bb", "latitude": 44.8797, "longitude": 18.4275, "phone": "+387 35 817 000", "description": "Tradicionalna bosanska kuhinja sa autentičnim receptima. Poznati po čorbama, pirama i ćevapima. Ugodan ambijent sa pogledom na stari grad.", "working_hours": "08:00 - 23:00", "service_tags": ["Bosanska kuhinja", "Ćevapi", "Pire"], "price_level": 2},
+    {"name": "Restoran Zmaj", "category": "restaurant", "address": "Zmaja od Bosne 12", "latitude": 44.8785, "longitude": 18.4290, "phone": "+387 35 818 111", "description": "Roštilj i domaća jela. Veliki izbor mesa sa roštilja i specijaliteta. Prostran prostor za proslave.", "working_hours": "10:00 - 23:00", "service_tags": ["Roštilj", "Domaća hrana", "Proslave"], "price_level": 2},
+    {"name": "Ćevabdžinica Kod Mehmeda", "category": "restaurant", "address": "Trg Husein-kapetana 5", "latitude": 44.8802, "longitude": 18.4268, "phone": "+387 35 817 222", "description": "Najbolji ćevapi u gradu. Tradicionalni recept koji se prenosi generacijama. Svježe pečeni somuni.", "working_hours": "08:00 - 22:00", "service_tags": ["Ćevapi", "Fast food", "Somun"], "price_level": 1},
+    {"name": "Bingo", "category": "market", "address": "Željeznička bb", "latitude": 44.8770, "longitude": 18.4310, "phone": "+387 35 816 000", "description": "Najveći supermarket u gradu. Širok asortiman prehrambenih i neprehrambenih proizvoda. Svježe voće i povrće svaki dan.", "working_hours": "07:00 - 22:00", "service_tags": ["Supermarket", "Svježe voće", "Mesnica"], "price_level": 2},
+    {"name": "Konzum", "category": "market", "address": "Titova 45", "latitude": 44.8792, "longitude": 18.4255, "phone": "+387 35 815 500", "description": "Prodavnica mješovite robe sa povoljnim cijenama i redovnim akcijama.", "working_hours": "07:00 - 21:00", "service_tags": ["Mješovita roba", "Akcije"], "price_level": 1},
+    {"name": "Robot", "category": "market", "address": "Alije Izetbegovića 18", "latitude": 44.8812, "longitude": 18.4240, "phone": "+387 35 814 333", "description": "Mali market u centru grada. Praktičan za brzu kupovinu.", "working_hours": "06:00 - 22:00", "service_tags": ["Mini market", "Brza kupovina"], "price_level": 1},
+    {"name": "Auto Servis Čamdžić", "category": "auto_service", "address": "Industrijska zona bb", "latitude": 44.8750, "longitude": 18.4350, "phone": "+387 35 820 100", "description": "Opravka svih vrsta vozila. Dijagnostika, mehanika, elektrika. Iskusni majstori sa dugogodišnjim iskustvom.", "working_hours": "08:00 - 17:00", "service_tags": ["Mehanika", "Dijagnostika", "Elektrika"], "price_level": 2},
+    {"name": "Vulkanizer Mehić", "category": "auto_service", "address": "Magistralni put bb", "latitude": 44.8730, "longitude": 18.4380, "phone": "+387 35 821 200", "description": "Gume i vulkanizacija. Prodaja novih i polovnih guma. Balansiranje i zamjena.", "working_hours": "07:00 - 19:00", "service_tags": ["Vulkanizacija", "Gume", "Balansiranje"], "price_level": 1},
+    {"name": "Auto Perionica", "category": "auto_service", "address": "Orašje put 5", "latitude": 44.8820, "longitude": 18.4200, "phone": "+387 35 822 300", "description": "Ručno pranje vozila. Unutrašnje i vanjsko čišćenje. Poliranje i zaštita laka.", "working_hours": "08:00 - 20:00", "service_tags": ["Pranje", "Poliranje", "Čišćenje"], "price_level": 1},
+    {"name": "Caffe Bar Central", "category": "cafe", "address": "Trg Husein-kapetana 1", "latitude": 44.8800, "longitude": 18.4270, "phone": "+387 35 817 444", "description": "Kafa i kolači u srcu grada. Terasa sa pogledom na trg. Odličan espresso i domaći kolači.", "working_hours": "07:00 - 24:00", "service_tags": ["Espresso", "Kolači", "Terasa"], "price_level": 2},
+    {"name": "Caffé di Milano", "category": "cafe", "address": "H.K. Gradaščevića 25", "latitude": 44.8795, "longitude": 18.4282, "phone": "+387 35 818 555", "description": "Moderni espresso bar sa italijanskim stilom. Širok izbor kafa i napitaka.", "working_hours": "08:00 - 23:00", "service_tags": ["Espresso", "Kokteli", "WiFi"], "price_level": 2},
+    {"name": "Slastičarna Ledo", "category": "cafe", "address": "Titova 30", "latitude": 44.8788, "longitude": 18.4260, "phone": "+387 35 819 666", "description": "Sladoled i kolači. Veliki izbor sladoleda i torti za sve prilike.", "working_hours": "09:00 - 22:00", "service_tags": ["Sladoled", "Torte", "Kolači"], "price_level": 1},
+    {"name": "Apoteka Gradačac", "category": "pharmacy", "address": "Titova 10", "latitude": 44.8798, "longitude": 18.4265, "phone": "+387 35 815 111", "description": "Glavna gradska apoteka sa širokim asortimanom lijekova i kozmetike.", "working_hours": "07:00 - 20:00", "service_tags": ["Lijekovi", "Kozmetika", "Vitamini"], "price_level": 2},
+    {"name": "Apoteka Zdravlje", "category": "pharmacy", "address": "Alije Izetbegovića 5", "latitude": 44.8808, "longitude": 18.4250, "phone": "+387 35 816 222", "description": "Apoteka sa širokim asortimanom. Stručno savjetovanje i brza usluga.", "working_hours": "08:00 - 21:00", "service_tags": ["Lijekovi", "Savjetovanje"], "price_level": 2},
+    {"name": "NIS Petrol", "category": "gas_station", "address": "Magistralni put bb", "latitude": 44.8720, "longitude": 18.4400, "phone": "+387 35 825 000", "description": "Benzinska pumpa sa 24h radnim vremenom. Benzin, dizel i LPG.", "working_hours": "00:00 - 24:00", "service_tags": ["Benzin", "Dizel", "LPG", "24h"], "price_level": 2},
+    {"name": "Hifa Petrol", "category": "gas_station", "address": "Ulaz u grad bb", "latitude": 44.8850, "longitude": 18.4150, "phone": "+387 35 826 000", "description": "Benzinska i auto gas. Prodavnica na pumpi sa grickalicama i pićima.", "working_hours": "06:00 - 22:00", "service_tags": ["Benzin", "Auto gas", "Prodavnica"], "price_level": 2},
 ]
 
 # ========== Startup ==========
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
-    # Seed admin
+    await db.reviews.create_index("location_id")
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
     if not existing:
-        await db.users.insert_one({
-            "email": ADMIN_EMAIL,
-            "password_hash": hash_password(ADMIN_PASSWORD),
-            "name": "Admin",
-            "role": "admin",
-            "created_at": datetime.now(timezone.utc)
-        })
+        await db.users.insert_one({"email": ADMIN_EMAIL, "password_hash": hash_password(ADMIN_PASSWORD), "name": "Admin", "role": "admin", "created_at": datetime.now(timezone.utc)})
         logging.info(f"Admin seeded: {ADMIN_EMAIL}")
     elif not verify_password(ADMIN_PASSWORD, existing["password_hash"]):
         await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(ADMIN_PASSWORD)}})
-        logging.info("Admin password updated")
-    # Seed locations
+    # Seed locations - drop and reseed to update with new fields
     count = await db.locations.count_documents({})
-    if count == 0:
+    has_tags = await db.locations.find_one({"service_tags": {"$exists": True, "$ne": []}})
+    if count == 0 or not has_tags:
+        await db.locations.delete_many({})
         for loc in SAMPLE_LOCATIONS:
             location = Location(**loc)
             await db.locations.insert_one(location.dict())
-        logging.info(f"Seeded {len(SAMPLE_LOCATIONS)} locations")
+        logging.info(f"Seeded {len(SAMPLE_LOCATIONS)} locations with extended data")
+
+async def recalc_rating(location_id: str):
+    pipeline = [{"$match": {"location_id": location_id}}, {"$group": {"_id": None, "avg": {"$avg": "$stars"}, "cnt": {"$sum": 1}}}]
+    result = await db.reviews.aggregate(pipeline).to_list(1)
+    if result:
+        await db.locations.update_one({"id": location_id}, {"$set": {"avg_rating": round(result[0]["avg"], 1), "review_count": result[0]["cnt"]}})
+    else:
+        await db.locations.update_one({"id": location_id}, {"$set": {"avg_rating": 0, "review_count": 0}})
 
 # ========== Auth Routes ==========
 @api_router.post("/auth/login")
@@ -185,47 +210,60 @@ async def get_me(user: dict = Depends(get_current_user)):
 # ========== Public Routes ==========
 @api_router.get("/")
 async def root():
-    return {"message": "Gradačac City Map API", "version": "1.0"}
+    return {"message": "Gradačac City Map API", "version": "2.0"}
 
 @api_router.get("/categories", response_model=List[Category])
 async def get_categories():
     return [Category(**cat) for cat in CATEGORIES]
 
-@api_router.get("/locations", response_model=List[Location])
+@api_router.get("/locations")
 async def get_locations(category: Optional[str] = Query(None)):
     query = {}
     if category:
         query["category"] = category
     locations = await db.locations.find(query, {"_id": 0}).to_list(1000)
-    return [Location(**loc) for loc in locations]
+    return locations
 
-@api_router.get("/locations/{location_id}", response_model=Location)
+@api_router.get("/locations/{location_id}")
 async def get_location(location_id: str):
     location = await db.locations.find_one({"id": location_id}, {"_id": 0})
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
-    return Location(**location)
+    return location
 
 @api_router.get("/search")
 async def search_locations(q: str = Query(..., min_length=2)):
     locations = await db.locations.find({
-        "$or": [
-            {"name": {"$regex": q, "$options": "i"}},
-            {"address": {"$regex": q, "$options": "i"}}
-        ]
+        "$or": [{"name": {"$regex": q, "$options": "i"}}, {"address": {"$regex": q, "$options": "i"}}]
     }, {"_id": 0}).to_list(100)
-    return [Location(**loc) for loc in locations]
+    return locations
+
+# ========== Reviews (Public) ==========
+@api_router.get("/locations/{location_id}/reviews")
+async def get_reviews(location_id: str):
+    reviews = await db.reviews.find({"location_id": location_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return reviews
+
+@api_router.post("/locations/{location_id}/reviews")
+async def create_review(location_id: str, input: ReviewCreate):
+    loc = await db.locations.find_one({"id": location_id})
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    review = Review(location_id=location_id, **input.dict())
+    await db.reviews.insert_one(review.dict())
+    await recalc_rating(location_id)
+    return review.dict()
 
 # ========== Admin Routes (Protected) ==========
-@api_router.post("/admin/locations", response_model=Location)
+@api_router.post("/admin/locations")
 async def admin_create_location(input: LocationCreate, user: dict = Depends(get_current_user)):
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     location = Location(**input.dict())
     await db.locations.insert_one(location.dict())
-    return location
+    return location.dict()
 
-@api_router.put("/admin/locations/{location_id}", response_model=Location)
+@api_router.put("/admin/locations/{location_id}")
 async def admin_update_location(location_id: str, input: LocationUpdate, user: dict = Depends(get_current_user)):
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -236,7 +274,7 @@ async def admin_update_location(location_id: str, input: LocationUpdate, user: d
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Location not found")
     updated = await db.locations.find_one({"id": location_id}, {"_id": 0})
-    return Location(**updated)
+    return updated
 
 @api_router.delete("/admin/locations/{location_id}")
 async def admin_delete_location(location_id: str, user: dict = Depends(get_current_user)):
@@ -245,17 +283,56 @@ async def admin_delete_location(location_id: str, user: dict = Depends(get_curre
     result = await db.locations.delete_one({"id": location_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Location not found")
+    await db.reviews.delete_many({"location_id": location_id})
     return {"message": "Lokacija obrisana"}
+
+# Image upload for location (admin)
+@api_router.post("/admin/locations/{location_id}/images")
+async def upload_image(location_id: str, file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    loc = await db.locations.find_one({"id": location_id})
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Slika ne smije biti veća od 5MB")
+    b64 = base64.b64encode(content).decode("utf-8")
+    mime = file.content_type or "image/jpeg"
+    data_uri = f"data:{mime};base64,{b64}"
+    await db.locations.update_one({"id": location_id}, {"$push": {"images": data_uri}})
+    return {"message": "Slika dodana", "image": data_uri}
+
+@api_router.delete("/admin/locations/{location_id}/images/{image_index}")
+async def delete_image(location_id: str, image_index: int, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    loc = await db.locations.find_one({"id": location_id}, {"_id": 0})
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    images = loc.get("images", [])
+    if image_index < 0 or image_index >= len(images):
+        raise HTTPException(status_code=400, detail="Invalid image index")
+    images.pop(image_index)
+    await db.locations.update_one({"id": location_id}, {"$set": {"images": images}})
+    return {"message": "Slika obrisana"}
+
+# Admin delete review
+@api_router.delete("/admin/reviews/{review_id}")
+async def admin_delete_review(review_id: str, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    review = await db.reviews.find_one({"id": review_id})
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    location_id = review["location_id"]
+    await db.reviews.delete_one({"id": review_id})
+    await recalc_rating(location_id)
+    return {"message": "Recenzija obrisana"}
 
 app.include_router(api_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

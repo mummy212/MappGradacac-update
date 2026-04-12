@@ -9,8 +9,6 @@ import {
   Dimensions,
   Platform,
   Alert,
-  Modal,
-  Linking,
   TextInput,
   Keyboard,
   StatusBar,
@@ -74,7 +72,8 @@ interface Category { id: string; name: string; icon: string; color: string; }
 interface LocationItem {
   id: string; name: string; category: string; address: string;
   latitude: number; longitude: number; phone?: string;
-  description?: string; working_hours?: string;
+  description?: string; working_hours?: string; avg_rating?: number;
+  review_count?: number; service_tags?: string[]; price_level?: number;
 }
 
 export default function Index() {
@@ -85,10 +84,8 @@ export default function Index() {
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [allLocations, setAllLocations] = useState<LocationItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [fontsLoaded] = useFonts({
@@ -154,14 +151,11 @@ export default function Index() {
   }, [allLocations, selectedCategory]);
 
   const handleMarkerPress = useCallback((locationId: string) => {
-    const loc = allLocations.find(l => l.id === locationId);
-    if (loc) { setSelectedLocation(loc); setModalVisible(true); }
-  }, [allLocations]);
+    router.push(`/location/${locationId}`);
+  }, []);
 
   const handleCardPress = (location: LocationItem) => {
-    setSelectedLocation(location);
-    setModalVisible(true);
-    mapRef.current?.flyTo(location.latitude, location.longitude, 16);
+    router.push(`/location/${location.id}`);
   };
 
   const centerOnUser = () => {
@@ -170,17 +164,6 @@ export default function Index() {
   };
 
   const centerOnCity = () => mapRef.current?.flyTo(GRADACAC_LAT, GRADACAC_LNG, 14);
-
-  const openNav = (loc: LocationItem) => {
-    const url = Platform.select({
-      ios: `maps:0,0?q=${loc.latitude},${loc.longitude}`,
-      android: `geo:0,0?q=${loc.latitude},${loc.longitude}(${loc.name})`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}`,
-    });
-    if (url) Linking.openURL(url);
-  };
-
-  const callPhone = (phone: string) => Linking.openURL(`tel:${phone}`);
   const getCatName = (id: string) => categories.find(c => c.id === id)?.name || id;
 
   if (loading || !fontsLoaded) {
@@ -297,12 +280,20 @@ export default function Index() {
                 <View style={s.cardBody}>
                   <Text style={s.cardTitle} numberOfLines={1}>{loc.name}</Text>
                   <Text style={s.cardAddr} numberOfLines={1}>{loc.address}</Text>
-                  {loc.working_hours && (
-                    <View style={s.cardHours}>
-                      <Ionicons name="time-outline" size={12} color={colors.primary} />
-                      <Text style={s.cardHoursText}>{loc.working_hours}</Text>
-                    </View>
-                  )}
+                  <View style={s.cardBottom}>
+                    {loc.working_hours && (
+                      <View style={s.cardHours}>
+                        <Ionicons name="time-outline" size={12} color={colors.primary} />
+                        <Text style={s.cardHoursText}>{loc.working_hours}</Text>
+                      </View>
+                    )}
+                    {(loc.avg_rating || 0) > 0 && (
+                      <View style={s.cardRating}>
+                        <Ionicons name="star" size={12} color="#F59E0B" />
+                        <Text style={s.cardRatingText}>{loc.avg_rating?.toFixed(1)}</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.border} style={{ padding: 8 }} />
               </TouchableOpacity>
@@ -312,60 +303,6 @@ export default function Index() {
         </ScrollView>
       </View>
 
-      {/* DETAIL MODAL */}
-      <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
-        <View style={s.modalOuter}>
-          <TouchableOpacity style={s.modalBg} activeOpacity={1} onPress={() => setModalVisible(false)} />
-          <View testID="location-detail-modal" style={s.modalBox}>
-            {selectedLocation && (<>
-              <View style={s.modalDrag} />
-              <View style={s.modalTop}>
-                <View style={[s.modalLargeIcon, { borderColor: MARKER_COLORS[selectedLocation.category] || colors.border }]}>
-                  <Ionicons name={CAT_ICONS_FILLED[selectedLocation.category] || 'location'}
-                    size={32} color={MARKER_COLORS[selectedLocation.category] || colors.accent} />
-                </View>
-                <TouchableOpacity testID="close-modal-btn" style={s.closeBtn}
-                  onPress={() => setModalVisible(false)} activeOpacity={0.7}>
-                  <Ionicons name="close" size={22} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-              <Text testID="modal-title" style={s.modalTitle}>{selectedLocation.name}</Text>
-              <View style={s.catBadge}>
-                <Text style={s.catBadgeText}>{getCatName(selectedLocation.category)}</Text>
-              </View>
-              <View style={s.modalInfo}>
-                <InfoRow icon="location-outline" text={selectedLocation.address} />
-                {selectedLocation.description && <InfoRow icon="information-circle-outline" text={selectedLocation.description} />}
-                {selectedLocation.working_hours && <InfoRow icon="time-outline" text={selectedLocation.working_hours} />}
-                {selectedLocation.phone && <InfoRow icon="call-outline" text={selectedLocation.phone} />}
-              </View>
-              <View style={s.modalActions}>
-                <TouchableOpacity testID="navigate-btn" style={s.btnPrimary}
-                  onPress={() => openNav(selectedLocation)} activeOpacity={0.7}>
-                  <Ionicons name="navigate" size={20} color={colors.accentFg} />
-                  <Text style={s.btnPrimaryText}>Navigacija</Text>
-                </TouchableOpacity>
-                {selectedLocation.phone && (
-                  <TouchableOpacity testID="call-btn" style={s.btnSecondary}
-                    onPress={() => callPhone(selectedLocation.phone!)} activeOpacity={0.7}>
-                    <Ionicons name="call" size={20} color={colors.textPrimary} />
-                    <Text style={s.btnSecondaryText}>Pozovi</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>)}
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
-function InfoRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  return (
-    <View style={s.infoRow}>
-      <Ionicons name={icon} size={20} color={colors.primary} />
-      <Text style={s.infoText}>{text}</Text>
     </View>
   );
 }
@@ -409,6 +346,9 @@ const s = StyleSheet.create({
   cardAddr: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginTop: 2 },
   cardHours: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   cardHoursText: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: colors.primary, marginLeft: 4 },
+  cardBottom: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 10 },
+  cardRating: { flexDirection: 'row', alignItems: 'center' },
+  cardRatingText: { fontSize: 12, fontFamily: 'Manrope_700Bold', color: '#F59E0B', marginLeft: 3 },
   // Empty
   empty: { alignItems: 'center', paddingVertical: 40 },
   emptyText: { fontSize: 17, fontFamily: 'Outfit_600SemiBold', color: colors.textSecondary, marginTop: 12 },
