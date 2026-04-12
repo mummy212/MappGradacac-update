@@ -71,6 +71,17 @@ Mobilna aplikacija za grad Gradačac, Bosna i Hercegovina. Interaktivna mapa gra
 - **Kontakt email**: Podešavanje kontakt emaila
 - **API**: GET /api/settings (javni) + PUT /api/admin/settings (admin)
 
+### Upload Slika u Admin Panelu
+- **Galerija slika**: Admin može uploadati slike za svaku lokaciju iz galerije telefona
+- **Prikaz**: Slike se prikazuju kao thumbnails u admin listi i u edit modalu
+- **Brisanje**: Admin može obrisati pojedinačne slike
+- **Format**: Slike se čuvaju kao base64 u bazi (max 5MB po slici)
+
+### Obavještenja iz Admin Panela
+- **Forma za slanje**: Naslov + tekst poruke + dugme "Pošalji svima"
+- **Historija**: Popis svih poslanih obavještenja sa statistikama (ukupno, uspješno, neuspješno)
+- **Broj uređaja**: Prikaz broja aktivnih uređaja koji primaju notifikacije
+
 ## Buduće nadogradnje
 - Korisničke ocjene i recenzije
 - Dodavanje novih lokacija od strane korisnika
