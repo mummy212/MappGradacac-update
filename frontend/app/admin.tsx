@@ -71,7 +71,7 @@ export default function AdminScreen() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
   // Tabs
-  const [activeTab, setActiveTab] = useState<'locations' | 'categories' | 'businesses' | 'notifications' | 'settings'>('locations');
+  const [activeTab, setActiveTab] = useState<'locations' | 'categories' | 'businesses' | 'tourism' | 'notifications' | 'settings'>('locations');
   // Locations
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -104,6 +104,12 @@ export default function AdminScreen() {
   const [newBizName, setNewBizName] = useState('');
   const [newBizLocId, setNewBizLocId] = useState('');
   const [savingBiz, setSavingBiz] = useState(false);
+  // Tourism
+  const [tourismItems, setTourismItems] = useState<any[]>([]);
+  const [tourModalVisible, setTourModalVisible] = useState(false);
+  const [editTour, setEditTour] = useState<any>({ name: '', description: '', latitude: 44.8797, longitude: 18.4275, category: 'Ostalo' });
+  const [isNewTour, setIsNewTour] = useState(false);
+  const [savingTour, setSavingTour] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -117,7 +123,7 @@ export default function AdminScreen() {
     if (saved) { setToken(saved); setIsLoggedIn(true); loadAll(saved); }
   };
 
-  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); fetchBizAccounts(t); };
+  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); fetchBizAccounts(t); fetchTourism(); };
 
   const handleLogin = async () => {
     setLoginLoading(true); setLoginError('');
@@ -264,6 +270,33 @@ export default function AdminScreen() {
     ]);
   };
 
+  // Tourism
+  const fetchTourism = async () => {
+    try { setTourismItems((await axios.get(`${BACKEND_URL}/api/tourism/attractions`)).data); } catch {}
+  };
+  const openNewTour = () => { setEditTour({ name: '', description: '', latitude: 44.8797, longitude: 18.4275, category: 'Ostalo' }); setIsNewTour(true); setTourModalVisible(true); };
+  const openEditTour = (t: any) => { setEditTour({ ...t }); setIsNewTour(false); setTourModalVisible(true); };
+  const saveTour = async () => {
+    if (!editTour.name || !editTour.description) { Alert.alert('Greška', 'Ime i opis su obavezni'); return; }
+    setSavingTour(true);
+    try {
+      const h = { headers: { Authorization: `Bearer ${token}` } };
+      if (isNewTour) { await axios.post(`${BACKEND_URL}/api/admin/tourism/attractions`, editTour, h); }
+      else { await axios.put(`${BACKEND_URL}/api/admin/tourism/attractions/${editTour.id}`, editTour, h); }
+      setTourModalVisible(false); fetchTourism();
+    } catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
+    setSavingTour(false);
+  };
+  const deleteTour = (t: any) => {
+    Alert.alert('Brisanje', `Obrisati "${t.name}"?`, [
+      { text: 'Odustani', style: 'cancel' },
+      { text: 'Obriši', style: 'destructive', onPress: async () => {
+        try { await axios.delete(`${BACKEND_URL}/api/admin/tourism/attractions/${t.id}`, { headers: { Authorization: `Bearer ${token}` } }); fetchTourism(); }
+        catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
+      }},
+    ]);
+  };
+
   const openNewCat = () => { setEditCat({ name: '', icon: 'location', color: '#888888' }); setIsNewCat(true); setCatModalVisible(true); };
   const openEditCat = (cat: any) => { setEditCat({ ...cat }); setIsNewCat(false); setCatModalVisible(true); };
 
@@ -353,13 +386,13 @@ export default function AdminScreen() {
 
       {/* Tabs */}
       <View style={s.tabs}>
-        {(['locations', 'categories', 'businesses', 'notifications', 'settings'] as const).map(tab => (
+        {(['locations', 'categories', 'businesses', 'tourism', 'notifications', 'settings'] as const).map(tab => (
           <TouchableOpacity key={tab} testID={`tab-${tab}`} style={[s.tab, activeTab === tab && s.tabActive]}
             onPress={() => setActiveTab(tab)}>
-            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'businesses' ? 'people-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
+            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'businesses' ? 'people-outline' : tab === 'tourism' ? 'business-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
               size={14} color={activeTab === tab ? '#fff' : c.textSec} />
             <Text style={[s.tabTxt, activeTab === tab && s.tabTxtActive]}>
-              {tab === 'locations' ? 'Lok.' : tab === 'categories' ? 'Kat.' : tab === 'businesses' ? 'Biz.' : tab === 'notifications' ? 'Obav.' : 'Post.'}
+              {tab === 'locations' ? 'Lok.' : tab === 'categories' ? 'Kat.' : tab === 'businesses' ? 'Biz.' : tab === 'tourism' ? 'Tur.' : tab === 'notifications' ? 'Obav.' : 'Post.'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -424,6 +457,37 @@ export default function AdminScreen() {
                 <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.accent }}>{biz.location_name}</Text>
               </View>
               <TouchableOpacity style={s.delBtn} onPress={() => deleteBizAccount(biz)}>
+                <Ionicons name="trash-outline" size={16} color={c.danger} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
+
+      {/* ===== TOURISM TAB ===== */}
+      {activeTab === 'tourism' && (
+        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+          <View style={s.catHeader}>
+            <Text style={s.catHeaderTxt}>{tourismItems.length} znamenitosti</Text>
+            <TouchableOpacity testID="add-tourism-btn" style={s.addCatBtn} onPress={openNewTour}>
+              <Ionicons name="add" size={18} color="#fff" /><Text style={s.addCatBtnTxt}>Nova</Text>
+            </TouchableOpacity>
+          </View>
+          {tourismItems.map(t => (
+            <View key={t.id} testID={`tour-${t.id}`} style={s.catCard}>
+              <View style={[s.catColorDot, { backgroundColor: c.primary + '20' }]}>
+                <Ionicons name="business" size={18} color={c.primary} />
+              </View>
+              <View style={s.catCardBody}>
+                <Text style={s.catCardName}>{t.name}</Text>
+                <Text style={s.catCardIcon} numberOfLines={2}>{t.description}</Text>
+                <Text style={{ fontSize: 10, fontFamily: 'Manrope_600SemiBold', color: c.accent, marginTop: 2 }}>{t.category}</Text>
+              </View>
+              <TouchableOpacity style={s.editBtn} onPress={() => openEditTour(t)}>
+                <Ionicons name="pencil" size={16} color={c.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={s.delBtn} onPress={() => deleteTour(t)}>
                 <Ionicons name="trash-outline" size={16} color={c.danger} />
               </TouchableOpacity>
             </View>
@@ -622,6 +686,50 @@ export default function AdminScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      {/* ===== TOURISM MODAL ===== */}
+      <Modal visible={tourModalVisible} animationType="slide" transparent onRequestClose={() => setTourModalVisible(false)}>
+        <View style={s.modalOuter}>
+          <TouchableOpacity style={s.modalBg} onPress={() => setTourModalVisible(false)} activeOpacity={1} />
+          <View testID="tour-modal" style={[s.modalBox, { maxHeight: height * 0.7 }]}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>{isNewTour ? 'Nova znamenitost' : 'Uredi znamenitost'}</Text>
+              <TouchableOpacity onPress={() => setTourModalVisible(false)}><Ionicons name="close" size={24} color={c.textSec} /></TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.fldLbl}>Ime *</Text>
+              <TextInput testID="tour-name-input" style={s.fldInput} value={editTour.name} onChangeText={(v: string) => setEditTour((p: any) => ({ ...p, name: v }))} placeholder="Npr: Gradačačka tvrđava" />
+              <Text style={s.fldLbl}>Opis *</Text>
+              <TextInput testID="tour-desc-input" style={[s.fldInput, { height: 80, textAlignVertical: 'top' }]} value={editTour.description} onChangeText={(v: string) => setEditTour((p: any) => ({ ...p, description: v }))} placeholder="Opis znamenitosti" multiline />
+              <Text style={s.fldLbl}>Kategorija</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                {['Historija', 'Priroda', 'Kultura', 'Religija', 'Sport', 'Ostalo'].map(cat => (
+                  <TouchableOpacity key={cat} style={[s.catOpt, editTour.category === cat && s.catOptActive]}
+                    onPress={() => setEditTour((p: any) => ({ ...p, category: cat }))}>
+                    <Text style={[s.catOptTxt, editTour.category === cat && s.catOptTxtActive]}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={s.rowFld}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.fldLbl}>Latitude</Text>
+                  <TextInput style={s.fldInput} value={String(editTour.latitude || '')} onChangeText={(v: string) => setEditTour((p: any) => ({ ...p, latitude: parseFloat(v) || 0 }))} keyboardType="numeric" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={s.fldLbl}>Longitude</Text>
+                  <TextInput style={s.fldInput} value={String(editTour.longitude || '')} onChangeText={(v: string) => setEditTour((p: any) => ({ ...p, longitude: parseFloat(v) || 0 }))} keyboardType="numeric" />
+                </View>
+              </View>
+              <TouchableOpacity testID="save-tour-btn" style={s.saveLocBtn} onPress={saveTour} disabled={savingTour}>
+                {savingTour ? <ActivityIndicator color="#fff" /> : (
+                  <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveLocBtnTxt}>{isNewTour ? 'Dodaj' : 'Sačuvaj'}</Text></>
+                )}
+              </TouchableOpacity>
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* ===== BUSINESS ACCOUNT MODAL ===== */}
       <Modal visible={bizModalVisible} animationType="slide" transparent onRequestClose={() => setBizModalVisible(false)}>
         <View style={s.modalOuter}>

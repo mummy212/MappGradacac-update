@@ -649,17 +649,46 @@ ATTRACTIONS = [
 
 @api_router.get("/tourism/attractions")
 async def get_attractions():
-    # Check DB first, fallback to defaults
     db_attrs = await db.attractions.find({}, {"_id": 0}).to_list(100)
     if db_attrs: return db_attrs
+    # Seed defaults on first call
+    for a in ATTRACTIONS: await db.attractions.insert_one(dict(a))
     return ATTRACTIONS
 
+class AttractionCreate(BaseModel):
+    name: str
+    description: str
+    latitude: float = 44.8797
+    longitude: float = 18.4275
+    category: str = "Ostalo"
+
+class AttractionUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    category: Optional[str] = None
+
 @api_router.post("/admin/tourism/attractions")
-async def create_attraction(user: dict = Depends(require_admin)):
-    # Seed defaults if empty
-    if await db.attractions.count_documents({}) == 0:
-        for a in ATTRACTIONS: await db.attractions.insert_one(dict(a))
-    return await db.attractions.find({}, {"_id": 0}).to_list(100)
+async def create_attraction(inp: AttractionCreate, user: dict = Depends(require_admin)):
+    attr = {"id": str(uuid.uuid4()), **inp.dict()}
+    to_ins = dict(attr)
+    await db.attractions.insert_one(to_ins)
+    return attr
+
+@api_router.put("/admin/tourism/attractions/{aid}")
+async def update_attraction(aid: str, inp: AttractionUpdate, user: dict = Depends(require_admin)):
+    u = {k: v for k, v in inp.dict().items() if v is not None}
+    if not u: raise HTTPException(400)
+    r = await db.attractions.update_one({"id": aid}, {"$set": u})
+    if r.matched_count == 0: raise HTTPException(404)
+    return await db.attractions.find_one({"id": aid}, {"_id": 0})
+
+@api_router.delete("/admin/tourism/attractions/{aid}")
+async def delete_attraction(aid: str, user: dict = Depends(require_admin)):
+    r = await db.attractions.delete_one({"id": aid})
+    if r.deleted_count == 0: raise HTTPException(404)
+    return {"message": "OK"}
 
 # ===== Leaderboard =====
 @api_router.get("/leaderboard")
