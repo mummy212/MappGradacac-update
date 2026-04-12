@@ -126,12 +126,22 @@ class LoginRequest(BaseModel):
     password: str
 
 class Category(BaseModel):
-    id: str
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     icon: str
     color: str
 
-CATEGORIES = [
+class CategoryCreate(BaseModel):
+    name: str
+    icon: str = "location"
+    color: str = "#888888"
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+
+DEFAULT_CATEGORIES = [
     {"id": "restaurant", "name": "Restorani", "icon": "restaurant", "color": "#FF6B6B"},
     {"id": "market", "name": "Marketi", "icon": "cart", "color": "#4ECDC4"},
     {"id": "auto_service", "name": "Auto Servisi", "icon": "car", "color": "#45B7D1"},
@@ -164,6 +174,13 @@ SAMPLE_LOCATIONS = [
 async def startup():
     await db.users.create_index("email", unique=True)
     await db.reviews.create_index("location_id")
+    # Seed categories
+    cat_count = await db.categories.count_documents({})
+    if cat_count == 0:
+        for cat in DEFAULT_CATEGORIES:
+            await db.categories.insert_one(dict(cat))
+        logging.info(f"Seeded {len(DEFAULT_CATEGORIES)} categories")
+    # Seed admin
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
     if not existing:
         await db.users.insert_one({"email": ADMIN_EMAIL, "password_hash": hash_password(ADMIN_PASSWORD), "name": "Admin", "role": "admin", "created_at": datetime.now(timezone.utc)})
@@ -212,9 +229,10 @@ async def get_me(user: dict = Depends(get_current_user)):
 async def root():
     return {"message": "Gradačac City Map API", "version": "2.0"}
 
-@api_router.get("/categories", response_model=List[Category])
+@api_router.get("/categories")
 async def get_categories():
-    return [Category(**cat) for cat in CATEGORIES]
+    cats = await db.categories.find({}, {"_id": 0}).to_list(100)
+    return cats
 
 @api_router.get("/locations")
 async def get_locations(category: Optional[str] = Query(None)):
@@ -329,6 +347,40 @@ async def admin_delete_review(review_id: str, user: dict = Depends(get_current_u
     await db.reviews.delete_one({"id": review_id})
     await recalc_rating(location_id)
     return {"message": "Recenzija obrisana"}
+
+# ========== Admin Category CRUD ==========
+@api_router.post("/admin/categories")
+async def admin_create_category(input: CategoryCreate, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    cat = Category(name=input.name, icon=input.icon, color=input.color)
+    await db.categories.insert_one(cat.dict())
+    return cat.dict()
+
+@api_router.put("/admin/categories/{category_id}")
+async def admin_update_category(category_id: str, input: CategoryUpdate, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    update_data = {k: v for k, v in input.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    result = await db.categories.update_one({"id": category_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+    updated = await db.categories.find_one({"id": category_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/admin/categories/{category_id}")
+async def admin_delete_category(category_id: str, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    loc_count = await db.locations.count_documents({"category": category_id})
+    if loc_count > 0:
+        raise HTTPException(status_code=400, detail=f"Ne može se obrisati - {loc_count} lokacija koristi ovu kategoriju")
+    result = await db.categories.delete_one({"id": category_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return {"message": "Kategorija obrisana"}
 
 # ========== Push Notifications ==========
 class PushTokenRegister(BaseModel):

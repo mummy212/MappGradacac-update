@@ -70,8 +70,8 @@ export default function AdminScreen() {
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
-  // Tabs: locations, notifications, settings
-  const [activeTab, setActiveTab] = useState<'locations' | 'notifications' | 'settings'>('locations');
+  // Tabs: locations, notifications, settings, categories
+  const [activeTab, setActiveTab] = useState<'locations' | 'notifications' | 'settings' | 'categories'>('locations');
   // Locations
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,6 +80,12 @@ export default function AdminScreen() {
   const [isNewLocation, setIsNewLocation] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  // Categories
+  const [adminCategories, setAdminCategories] = useState<{id:string;name:string;icon:string;color:string}[]>([]);
+  const [catModalVisible, setCatModalVisible] = useState(false);
+  const [editCat, setEditCat] = useState<{id?:string;name:string;icon:string;color:string}>({ name: '', icon: 'location', color: '#888888' });
+  const [isNewCat, setIsNewCat] = useState(false);
+  const [savingCat, setSavingCat] = useState(false);
   // Notifications
   const [notifTitle, setNotifTitle] = useState('');
   const [notifBody, setNotifBody] = useState('');
@@ -103,7 +109,7 @@ export default function AdminScreen() {
     if (saved) { setToken(saved); setIsLoggedIn(true); loadAll(saved); }
   };
 
-  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); };
+  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); };
 
   const handleLogin = async () => {
     setLoginLoading(true); setLoginError('');
@@ -221,6 +227,35 @@ export default function AdminScreen() {
     try { const r = await axios.get(`${BACKEND_URL}/api/settings`); setPaypalLink(r.data.paypal_link || ''); setContactEmail(r.data.contact_email || ''); } catch {}
   };
 
+  const fetchAdminCategories = async () => {
+    try { const r = await axios.get(`${BACKEND_URL}/api/categories`); setAdminCategories(r.data); } catch {}
+  };
+
+  const openNewCat = () => { setEditCat({ name: '', icon: 'location', color: '#888888' }); setIsNewCat(true); setCatModalVisible(true); };
+  const openEditCat = (cat: any) => { setEditCat({ ...cat }); setIsNewCat(false); setCatModalVisible(true); };
+
+  const saveCat = async () => {
+    if (!editCat.name.trim()) { Alert.alert('Greška', 'Ime kategorije je obavezno'); return; }
+    setSavingCat(true);
+    try {
+      const h = { headers: { Authorization: `Bearer ${token}` } };
+      if (isNewCat) { await axios.post(`${BACKEND_URL}/api/admin/categories`, editCat, h); }
+      else { await axios.put(`${BACKEND_URL}/api/admin/categories/${editCat.id}`, editCat, h); }
+      setCatModalVisible(false); fetchAdminCategories();
+    } catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
+    setSavingCat(false);
+  };
+
+  const deleteCat = (cat: any) => {
+    Alert.alert('Brisanje', `Obrisati kategoriju "${cat.name}"?`, [
+      { text: 'Odustani', style: 'cancel' },
+      { text: 'Obriši', style: 'destructive', onPress: async () => {
+        try { await axios.delete(`${BACKEND_URL}/api/admin/categories/${cat.id}`, { headers: { Authorization: `Bearer ${token}` } }); fetchAdminCategories(); }
+        catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška pri brisanju'); }
+      }},
+    ]);
+  };
+
   const saveSettings = async () => {
     setSettingsSaving(true);
     try {
@@ -285,13 +320,13 @@ export default function AdminScreen() {
 
       {/* Tabs */}
       <View style={s.tabs}>
-        {(['locations', 'notifications', 'settings'] as const).map(tab => (
+        {(['locations', 'categories', 'notifications', 'settings'] as const).map(tab => (
           <TouchableOpacity key={tab} testID={`tab-${tab}`} style={[s.tab, activeTab === tab && s.tabActive]}
             onPress={() => setActiveTab(tab)}>
-            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
+            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
               size={16} color={activeTab === tab ? '#fff' : c.textSec} />
             <Text style={[s.tabTxt, activeTab === tab && s.tabTxtActive]}>
-              {tab === 'locations' ? 'Lokacije' : tab === 'notifications' ? 'Obavještenja' : 'Postavke'}
+              {tab === 'locations' ? 'Lokacije' : tab === 'categories' ? 'Kateg.' : tab === 'notifications' ? 'Obav.' : 'Post.'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -334,6 +369,34 @@ export default function AdminScreen() {
             <View style={{ height: 40 }} />
           </ScrollView>
         )
+      )}
+
+      {/* ===== CATEGORIES TAB ===== */}
+      {activeTab === 'categories' && (
+        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+          <View style={s.catHeader}>
+            <Text style={s.catHeaderTxt}>{adminCategories.length} kategorija</Text>
+            <TouchableOpacity testID="add-category-btn" style={s.addCatBtn} onPress={openNewCat}>
+              <Ionicons name="add" size={18} color="#fff" /><Text style={s.addCatBtnTxt}>Nova</Text>
+            </TouchableOpacity>
+          </View>
+          {adminCategories.map(cat => (
+            <View key={cat.id} testID={`admin-cat-${cat.id}`} style={s.catCard}>
+              <View style={[s.catColorDot, { backgroundColor: cat.color }]} />
+              <View style={s.catCardBody}>
+                <Text style={s.catCardName}>{cat.name}</Text>
+                <Text style={s.catCardIcon}>Ikona: {cat.icon}</Text>
+              </View>
+              <TouchableOpacity testID={`edit-cat-${cat.id}`} style={s.editBtn} onPress={() => openEditCat(cat)}>
+                <Ionicons name="pencil" size={16} color={c.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity testID={`delete-cat-${cat.id}`} style={s.delBtn} onPress={() => deleteCat(cat)}>
+                <Ionicons name="trash-outline" size={16} color={c.danger} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          <View style={{ height: 40 }} />
+        </ScrollView>
       )}
 
       {/* ===== NOTIFICATIONS TAB ===== */}
@@ -498,6 +561,35 @@ export default function AdminScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      {/* ===== CATEGORY MODAL ===== */}
+      <Modal visible={catModalVisible} animationType="slide" transparent onRequestClose={() => setCatModalVisible(false)}>
+        <View style={s.modalOuter}>
+          <TouchableOpacity style={s.modalBg} onPress={() => setCatModalVisible(false)} activeOpacity={1} />
+          <View testID="edit-category-modal" style={[s.modalBox, { maxHeight: height * 0.55 }]}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>{isNewCat ? 'Nova kategorija' : 'Uredi kategoriju'}</Text>
+              <TouchableOpacity onPress={() => setCatModalVisible(false)}><Ionicons name="close" size={24} color={c.textSec} /></TouchableOpacity>
+            </View>
+            <Text style={s.fldLbl}>Ime kategorije *</Text>
+            <TextInput testID="cat-name-input" style={s.fldInput} value={editCat.name} onChangeText={v => setEditCat(p => ({ ...p, name: v }))} placeholder="Npr: Frizerski Saloni" />
+            <Text style={s.fldLbl}>Ikona (Ionicons ime)</Text>
+            <TextInput testID="cat-icon-input" style={s.fldInput} value={editCat.icon} onChangeText={v => setEditCat(p => ({ ...p, icon: v }))} placeholder="Npr: cut, school, business" />
+            <Text style={s.iconHint}>Dostupne ikone: restaurant, cart, car, cafe, medkit, water, cut, school, business, football, musical-notes, paw, home, construct, shirt...</Text>
+            <Text style={s.fldLbl}>Boja</Text>
+            <View style={s.colorRow}>
+              {['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#E91E63','#9C27B0','#FF9800','#607D8B','#795548'].map(col => (
+                <TouchableOpacity key={col} style={[s.colorDot, { backgroundColor: col }, editCat.color === col && s.colorDotActive]}
+                  onPress={() => setEditCat(p => ({ ...p, color: col }))} />
+              ))}
+            </View>
+            <TouchableOpacity testID="save-category-btn" style={s.saveLocBtn} onPress={saveCat} disabled={savingCat}>
+              {savingCat ? <ActivityIndicator color="#fff" /> : (
+                <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveLocBtnTxt}>{isNewCat ? 'Dodaj' : 'Sačuvaj'}</Text></>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -600,4 +692,18 @@ const s = StyleSheet.create({
   premToggleTxt: { fontSize: 15, fontFamily: 'Manrope_500Medium', color: c.text, marginLeft: 12 },
   saveLocBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent, borderRadius: 14, paddingVertical: 16, marginTop: 18 },
   saveLocBtnTxt: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold', marginLeft: 8 },
+  // Category management
+  catHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  catHeaderTxt: { fontSize: 16, fontFamily: 'Outfit_600SemiBold', color: c.textSec },
+  addCatBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  addCatBtnTxt: { color: '#fff', fontSize: 14, fontFamily: 'Manrope_700Bold', marginLeft: 4 },
+  catCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border },
+  catColorDot: { width: 36, height: 36, borderRadius: 18 },
+  catCardBody: { flex: 1, marginLeft: 14 },
+  catCardName: { fontSize: 16, fontFamily: 'Outfit_600SemiBold', color: c.text },
+  catCardIcon: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: c.textSec, marginTop: 2 },
+  iconHint: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: c.textSec, marginTop: 4, marginBottom: 4, lineHeight: 16 },
+  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6, marginBottom: 12 },
+  colorDot: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: 'transparent' },
+  colorDotActive: { borderColor: c.text, borderWidth: 3 },
 });
