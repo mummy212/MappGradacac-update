@@ -71,7 +71,7 @@ export default function AdminScreen() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
   // Tabs
-  const [activeTab, setActiveTab] = useState<'locations' | 'categories' | 'businesses' | 'tourism' | 'notifications' | 'settings'>('locations');
+  const [activeTab, setActiveTab] = useState<'locations' | 'categories' | 'businesses' | 'tourism' | 'events' | 'notifications' | 'settings'>('locations');
   // Locations
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,6 +110,12 @@ export default function AdminScreen() {
   const [editTour, setEditTour] = useState<any>({ name: '', description: '', latitude: 44.8797, longitude: 18.4275, category: 'Ostalo' });
   const [isNewTour, setIsNewTour] = useState(false);
   const [savingTour, setSavingTour] = useState(false);
+  // Events
+  const [adminEvents, setAdminEvents] = useState<any[]>([]);
+  const [eventModalVisible, setEventModalVisible] = useState(false);
+  const [editEvent, setEditEvent] = useState<any>({ title: '', description: '', location_name: '', date: '', time: '' });
+  const [isNewEvent, setIsNewEvent] = useState(false);
+  const [savingEvent, setSavingEvent] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -123,7 +129,7 @@ export default function AdminScreen() {
     if (saved) { setToken(saved); setIsLoggedIn(true); loadAll(saved); }
   };
 
-  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); fetchBizAccounts(t); fetchTourism(); };
+  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); fetchBizAccounts(t); fetchTourism(); fetchAdminEvents(); };
 
   const handleLogin = async () => {
     setLoginLoading(true); setLoginError('');
@@ -297,6 +303,37 @@ export default function AdminScreen() {
     ]);
   };
 
+  // Events
+  const fetchAdminEvents = async () => {
+    try { setAdminEvents((await axios.get(`${BACKEND_URL}/api/events`)).data); } catch {}
+  };
+  const openNewEvent = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setEditEvent({ title: '', description: '', location_name: '', date: today, time: '' });
+    setIsNewEvent(true); setEventModalVisible(true);
+  };
+  const openEditEvent = (e: any) => { setEditEvent({ ...e }); setIsNewEvent(false); setEventModalVisible(true); };
+  const saveEvent = async () => {
+    if (!editEvent.title || !editEvent.description || !editEvent.date || !editEvent.location_name) { Alert.alert('Greška', 'Naslov, opis, lokacija i datum su obavezni'); return; }
+    setSavingEvent(true);
+    try {
+      const h = { headers: { Authorization: `Bearer ${token}` } };
+      if (isNewEvent) { await axios.post(`${BACKEND_URL}/api/admin/events`, editEvent, h); }
+      else { /* events don't have update yet, create new */ await axios.post(`${BACKEND_URL}/api/admin/events`, editEvent, h); }
+      setEventModalVisible(false); fetchAdminEvents();
+    } catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
+    setSavingEvent(false);
+  };
+  const deleteEvent = (ev: any) => {
+    Alert.alert('Brisanje', `Obrisati "${ev.title}"?`, [
+      { text: 'Odustani', style: 'cancel' },
+      { text: 'Obriši', style: 'destructive', onPress: async () => {
+        try { await axios.delete(`${BACKEND_URL}/api/admin/events/${ev.id}`, { headers: { Authorization: `Bearer ${token}` } }); fetchAdminEvents(); }
+        catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
+      }},
+    ]);
+  };
+
   const openNewCat = () => { setEditCat({ name: '', icon: 'location', color: '#888888' }); setIsNewCat(true); setCatModalVisible(true); };
   const openEditCat = (cat: any) => { setEditCat({ ...cat }); setIsNewCat(false); setCatModalVisible(true); };
 
@@ -386,14 +423,11 @@ export default function AdminScreen() {
 
       {/* Tabs */}
       <View style={s.tabs}>
-        {(['locations', 'categories', 'businesses', 'tourism', 'notifications', 'settings'] as const).map(tab => (
+        {(['locations', 'categories', 'businesses', 'tourism', 'events', 'notifications', 'settings'] as const).map(tab => (
           <TouchableOpacity key={tab} testID={`tab-${tab}`} style={[s.tab, activeTab === tab && s.tabActive]}
             onPress={() => setActiveTab(tab)}>
-            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'businesses' ? 'people-outline' : tab === 'tourism' ? 'business-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
-              size={14} color={activeTab === tab ? '#fff' : c.textSec} />
-            <Text style={[s.tabTxt, activeTab === tab && s.tabTxtActive]}>
-              {tab === 'locations' ? 'Lok.' : tab === 'categories' ? 'Kat.' : tab === 'businesses' ? 'Biz.' : tab === 'tourism' ? 'Tur.' : tab === 'notifications' ? 'Obav.' : 'Post.'}
-            </Text>
+            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'businesses' ? 'people-outline' : tab === 'tourism' ? 'business-outline' : tab === 'events' ? 'calendar-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
+              size={13} color={activeTab === tab ? '#fff' : c.textSec} />
           </TouchableOpacity>
         ))}
       </View>
@@ -516,6 +550,34 @@ export default function AdminScreen() {
                 <Ionicons name="pencil" size={16} color={c.primary} />
               </TouchableOpacity>
               <TouchableOpacity testID={`delete-cat-${cat.id}`} style={s.delBtn} onPress={() => deleteCat(cat)}>
+                <Ionicons name="trash-outline" size={16} color={c.danger} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
+
+      {/* ===== EVENTS TAB ===== */}
+      {activeTab === 'events' && (
+        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+          <View style={s.catHeader}>
+            <Text style={s.catHeaderTxt}>{adminEvents.length} događaja</Text>
+            <TouchableOpacity testID="add-event-btn" style={s.addCatBtn} onPress={openNewEvent}>
+              <Ionicons name="add" size={18} color="#fff" /><Text style={s.addCatBtnTxt}>Novi</Text>
+            </TouchableOpacity>
+          </View>
+          {adminEvents.map(ev => (
+            <View key={ev.id} testID={`event-${ev.id}`} style={s.catCard}>
+              <View style={[s.catColorDot, { backgroundColor: c.accent + '20' }]}>
+                <Text style={{ fontSize: 14, fontFamily: 'Outfit_700Bold', color: c.accent }}>{ev.date?.split('-')[2]}</Text>
+              </View>
+              <View style={s.catCardBody}>
+                <Text style={s.catCardName}>{ev.title}</Text>
+                <Text style={s.catCardIcon} numberOfLines={1}>{ev.description}</Text>
+                <Text style={{ fontSize: 10, fontFamily: 'Manrope_500Medium', color: c.textSec }}>{ev.date} {ev.time ? `• ${ev.time}` : ''} • {ev.location_name}</Text>
+              </View>
+              <TouchableOpacity style={s.delBtn} onPress={() => deleteEvent(ev)}>
                 <Ionicons name="trash-outline" size={16} color={c.danger} />
               </TouchableOpacity>
             </View>
@@ -686,6 +748,43 @@ export default function AdminScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      {/* ===== EVENT MODAL ===== */}
+      <Modal visible={eventModalVisible} animationType="slide" transparent onRequestClose={() => setEventModalVisible(false)}>
+        <View style={s.modalOuter}>
+          <TouchableOpacity style={s.modalBg} onPress={() => setEventModalVisible(false)} activeOpacity={1} />
+          <View testID="event-modal" style={[s.modalBox, { maxHeight: height * 0.7 }]}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>Novi događaj</Text>
+              <TouchableOpacity onPress={() => setEventModalVisible(false)}><Ionicons name="close" size={24} color={c.textSec} /></TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.fldLbl}>Naslov *</Text>
+              <TextInput testID="event-title-input" style={s.fldInput} value={editEvent.title} onChangeText={(v: string) => setEditEvent((p: any) => ({ ...p, title: v }))} placeholder="Npr: Dani šljive 2026" />
+              <Text style={s.fldLbl}>Opis *</Text>
+              <TextInput testID="event-desc-input" style={[s.fldInput, { height: 70, textAlignVertical: 'top' }]} value={editEvent.description} onChangeText={(v: string) => setEditEvent((p: any) => ({ ...p, description: v }))} placeholder="Opis događaja" multiline />
+              <Text style={s.fldLbl}>Lokacija / Mjesto *</Text>
+              <TextInput testID="event-location-input" style={s.fldInput} value={editEvent.location_name} onChangeText={(v: string) => setEditEvent((p: any) => ({ ...p, location_name: v }))} placeholder="Npr: Centar grada" />
+              <View style={s.rowFld}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.fldLbl}>Datum * (YYYY-MM-DD)</Text>
+                  <TextInput testID="event-date-input" style={s.fldInput} value={editEvent.date} onChangeText={(v: string) => setEditEvent((p: any) => ({ ...p, date: v }))} placeholder="2026-09-15" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={s.fldLbl}>Vrijeme</Text>
+                  <TextInput testID="event-time-input" style={s.fldInput} value={editEvent.time} onChangeText={(v: string) => setEditEvent((p: any) => ({ ...p, time: v }))} placeholder="18:00" />
+                </View>
+              </View>
+              <TouchableOpacity testID="save-event-btn" style={s.saveLocBtn} onPress={saveEvent} disabled={savingEvent}>
+                {savingEvent ? <ActivityIndicator color="#fff" /> : (
+                  <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveLocBtnTxt}>Dodaj događaj</Text></>
+                )}
+              </TouchableOpacity>
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* ===== TOURISM MODAL ===== */}
       <Modal visible={tourModalVisible} animationType="slide" transparent onRequestClose={() => setTourModalVisible(false)}>
         <View style={s.modalOuter}>
