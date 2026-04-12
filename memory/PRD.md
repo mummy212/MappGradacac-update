@@ -59,6 +59,18 @@ Mobilna aplikacija za grad Gradačac, Bosna i Hercegovina. Interaktivna mapa gra
 - Badge vidljiv u listi lokacija i na detaljnoj stranici
 - Admin može označiti lokaciju kao premium
 
+### PayPal Donacija
+- **Dinamički PayPal link**: Admin podešava PayPal.me link iz admin panela (Postavke tab)
+- **Fiksni iznosi**: EUR (1€, 3€, 5€, 10€) i BAM (2KM, 5KM, 10KM, 20KM)
+- **Slobodan unos**: Korisnik može unijeti vlastiti iznos
+- **Toggle valuta**: EUR / BAM prebacivanje
+- **O aplikaciji**: Stranica sa info o app + donacija sekcija
+
+### Admin Postavke
+- **PayPal link**: Admin unosi svoj PayPal.me link
+- **Kontakt email**: Podešavanje kontakt emaila
+- **API**: GET /api/settings (javni) + PUT /api/admin/settings (admin)
+
 ## Buduće nadogradnje
 - Korisničke ocjene i recenzije
 - Dodavanje novih lokacija od strane korisnika
