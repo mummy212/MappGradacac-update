@@ -47,6 +47,18 @@ Mobilna aplikacija za grad Gradačac, Bosna i Hercegovina. Interaktivna mapa gra
 - **Ocjene korisnika**: 1-5 zvjezdica sa opcionim komentarom (bez registracije)
 - **Admin moderacija**: Admin može brisati neprikladne recenzije
 
+### Push Notifikacije
+- **Registracija uređaja**: Automatska registracija push tokena pri otvaranju app
+- **Admin slanje**: Admin može slati obavještenja svim korisnicima (događaji, manifestacije)
+- **Isključivanje**: Korisnici mogu isključiti notifikacije
+- **Expo Push Service**: Integracija sa Expo push servisom za Android i iOS
+- **Historija**: Svi poslani notifikacije čuvaju se u bazi
+
+### Verified Business Badge
+- Premium lokacije sa plaćenom pretplatom imaju posebnu oznaku
+- Badge vidljiv u listi lokacija i na detaljnoj stranici
+- Admin može označiti lokaciju kao premium
+
 ## Buduće nadogradnje
 - Korisničke ocjene i recenzije
 - Dodavanje novih lokacija od strane korisnika
