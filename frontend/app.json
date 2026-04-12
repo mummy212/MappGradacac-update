@@ -15,16 +15,25 @@
         "NSLocationWhenInUseUsageDescription": "Prikaži svoju lokaciju na mapi grada",
         "NSLocationAlwaysUsageDescription": "Navigacija do željene lokacije",
         "NSCameraUsageDescription": "Skeniraj QR kod za ostvarivanje popusta",
-        "NSPhotoLibraryUsageDescription": "Dodaj slike lokacija u aplikaciju"
+        "NSPhotoLibraryUsageDescription": "Dodaj slike lokacija u aplikaciju",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
         "googleMapsApiKey": ""
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#4A90A4"
+        "backgroundColor": "#4A5D4E"
       },
       "package": "com.gradacac.mapa",
       "permissions": [
@@ -51,13 +60,25 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#4A90A4"
+          "backgroundColor": "#4A5D4E"
         }
       ],
       [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Omogući pristup lokaciji za navigaciju do mjesta u gradu."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Skeniraj QR kod za ostvarivanje popusta na lokacijama."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Dodaj slike lokacija za prikaz u aplikaciji."
         }
       ],
       "expo-font"
