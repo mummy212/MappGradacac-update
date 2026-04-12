@@ -63,6 +63,17 @@ export default function LocationDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  // Chat
+  const [messages, setMessages] = useState<any[]>([]);
+  const [chatName, setChatName] = useState('');
+  const [chatMsg, setChatMsg] = useState('');
+  const [sendingChat, setSendingChat] = useState(false);
+  // Menu
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  // Offers
+  const [offers, setOffers] = useState<any[]>([]);
+  // Active tab
+  const [activeSection, setActiveSection] = useState<'info'|'menu'|'chat'>('info');
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -74,12 +85,18 @@ export default function LocationDetailScreen() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [locRes, revRes] = await Promise.all([
+      const [locRes, revRes, msgRes, menuRes, offRes] = await Promise.all([
         axios.get(`${BACKEND_URL}/api/locations/${id}`),
         axios.get(`${BACKEND_URL}/api/locations/${id}/reviews`),
+        axios.get(`${BACKEND_URL}/api/locations/${id}/messages`).catch(() => ({ data: [] })),
+        axios.get(`${BACKEND_URL}/api/locations/${id}/menu`).catch(() => ({ data: [] })),
+        axios.get(`${BACKEND_URL}/api/locations/${id}/offers`).catch(() => ({ data: [] })),
       ]);
       setLocation(locRes.data);
       setReviews(revRes.data);
+      setMessages(msgRes.data);
+      setMenuItems(menuRes.data);
+      setOffers(offRes.data);
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -100,6 +117,7 @@ export default function LocationDetailScreen() {
 
   const openNav = () => {
     if (!location) return;
+    axios.post(`${BACKEND_URL}/api/locations/${id}/track/nav_clicks`).catch(() => {});
     const url = Platform.select({
       ios: `maps:0,0?q=${location.latitude},${location.longitude}`,
       android: `geo:0,0?q=${location.latitude},${location.longitude}(${location.name})`,
@@ -108,7 +126,24 @@ export default function LocationDetailScreen() {
     if (url) Linking.openURL(url);
   };
 
-  const callPhone = () => { if (location?.phone) Linking.openURL(`tel:${location.phone}`); };
+  const callPhone = () => {
+    if (location?.phone) {
+      axios.post(`${BACKEND_URL}/api/locations/${id}/track/call_clicks`).catch(() => {});
+      Linking.openURL(`tel:${location.phone}`);
+    }
+  };
+
+  const sendChat = async () => {
+    if (!chatName.trim() || !chatMsg.trim()) { Alert.alert('Greška', 'Ime i poruka su obavezni'); return; }
+    setSendingChat(true);
+    try {
+      await axios.post(`${BACKEND_URL}/api/locations/${id}/messages`, { sender_name: chatName.trim(), message: chatMsg.trim() });
+      setChatMsg('');
+      const r = await axios.get(`${BACKEND_URL}/api/locations/${id}/messages`);
+      setMessages(r.data);
+    } catch { Alert.alert('Greška', 'Poruka nije poslana'); }
+    setSendingChat(false);
+  };
 
   if (loading || !fontsLoaded || !location) {
     return (
@@ -215,16 +250,113 @@ export default function LocationDetailScreen() {
             )}
           </View>
 
-          {/* Reviews Section */}
-          <View style={s.reviewsSection}>
-            <View style={s.reviewsHead}>
-              <Text style={s.sectionTitle}>Recenzije</Text>
-              <TouchableOpacity testID="add-review-btn" style={s.addReviewBtn}
-                onPress={() => setReviewModalVisible(true)} activeOpacity={0.7}>
-                <Ionicons name="create-outline" size={18} color={colors.accent} />
-                <Text style={s.addReviewText}>Ostavi ocjenu</Text>
-              </TouchableOpacity>
+          {/* Active Offers */}
+          {offers.length > 0 && (
+            <View style={s.reviewsSection}>
+              <Text style={s.sectionTitle}>Aktivne ponude</Text>
+              {offers.map((o: any) => (
+                <View key={o.id} style={{ backgroundColor: colors.accent+'0C', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.accent+'20' }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: colors.textPrimary, flex: 1 }}>{o.title}</Text>
+                    {o.discount_percent && <Text style={{ fontSize: 18, fontFamily: 'Outfit_700Bold', color: colors.accent }}>-{o.discount_percent}%</Text>}
+                  </View>
+                  <Text style={{ fontSize: 13, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginTop: 4 }}>{o.description}</Text>
+                </View>
+              ))}
             </View>
+          )}
+
+          {/* Section Tabs: Info / Meni / Chat */}
+          <View style={{ flexDirection: 'row', marginTop: 16, marginBottom: 12, backgroundColor: colors.background, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+            {(['info', 'menu', 'chat'] as const).map(tab => (
+              <TouchableOpacity key={tab} testID={`section-${tab}`} style={{ flex: 1, paddingVertical: 11, alignItems: 'center', backgroundColor: activeSection === tab ? colors.primary : 'transparent' }}
+                onPress={() => setActiveSection(tab)}>
+                <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: activeSection === tab ? '#fff' : colors.textSecondary }}>
+                  {tab === 'info' ? 'Recenzije' : tab === 'menu' ? 'Meni' : 'Chat'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Menu Section */}
+          {activeSection === 'menu' && (
+            <View>
+              {menuItems.length === 0 ? (
+                <View style={s.noReviews}>
+                  <Ionicons name="restaurant-outline" size={36} color={colors.border} />
+                  <Text style={s.noReviewsText}>Meni još nije dodan</Text>
+                </View>
+              ) : (
+                menuItems.map((item: any) => (
+                  <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: colors.background, borderRadius: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.border }}>
+                    {item.image && <Image source={{ uri: item.image }} style={{ width: 50, height: 50, borderRadius: 10, marginRight: 12 }} />}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: colors.textPrimary }}>{item.name}</Text>
+                      {item.description && <Text style={{ fontSize: 12, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginTop: 2 }}>{item.description}</Text>}
+                      <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: colors.accent, marginTop: 2 }}>{item.category}</Text>
+                    </View>
+                    <Text style={{ fontSize: 16, fontFamily: 'Outfit_700Bold', color: colors.primary }}>{item.price.toFixed(2)} KM</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+
+          {/* Chat Section */}
+          {activeSection === 'chat' && (
+            <View>
+              <View style={{ backgroundColor: colors.background, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: colors.border }}>
+                <TextInput testID="chat-name" style={{ backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, fontFamily: 'Manrope_500Medium', color: colors.textPrimary, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}
+                  value={chatName} onChangeText={setChatName} placeholder="Vaše ime" placeholderTextColor={colors.textSecondary} />
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <TextInput testID="chat-message" style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, fontFamily: 'Manrope_500Medium', color: colors.textPrimary, borderWidth: 1, borderColor: colors.border }}
+                    value={chatMsg} onChangeText={setChatMsg} placeholder="Pošaljite poruku..." placeholderTextColor={colors.textSecondary} />
+                  <TouchableOpacity testID="send-chat-btn" style={{ marginLeft: 8, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent, justifyContent: 'center', alignItems: 'center' }}
+                    onPress={sendChat} disabled={sendingChat}>
+                    {sendingChat ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={18} color="#fff" />}
+                  </TouchableOpacity>
+                </View>
+              </View>
+              {messages.length === 0 ? (
+                <View style={s.noReviews}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={36} color={colors.border} />
+                  <Text style={s.noReviewsText}>Nema poruka</Text>
+                  <Text style={s.noReviewsSub}>Postavite pitanje ovom biznisu!</Text>
+                </View>
+              ) : (
+                messages.map((msg: any) => (
+                  <View key={msg.id} style={{ backgroundColor: colors.background, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: colors.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Outfit_700Bold' }}>{msg.sender_name?.charAt(0)?.toUpperCase()}</Text>
+                      </View>
+                      <Text style={{ fontSize: 14, fontFamily: 'Manrope_700Bold', color: colors.textPrimary, marginLeft: 8, flex: 1 }}>{msg.sender_name}</Text>
+                      <Text style={{ fontSize: 11, fontFamily: 'Manrope_400Regular', color: colors.textSecondary }}>{new Date(msg.created_at).toLocaleDateString('bs-BA')}</Text>
+                    </View>
+                    <Text style={{ fontSize: 14, fontFamily: 'Manrope_400Regular', color: colors.textPrimary, lineHeight: 20 }}>{msg.message}</Text>
+                    {msg.reply && (
+                      <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
+                        <Text style={{ fontSize: 11, fontFamily: 'Manrope_700Bold', color: colors.accent, marginBottom: 2 }}>Odgovor:</Text>
+                        <Text style={{ fontSize: 13, fontFamily: 'Manrope_400Regular', color: colors.textPrimary }}>{msg.reply}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+
+          {/* Reviews Section (only when info tab active) */}
+          {activeSection === 'info' && (
+            <View style={s.reviewsSection}>
+              <View style={s.reviewsHead}>
+                <Text style={s.sectionTitle}>Recenzije</Text>
+                <TouchableOpacity testID="add-review-btn" style={s.addReviewBtn}
+                  onPress={() => setReviewModalVisible(true)} activeOpacity={0.7}>
+                  <Ionicons name="create-outline" size={18} color={colors.accent} />
+                  <Text style={s.addReviewText}>Ostavi ocjenu</Text>
+                </TouchableOpacity>
+              </View>
 
             {reviews.length === 0 ? (
               <View style={s.noReviews}>
@@ -249,7 +381,8 @@ export default function LocationDetailScreen() {
                 </View>
               ))
             )}
-          </View>
+            </View>
+          )}
           <View style={{ height: 40 }} />
         </View>
       </ScrollView>
