@@ -31,6 +31,14 @@ Mobilna aplikacija za grad Gradačac, Bosna i Hercegovina. Interaktivna mapa gra
 - Database: MongoDB
 - Dizajn: Organic & Earthy tema (Outfit + Manrope fontovi)
 
+### Admin Panel (Zaštićen pristup)
+- **Login**: JWT autentikacija sa admin credentials
+- **Dashboard**: Pregled svih lokacija sa statistikama
+- **CRUD**: Dodaj, uredi, obriši lokacije
+- **Premium oznaka**: Mogućnost označavanja lokacija kao premium (plaćena pretplata)
+- **Admin rute**: /api/admin/locations (POST, PUT, DELETE) - zahtijevaju JWT token
+- **Credentials**: admin@gradacac.ba / Gradacac2024!
+
 ## Buduće nadogradnje
 - Korisničke ocjene i recenzije
 - Dodavanje novih lokacija od strane korisnika
