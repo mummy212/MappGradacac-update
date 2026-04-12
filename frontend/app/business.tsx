@@ -378,9 +378,9 @@ const s = StyleSheet.create({
   // Tabs
   tabsWrap: { borderBottomWidth: 1, borderBottomColor: c.border },
   tabsContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-  bizTab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+  bizTab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
   bizTabActive: { backgroundColor: c.primary, borderColor: c.primary },
-  bizTabTxt: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.textSec, marginLeft: 6 },
+  bizTabTxt: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.textSec, marginLeft: 5 },
   bizTabTxtActive: { color: '#fff' },
   // Body
   body: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },

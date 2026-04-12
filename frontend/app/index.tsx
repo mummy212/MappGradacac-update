@@ -51,6 +51,8 @@ export default function Index() {
   const [selectedCat, setSelectedCat] = useState<string|null>(null);
   const [showCatList, setShowCatList] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [nearbyOffers, setNearbyOffers] = useState<any[]>([]);
+  const [showNearbyBanner, setShowNearbyBanner] = useState(false);
   const [attractions, setAttractions] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
@@ -64,6 +66,22 @@ export default function Index() {
     await getGPS();
     await Promise.all([fetchCats(), fetchLocs(), fetchOffers(), fetchEvents(), loadFavorites(), fetchAttractions(), fetchLeaderboard(), loadLoyalty()]);
     setLoading(false);
+  };
+
+  // Check nearby offers after GPS is ready
+  useEffect(() => {
+    if (userLoc && !loading) checkNearbyOffers();
+  }, [userLoc, loading]);
+
+  const checkNearbyOffers = async () => {
+    if (!userLoc) return;
+    try {
+      const r = await axios.get(`${BACKEND}/api/offers/nearby?lat=${userLoc.latitude}&lng=${userLoc.longitude}&radius=500`);
+      if (r.data.length > 0) {
+        setNearbyOffers(r.data);
+        setShowNearbyBanner(true);
+      }
+    } catch {}
   };
 
   const getGPS = async () => {
@@ -224,10 +242,6 @@ export default function Index() {
             onPress={() => router.push('/qr')}><Ionicons name="qr-code-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity testID="about-btn" style={[s.mapBtn, { backgroundColor: C.accent }]}
             onPress={() => router.push('/about')}><Ionicons name="heart-outline" size={20} color="#fff" /></TouchableOpacity>
-          <TouchableOpacity testID="admin-btn" style={[s.mapBtn, { backgroundColor: C.primary }]}
-            onPress={() => router.push('/admin')}><Ionicons name="settings-outline" size={20} color="#fff" /></TouchableOpacity>
-          <TouchableOpacity testID="biz-panel-btn" style={[s.mapBtn, { backgroundColor: C.accent }]}
-            onPress={() => router.push('/business')}><Ionicons name="storefront-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity testID="locate-btn" style={s.mapBtn}
             onPress={() => { if (userLoc) mapRef.current?.flyTo(userLoc.latitude, userLoc.longitude, 16); }}><Ionicons name="locate" size={20} color={C.primary} /></TouchableOpacity>
         </View>
@@ -236,6 +250,29 @@ export default function Index() {
       {/* CONTENT */}
       <View style={s.content}>
         <ScrollView showsVerticalScrollIndicator={false} bounces={true}>
+          {/* Nearby Offers Banner */}
+          {showNearbyBanner && nearbyOffers.length > 0 && (
+            <View testID="nearby-banner" style={s.nearbyBanner}>
+              <View style={s.nearbyHeader}>
+                <Ionicons name="location" size={18} color="#fff" />
+                <Text style={s.nearbyTitle}>Ponude u blizini!</Text>
+                <TouchableOpacity testID="close-nearby" onPress={() => setShowNearbyBanner(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                  <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+                </TouchableOpacity>
+              </View>
+              {nearbyOffers.slice(0, 2).map(o => (
+                <TouchableOpacity key={o.id} testID={`nearby-${o.id}`} style={s.nearbyItem}
+                  onPress={() => { router.push(`/location/${o.location_id}`); setShowNearbyBanner(false); }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.nearbyItemTitle}>{o.title}</Text>
+                    <Text style={s.nearbyItemLoc}>{o.location_name} • {o.distance}m</Text>
+                  </View>
+                  {o.discount_percent && <Text style={s.nearbyDiscount}>-{o.discount_percent}%</Text>}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {/* Featured Offers */}
           {offers.length > 0 && (
             <View style={s.section}>
@@ -385,10 +422,10 @@ const s = StyleSheet.create({
   // Map
   mapWrap: { height: height * 0.38, position: 'relative' },
   searchWrap: { position: 'absolute', left: 16, right: 16, zIndex: 10 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 50, paddingHorizontal: 18, paddingVertical: Platform.OS === 'ios' ? 12 : 8, borderWidth: 1, borderColor: C.border, ...Platform.select({ web: { boxShadow: '0 4px 16px rgba(0,0,0,0.06)' } as any, default: { elevation: 6 } }) },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 50, paddingHorizontal: 18, paddingVertical: Platform.OS === 'ios' ? 10 : 8, borderWidth: 1, borderColor: C.border, ...Platform.select({ web: { boxShadow: '0 4px 16px rgba(0,0,0,0.06)' } as any, default: { elevation: 6 } }) },
   searchInput: { flex: 1, fontSize: 14, fontFamily: 'Manrope_500Medium', color: C.text, marginLeft: 10, padding: 0 },
-  mapCtrl: { position: 'absolute', right: 12, bottom: 24 },
-  mapBtn: { backgroundColor: C.surface, width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: C.border },
+  mapCtrl: { position: 'absolute', right: 12, bottom: 12 },
+  mapBtn: { backgroundColor: C.surface, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: C.border },
   // Content
   content: { flex: 1, backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -16, paddingTop: 16 },
   section: { marginBottom: 20 },
@@ -444,6 +481,14 @@ const s = StyleSheet.create({
   loyaltyTitle: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: C.text },
   loyaltyDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: C.textSec, marginTop: 2 },
   loyaltyPts: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: C.star },
+  // Nearby banner
+  nearbyBanner: { marginHorizontal: 20, marginBottom: 16, backgroundColor: C.primary, borderRadius: 16, padding: 16 },
+  nearbyHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  nearbyTitle: { flex: 1, fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: '#fff', marginLeft: 8 },
+  nearbyItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: 12, marginBottom: 6 },
+  nearbyItemTitle: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: '#fff' },
+  nearbyItemLoc: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  nearbyDiscount: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: C.star },
   // Open/closed badge
   openBadge: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   openDot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
