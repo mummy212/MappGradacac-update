@@ -13,7 +13,9 @@
       "bundleIdentifier": "com.gradacac.mapa",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Prikaži svoju lokaciju na mapi grada",
-        "NSLocationAlwaysUsageDescription": "Navigacija do željene lokacije"
+        "NSLocationAlwaysUsageDescription": "Navigacija do željene lokacije",
+        "NSCameraUsageDescription": "Skeniraj QR kod za ostvarivanje popusta",
+        "NSPhotoLibraryUsageDescription": "Dodaj slike lokacija u aplikaciju"
       },
       "config": {
         "googleMapsApiKey": ""
@@ -27,7 +29,8 @@
       "package": "com.gradacac.mapa",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA"
       ],
       "config": {
         "googleMaps": {

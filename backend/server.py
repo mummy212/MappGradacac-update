@@ -315,6 +315,67 @@ async def get_all_offers(active_only: bool = Query(True)):
 async def get_location_offers(lid: str):
     return await db.offers.find({"location_id": lid, "is_active": True}, {"_id": 0}).to_list(50)
 
+# ===== Nearby Offers =====
+@api_router.get("/offers/nearby")
+async def get_nearby_offers(lat: float = Query(...), lng: float = Query(...), radius: int = Query(500)):
+    """Get active offers from locations within radius (meters)"""
+    offers = await db.offers.find({"is_active": True}, {"_id": 0}).to_list(100)
+    nearby = []
+    for o in offers:
+        loc = await db.locations.find_one({"id": o["location_id"]}, {"_id": 0})
+        if loc:
+            dist = calc_distance(lat, lng, loc["latitude"], loc["longitude"])
+            if dist <= radius:
+                o["location_name"] = loc.get("name", "")
+                o["location_image"] = loc.get("images", [""])[0] if loc.get("images") else ""
+                o["distance"] = round(dist)
+                nearby.append(o)
+    nearby.sort(key=lambda x: x.get("distance", 0))
+    return nearby
+
+# ===== QR / Coupon Activation =====
+class CouponActivation(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    offer_id: str
+    location_id: str
+    user_name: str
+    activated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    redeemed: bool = False
+    redeemed_at: Optional[datetime] = None
+
+class ActivateCouponRequest(BaseModel):
+    user_name: str
+
+@api_router.post("/offers/{offer_id}/activate")
+async def activate_coupon(offer_id: str, inp: ActivateCouponRequest):
+    """User scans QR and activates coupon"""
+    offer = await db.offers.find_one({"id": offer_id, "is_active": True}, {"_id": 0})
+    if not offer: raise HTTPException(404, "Ponuda nije pronađena ili je istekla")
+    activation = CouponActivation(offer_id=offer_id, location_id=offer["location_id"], user_name=inp.user_name)
+    to_ins = dict(activation.dict())
+    await db.coupon_activations.insert_one(to_ins)
+    return {"activation_id": activation.id, "offer_title": offer["title"], "discount_percent": offer.get("discount_percent"), "message": "Kupon aktiviran! Pokažite ovo osoblju."}
+
+@api_router.get("/offers/{offer_id}/activations")
+async def get_offer_activations(offer_id: str, user: dict = Depends(require_business_or_admin)):
+    """Business sees who activated their coupons"""
+    return await db.coupon_activations.find({"offer_id": offer_id}, {"_id": 0}).sort("activated_at", -1).to_list(100)
+
+@api_router.put("/coupon-activations/{activation_id}/redeem")
+async def redeem_coupon(activation_id: str, user: dict = Depends(require_business_or_admin)):
+    """Business marks coupon as redeemed"""
+    r = await db.coupon_activations.update_one({"id": activation_id}, {"$set": {"redeemed": True, "redeemed_at": datetime.now(timezone.utc)}})
+    if r.matched_count == 0: raise HTTPException(404, "Aktivacija nije pronađena")
+    return {"message": "Kupon iskorišten"}
+
+@api_router.get("/locations/{lid}/qr-data")
+async def get_qr_data(lid: str):
+    """Get QR code data for a location"""
+    loc = await db.locations.find_one({"id": lid}, {"_id": 0})
+    if not loc: raise HTTPException(404)
+    offers = await db.offers.find({"location_id": lid, "is_active": True}, {"_id": 0}).to_list(10)
+    return {"location_id": lid, "location_name": loc["name"], "offers": [{"id": o["id"], "title": o["title"], "discount_percent": o.get("discount_percent")} for o in offers]}
+
 # ===== Events (Public read) =====
 @api_router.get("/events")
 async def get_events():

@@ -201,6 +201,8 @@ export default function Index() {
         </View>
         {/* Map controls */}
         <View style={s.mapCtrl}>
+          <TouchableOpacity testID="qr-scan-btn" style={[s.mapBtn, { backgroundColor: '#3B82F6' }]}
+            onPress={() => router.push('/qr')}><Ionicons name="qr-code-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity testID="about-btn" style={[s.mapBtn, { backgroundColor: C.accent }]}
             onPress={() => router.push('/about')}><Ionicons name="heart-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity testID="admin-btn" style={[s.mapBtn, { backgroundColor: C.primary }]}

@@ -6,6 +6,7 @@ export default function Layout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="admin" />
       <Stack.Screen name="about" />
+      <Stack.Screen name="qr" />
       <Stack.Screen name="location/[id]" />
     </Stack>
   );
