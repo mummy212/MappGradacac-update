@@ -1,41 +1,33 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Alert,
-  ActivityIndicator, Modal, Dimensions, Platform, StatusBar, KeyboardAvoidingView,
+  ActivityIndicator, Modal, Dimensions, Platform, StatusBar, KeyboardAvoidingView, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium } from '@expo-google-fonts/outfit';
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
+import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Web-safe storage wrapper
 const Storage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
-      if (Platform.OS === 'web') {
-        return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
-      }
+      if (Platform.OS === 'web') return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
       return await AsyncStorage.getItem(key);
     } catch { return null; }
   },
   setItem: async (key: string, value: string): Promise<void> => {
     try {
-      if (Platform.OS === 'web') {
-        typeof window !== 'undefined' && window.localStorage.setItem(key, value);
-        return;
-      }
+      if (Platform.OS === 'web') { typeof window !== 'undefined' && window.localStorage.setItem(key, value); return; }
       await AsyncStorage.setItem(key, value);
     } catch {}
   },
   removeItem: async (key: string): Promise<void> => {
     try {
-      if (Platform.OS === 'web') {
-        typeof window !== 'undefined' && window.localStorage.removeItem(key);
-        return;
-      }
+      if (Platform.OS === 'web') { typeof window !== 'undefined' && window.localStorage.removeItem(key); return; }
       await AsyncStorage.removeItem(key);
     } catch {}
   },
@@ -44,10 +36,10 @@ const Storage = {
 const { width, height } = Dimensions.get('window');
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-const colors = {
-  background: '#FAF9F6', surface: '#FFFFFF', primary: '#4A5D4E', primaryFg: '#FFFFFF',
-  accent: '#D97757', accentFg: '#FFFFFF', textPrimary: '#1C1C1C', textSecondary: '#6B6B6B',
-  border: '#E5E4E2', danger: '#E74C3C', success: '#27AE60',
+const c = {
+  bg: '#FAF9F6', surface: '#FFF', primary: '#4A5D4E', primaryFg: '#FFF',
+  accent: '#D97757', accentFg: '#FFF', text: '#1C1C1C', textSec: '#6B6B6B',
+  border: '#E5E4E2', danger: '#E74C3C', success: '#27AE60', notif: '#3B82F6',
 };
 
 const CATEGORIES = [
@@ -60,27 +52,44 @@ interface LocationItem {
   id: string; name: string; category: string; address: string;
   latitude: number; longitude: number; phone?: string;
   description?: string; working_hours?: string; is_premium?: boolean;
+  images?: string[]; service_tags?: string[];
+}
+
+interface NotifItem {
+  id: string; title: string; body: string; total_devices: number;
+  successful: number; failed: number; created_at: string;
 }
 
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Auth
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [token, setToken] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+  // Tabs: locations, notifications, settings
+  const [activeTab, setActiveTab] = useState<'locations' | 'notifications' | 'settings'>('locations');
+  // Locations
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editLocation, setEditLocation] = useState<Partial<LocationItem>>({});
   const [isNewLocation, setIsNewLocation] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  // Notifications
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifBody, setNotifBody] = useState('');
+  const [sendingNotif, setSendingNotif] = useState(false);
+  const [notifications, setNotifications] = useState<NotifItem[]>([]);
+  const [activeDevices, setActiveDevices] = useState(0);
+  // Settings
   const [paypalLink, setPaypalLink] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -90,99 +99,48 @@ export default function AdminScreen() {
   useEffect(() => { checkAuth(); }, []);
 
   const checkAuth = async () => {
-    const savedToken = await Storage.getItem('admin_token');
-    if (savedToken) {
-      setToken(savedToken);
-      setIsLoggedIn(true);
-      fetchLocations(savedToken);
-      fetchSettings(savedToken);
-    }
+    const saved = await Storage.getItem('admin_token');
+    if (saved) { setToken(saved); setIsLoggedIn(true); loadAll(saved); }
   };
 
+  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); };
+
   const handleLogin = async () => {
-    setLoginLoading(true);
-    setLoginError('');
+    setLoginLoading(true); setLoginError('');
     try {
       const r = await axios.post(`${BACKEND_URL}/api/auth/login`, { email: email.toLowerCase(), password });
       const t = r.data.token;
-      setToken(t);
-      await Storage.setItem('admin_token', t);
-      setIsLoggedIn(true);
-      fetchLocations(t);
-      fetchSettings(t);
-    } catch (e: any) {
-      setLoginError(e.response?.data?.detail || 'Greška pri prijavi');
-    } finally {
-      setLoginLoading(false);
-    }
+      setToken(t); await Storage.setItem('admin_token', t);
+      setIsLoggedIn(true); loadAll(t);
+    } catch (e: any) { setLoginError(e.response?.data?.detail || 'Greška pri prijavi'); }
+    setLoginLoading(false);
   };
 
-  const handleLogout = async () => {
-    await Storage.removeItem('admin_token');
-    setIsLoggedIn(false);
-    setToken('');
-    setEmail('');
-    setPassword('');
-  };
+  const handleLogout = async () => { await Storage.removeItem('admin_token'); setIsLoggedIn(false); setToken(''); };
 
+  // Locations
   const fetchLocations = async (t: string) => {
     setLoading(true);
-    try {
-      const r = await axios.get(`${BACKEND_URL}/api/locations`, { headers: { Authorization: `Bearer ${t}` } });
-      setLocations(r.data);
-    } catch (e) { console.error(e); }
+    try { const r = await axios.get(`${BACKEND_URL}/api/locations`); setLocations(r.data); } catch {}
     setLoading(false);
   };
 
-  const fetchSettings = async (t: string) => {
-    try {
-      const r = await axios.get(`${BACKEND_URL}/api/settings`);
-      setPaypalLink(r.data.paypal_link || '');
-      setContactEmail(r.data.contact_email || '');
-    } catch (e) { console.error(e); }
-  };
-
-  const saveSettings = async () => {
-    setSettingsSaving(true);
-    try {
-      await axios.put(`${BACKEND_URL}/api/admin/settings`, {
-        paypal_link: paypalLink, contact_email: contactEmail,
-      }, { headers: { Authorization: `Bearer ${token}` } });
-      Alert.alert('Uspješno', 'Postavke sačuvane');
-    } catch (e) { Alert.alert('Greška', 'Greška pri čuvanju postavki'); }
-    setSettingsSaving(false);
-  };
-
   const openNewLocation = () => {
-    setEditLocation({ name: '', category: 'restaurant', address: '', latitude: 44.8797, longitude: 18.4275, phone: '', description: '', working_hours: '', is_premium: false });
-    setIsNewLocation(true);
-    setEditModalVisible(true);
+    setEditLocation({ name: '', category: 'restaurant', address: '', latitude: 44.8797, longitude: 18.4275, phone: '', description: '', working_hours: '', is_premium: false, images: [] });
+    setIsNewLocation(true); setEditModalVisible(true);
   };
 
-  const openEditLocation = (loc: LocationItem) => {
-    setEditLocation({ ...loc });
-    setIsNewLocation(false);
-    setEditModalVisible(true);
-  };
+  const openEditLocation = (loc: LocationItem) => { setEditLocation({ ...loc }); setIsNewLocation(false); setEditModalVisible(true); };
 
   const saveLocation = async () => {
-    if (!editLocation.name || !editLocation.address || !editLocation.category) {
-      Alert.alert('Greška', 'Ime, adresa i kategorija su obavezni');
-      return;
-    }
+    if (!editLocation.name || !editLocation.address) { Alert.alert('Greška', 'Ime i adresa su obavezni'); return; }
     setSaving(true);
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-      if (isNewLocation) {
-        await axios.post(`${BACKEND_URL}/api/admin/locations`, editLocation, { headers });
-      } else {
-        await axios.put(`${BACKEND_URL}/api/admin/locations/${editLocation.id}`, editLocation, { headers });
-      }
-      setEditModalVisible(false);
-      fetchLocations(token);
-    } catch (e: any) {
-      Alert.alert('Greška', e.response?.data?.detail || 'Greška pri čuvanju');
-    }
+      const h = { headers: { Authorization: `Bearer ${token}` } };
+      if (isNewLocation) { await axios.post(`${BACKEND_URL}/api/admin/locations`, editLocation, h); }
+      else { await axios.put(`${BACKEND_URL}/api/admin/locations/${editLocation.id}`, editLocation, h); }
+      setEditModalVisible(false); fetchLocations(token);
+    } catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
     setSaving(false);
   };
 
@@ -190,222 +148,348 @@ export default function AdminScreen() {
     Alert.alert('Brisanje', `Obrisati "${loc.name}"?`, [
       { text: 'Odustani', style: 'cancel' },
       { text: 'Obriši', style: 'destructive', onPress: async () => {
-        try {
-          await axios.delete(`${BACKEND_URL}/api/admin/locations/${loc.id}`, { headers: { Authorization: `Bearer ${token}` } });
-          fetchLocations(token);
-        } catch (e) { Alert.alert('Greška', 'Greška pri brisanju'); }
+        try { await axios.delete(`${BACKEND_URL}/api/admin/locations/${loc.id}`, { headers: { Authorization: `Bearer ${token}` } }); fetchLocations(token); } catch {}
       }},
     ]);
   };
 
-  const getCatName = (id: string) => CATEGORIES.find(c => c.id === id)?.name || id;
+  // Image Upload
+  const pickAndUploadImage = async () => {
+    if (!editLocation.id && isNewLocation) { Alert.alert('Info', 'Prvo sačuvajte lokaciju, zatim dodajte slike'); return; }
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Dozvola', 'Potrebna je dozvola za pristup galeriji'); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
+      if (result.canceled || !result.assets[0].base64) return;
+      setUploadingImage(true);
+      const base64Data = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      // Upload via FormData for native, or direct base64 for web
+      if (Platform.OS === 'web') {
+        // For web, convert base64 to blob and upload
+        const blob = await fetch(base64Data).then(r => r.blob());
+        const formData = new FormData();
+        formData.append('file', blob, 'image.jpg');
+        await axios.post(`${BACKEND_URL}/api/admin/locations/${editLocation.id}/images`, formData, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        const formData = new FormData();
+        formData.append('file', { uri: result.assets[0].uri, type: 'image/jpeg', name: 'image.jpg' } as any);
+        await axios.post(`${BACKEND_URL}/api/admin/locations/${editLocation.id}/images`, formData, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+        });
+      }
+      // Refresh location data
+      const updated = await axios.get(`${BACKEND_URL}/api/locations/${editLocation.id}`);
+      setEditLocation(prev => ({ ...prev, images: updated.data.images }));
+      fetchLocations(token);
+    } catch (e: any) { Alert.alert('Greška', 'Greška pri uploadu slike'); console.error(e); }
+    setUploadingImage(false);
+  };
+
+  const deleteImage = async (index: number) => {
+    try {
+      await axios.delete(`${BACKEND_URL}/api/admin/locations/${editLocation.id}/images/${index}`, { headers: { Authorization: `Bearer ${token}` } });
+      const updated = await axios.get(`${BACKEND_URL}/api/locations/${editLocation.id}`);
+      setEditLocation(prev => ({ ...prev, images: updated.data.images }));
+    } catch { Alert.alert('Greška', 'Greška pri brisanju slike'); }
+  };
+
+  // Notifications
+  const fetchNotifications = async (t: string) => {
+    try { const r = await axios.get(`${BACKEND_URL}/api/admin/notifications`, { headers: { Authorization: `Bearer ${t}` } }); setNotifications(r.data); } catch {}
+  };
+
+  const fetchPushStats = async (t: string) => {
+    try { const r = await axios.get(`${BACKEND_URL}/api/admin/push-stats`, { headers: { Authorization: `Bearer ${t}` } }); setActiveDevices(r.data.active_devices); } catch {}
+  };
+
+  const sendNotification = async () => {
+    if (!notifTitle.trim() || !notifBody.trim()) { Alert.alert('Greška', 'Naslov i tekst su obavezni'); return; }
+    setSendingNotif(true);
+    try {
+      const r = await axios.post(`${BACKEND_URL}/api/admin/notifications/send`, { title: notifTitle.trim(), body: notifBody.trim() }, { headers: { Authorization: `Bearer ${token}` } });
+      Alert.alert('Poslano!', `Obavještenje poslano na ${r.data.total_devices} uređaja.\nUspješno: ${r.data.successful}\nNeuspješno: ${r.data.failed}`);
+      setNotifTitle(''); setNotifBody('');
+      fetchNotifications(token);
+    } catch { Alert.alert('Greška', 'Greška pri slanju'); }
+    setSendingNotif(false);
+  };
+
+  // Settings
+  const fetchSettings = async () => {
+    try { const r = await axios.get(`${BACKEND_URL}/api/settings`); setPaypalLink(r.data.paypal_link || ''); setContactEmail(r.data.contact_email || ''); } catch {}
+  };
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      await axios.put(`${BACKEND_URL}/api/admin/settings`, { paypal_link: paypalLink, contact_email: contactEmail }, { headers: { Authorization: `Bearer ${token}` } });
+      Alert.alert('Uspješno', 'Postavke sačuvane');
+    } catch { Alert.alert('Greška', 'Greška pri čuvanju'); }
+    setSettingsSaving(false);
+  };
+
+  const getCatName = (id: string) => CATEGORIES.find(x => x.id === id)?.name || id;
 
   if (!fontsLoaded) return null;
 
-  // LOGIN SCREEN
-  if (!isLoggedIn) {
-    return (
-      <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <StatusBar barStyle="dark-content" />
-        <View style={[s.loginWrap, { paddingTop: insets.top + 40 }]}>
-          <TouchableOpacity testID="back-to-map-btn" style={s.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <View style={s.loginIcon}>
-            <Ionicons name="shield-checkmark" size={48} color={colors.primary} />
-          </View>
-          <Text style={s.loginTitle}>Admin Panel</Text>
-          <Text style={s.loginSub}>Prijava za upravljanje sadržajem</Text>
-
-          <View style={s.inputWrap}>
-            <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
-            <TextInput testID="admin-email-input" style={s.input} placeholder="Email" placeholderTextColor={colors.textSecondary}
-              value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-          </View>
-
-          <View style={s.inputWrap}>
-            <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
-            <TextInput testID="admin-password-input" style={s.input} placeholder="Lozinka" placeholderTextColor={colors.textSecondary}
-              value={password} onChangeText={setPassword} secureTextEntry />
-          </View>
-
-          {loginError ? <Text testID="login-error" style={s.errorText}>{loginError}</Text> : null}
-
-          <TouchableOpacity testID="admin-login-btn" style={s.loginBtn} onPress={handleLogin} disabled={loginLoading}>
-            {loginLoading ? <ActivityIndicator color="#fff" /> : <Text style={s.loginBtnText}>Prijavi se</Text>}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // ADMIN DASHBOARD
-  return (
-    <View testID="admin-dashboard" style={[s.container, { paddingTop: insets.top }]}>
+  // ===== LOGIN =====
+  if (!isLoggedIn) return (
+    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <StatusBar barStyle="dark-content" />
+      <View style={[s.loginWrap, { paddingTop: insets.top + 40 }]}>
+        <TouchableOpacity testID="back-to-map-btn" style={s.backCircle} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={c.text} />
+        </TouchableOpacity>
+        <View style={s.loginIcon}><Ionicons name="shield-checkmark" size={48} color={c.primary} /></View>
+        <Text style={s.loginTitle}>Admin Panel</Text>
+        <Text style={s.loginSub}>Prijava za upravljanje sadržajem</Text>
+        <View style={s.inputRow}>
+          <Ionicons name="mail-outline" size={20} color={c.textSec} />
+          <TextInput testID="admin-email-input" style={s.inputField} placeholder="Email" placeholderTextColor={c.textSec} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        </View>
+        <View style={s.inputRow}>
+          <Ionicons name="lock-closed-outline" size={20} color={c.textSec} />
+          <TextInput testID="admin-password-input" style={s.inputField} placeholder="Lozinka" placeholderTextColor={c.textSec} value={password} onChangeText={setPassword} secureTextEntry />
+        </View>
+        {loginError ? <Text testID="login-error" style={s.errorTxt}>{loginError}</Text> : null}
+        <TouchableOpacity testID="admin-login-btn" style={s.loginBtn} onPress={handleLogin} disabled={loginLoading}>
+          {loginLoading ? <ActivityIndicator color="#fff" /> : <Text style={s.loginBtnTxt}>Prijavi se</Text>}
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
 
+  // ===== DASHBOARD =====
+  return (
+    <View testID="admin-dashboard" style={[s.root, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" />
       {/* Header */}
       <View style={s.header}>
-        <View style={s.headerLeft}>
-          <TouchableOpacity testID="back-btn" onPress={() => router.back()} style={s.headerBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+        <View style={s.headerL}>
+          <TouchableOpacity testID="back-btn" onPress={() => router.back()} style={s.headerBtn}><Ionicons name="arrow-back" size={22} color={c.text} /></TouchableOpacity>
           <Text style={s.headerTitle}>Admin Panel</Text>
         </View>
-        <View style={s.headerRight}>
-          <TouchableOpacity testID="add-location-btn" style={s.addBtn} onPress={openNewLocation}>
-            <Ionicons name="add" size={22} color="#fff" />
-            <Text style={s.addBtnText}>Dodaj</Text>
-          </TouchableOpacity>
+        <View style={s.headerR}>
+          {activeTab === 'locations' && (
+            <TouchableOpacity testID="add-location-btn" style={s.addBtn} onPress={openNewLocation}>
+              <Ionicons name="add" size={22} color="#fff" /><Text style={s.addBtnTxt}>Dodaj</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity testID="logout-btn" style={s.logoutBtn} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={22} color={colors.danger} />
+            <Ionicons name="log-out-outline" size={22} color={c.danger} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Stats */}
-      <View style={s.stats}>
-        <View style={s.statCard}>
-          <Text style={s.statNum}>{locations.length}</Text>
-          <Text style={s.statLabel}>Ukupno lokacija</Text>
-        </View>
-        <View style={s.statCard}>
-          <Text style={[s.statNum, { color: colors.success }]}>{locations.filter(l => l.is_premium).length}</Text>
-          <Text style={s.statLabel}>Premium</Text>
-        </View>
+      {/* Tabs */}
+      <View style={s.tabs}>
+        {(['locations', 'notifications', 'settings'] as const).map(tab => (
+          <TouchableOpacity key={tab} testID={`tab-${tab}`} style={[s.tab, activeTab === tab && s.tabActive]}
+            onPress={() => setActiveTab(tab)}>
+            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
+              size={16} color={activeTab === tab ? '#fff' : c.textSec} />
+            <Text style={[s.tabTxt, activeTab === tab && s.tabTxtActive]}>
+              {tab === 'locations' ? 'Lokacije' : tab === 'notifications' ? 'Obavještenja' : 'Postavke'}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Tab toggle */}
-      <View style={s.tabRow}>
-        <TouchableOpacity testID="tab-locations" style={[s.tab, !showSettings && s.tabActive]}
-          onPress={() => setShowSettings(false)}>
-          <Ionicons name="location-outline" size={18} color={!showSettings ? '#fff' : colors.textSecondary} />
-          <Text style={[s.tabText, !showSettings && s.tabTextActive]}>Lokacije</Text>
-        </TouchableOpacity>
-        <TouchableOpacity testID="tab-settings" style={[s.tab, showSettings && s.tabActive]}
-          onPress={() => setShowSettings(true)}>
-          <Ionicons name="cog-outline" size={18} color={showSettings ? '#fff' : colors.textSecondary} />
-          <Text style={[s.tabText, showSettings && s.tabTextActive]}>Postavke</Text>
-        </TouchableOpacity>
-      </View>
+      {/* ===== LOCATIONS TAB ===== */}
+      {activeTab === 'locations' && (
+        loading ? <ActivityIndicator size="large" color={c.accent} style={{ marginTop: 40 }} /> : (
+          <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+            <View style={s.stats}>
+              <View style={s.statCard}><Text style={s.statNum}>{locations.length}</Text><Text style={s.statLbl}>Ukupno</Text></View>
+              <View style={s.statCard}><Text style={[s.statNum, { color: c.success }]}>{locations.filter(l => l.is_premium).length}</Text><Text style={s.statLbl}>Premium</Text></View>
+            </View>
+            {locations.map(loc => (
+              <View key={loc.id} testID={`admin-loc-${loc.id}`} style={s.locCard}>
+                {loc.images && loc.images.length > 0 && (
+                  <Image source={{ uri: loc.images[0] }} style={s.locThumb} />
+                )}
+                <View style={s.locBody}>
+                  <View style={s.locTopRow}>
+                    <Text style={s.locName} numberOfLines={1}>{loc.name}</Text>
+                    {loc.is_premium && <View style={s.premBadge}><Text style={s.premTxt}>PREMIUM</Text></View>}
+                  </View>
+                  <Text style={s.locCat}>{getCatName(loc.category)}</Text>
+                  <Text style={s.locAddr} numberOfLines={1}>{loc.address}</Text>
+                  {loc.images && loc.images.length > 0 && (
+                    <Text style={s.locImgCount}>{loc.images.length} slika</Text>
+                  )}
+                </View>
+                <View style={s.locActions}>
+                  <TouchableOpacity testID={`edit-loc-${loc.id}`} style={s.editBtn} onPress={() => openEditLocation(loc)}>
+                    <Ionicons name="pencil" size={18} color={c.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity testID={`delete-loc-${loc.id}`} style={s.delBtn} onPress={() => deleteLocation(loc)}>
+                    <Ionicons name="trash-outline" size={18} color={c.danger} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        )
+      )}
 
-      {/* Settings View */}
-      {showSettings ? (
+      {/* ===== NOTIFICATIONS TAB ===== */}
+      {activeTab === 'notifications' && (
         <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
-          <View style={s.settingsSection}>
+          {/* Send notification form */}
+          <View style={s.notifCard}>
+            <View style={s.notifHeader}>
+              <Ionicons name="megaphone" size={24} color={c.notif} />
+              <Text style={s.notifTitle}>Pošalji obavještenje</Text>
+            </View>
+            <Text style={s.notifDevices}>
+              <Ionicons name="phone-portrait-outline" size={14} color={c.textSec} /> {activeDevices} aktivnih uređaja
+            </Text>
+            <Text style={s.fldLbl}>Naslov *</Text>
+            <TextInput testID="notif-title-input" style={s.fldInput} value={notifTitle} onChangeText={setNotifTitle}
+              placeholder="Npr: Dani šljive u Gradačcu" placeholderTextColor={c.textSec} />
+            <Text style={s.fldLbl}>Tekst poruke *</Text>
+            <TextInput testID="notif-body-input" style={[s.fldInput, { height: 80, textAlignVertical: 'top' }]}
+              value={notifBody} onChangeText={setNotifBody} placeholder="Opišite događaj ili manifestaciju..."
+              placeholderTextColor={c.textSec} multiline />
+            <TouchableOpacity testID="send-notif-btn" style={s.sendBtn} onPress={sendNotification} disabled={sendingNotif}>
+              {sendingNotif ? <ActivityIndicator color="#fff" /> : (
+                <><Ionicons name="send" size={18} color="#fff" /><Text style={s.sendBtnTxt}>Pošalji svima</Text></>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* History */}
+          <Text style={s.historyTitle}>Historija obavještenja</Text>
+          {notifications.length === 0 ? (
+            <View style={s.emptyState}><Text style={s.emptyTxt}>Još nema poslanih obavještenja</Text></View>
+          ) : (
+            notifications.map(n => (
+              <View key={n.id} testID={`notif-${n.id}`} style={s.historyCard}>
+                <View style={s.historyTop}>
+                  <Text style={s.historyName}>{n.title}</Text>
+                  <Text style={s.historyDate}>{new Date(n.created_at).toLocaleDateString('bs-BA')}</Text>
+                </View>
+                <Text style={s.historyBody}>{n.body}</Text>
+                <View style={s.historyStats}>
+                  <Text style={s.historyStatTxt}><Ionicons name="phone-portrait" size={12} color={c.textSec} /> {n.total_devices}</Text>
+                  <Text style={[s.historyStatTxt, { color: c.success }]}><Ionicons name="checkmark-circle" size={12} color={c.success} /> {n.successful}</Text>
+                  {n.failed > 0 && <Text style={[s.historyStatTxt, { color: c.danger }]}><Ionicons name="close-circle" size={12} color={c.danger} /> {n.failed}</Text>}
+                </View>
+              </View>
+            ))
+          )}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
+
+      {/* ===== SETTINGS TAB ===== */}
+      {activeTab === 'settings' && (
+        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+          <View style={s.settingsCard}>
             <Text style={s.settingsTitle}>PayPal Donacija</Text>
-            <Text style={s.settingsDesc}>Unesite vaš PayPal.me link za primanje donacija u aplikaciji.</Text>
-            <Text style={s.fieldLbl}>PayPal.me Link</Text>
-            <TextInput testID="paypal-link-input" style={s.settingsInput} value={paypalLink}
-              onChangeText={setPaypalLink} placeholder="https://paypal.me/VasUsername"
-              placeholderTextColor={colors.textSecondary} autoCapitalize="none" />
-            <Text style={s.settingsHint}>Npr: https://paypal.me/MojeIme ili paypal.me/MojeIme</Text>
+            <Text style={s.settingsDesc}>Unesite vaš PayPal.me link za primanje donacija.</Text>
+            <Text style={s.fldLbl}>PayPal.me Link</Text>
+            <TextInput testID="paypal-link-input" style={s.fldInput} value={paypalLink} onChangeText={setPaypalLink}
+              placeholder="https://paypal.me/VasUsername" placeholderTextColor={c.textSec} autoCapitalize="none" />
           </View>
-
-          <View style={s.settingsSection}>
+          <View style={s.settingsCard}>
             <Text style={s.settingsTitle}>Kontakt Email</Text>
-            <TextInput testID="contact-email-input" style={s.settingsInput} value={contactEmail}
-              onChangeText={setContactEmail} placeholder="info@gradacac-mapa.ba"
-              placeholderTextColor={colors.textSecondary} keyboardType="email-address" autoCapitalize="none" />
+            <TextInput testID="contact-email-input" style={s.fldInput} value={contactEmail} onChangeText={setContactEmail}
+              placeholder="info@gradacac-mapa.ba" placeholderTextColor={c.textSec} keyboardType="email-address" autoCapitalize="none" />
           </View>
-
-          <TouchableOpacity testID="save-settings-btn" style={s.saveSettingsBtn} onPress={saveSettings} disabled={settingsSaving}>
+          <TouchableOpacity testID="save-settings-btn" style={s.saveSetBtn} onPress={saveSettings} disabled={settingsSaving}>
             {settingsSaving ? <ActivityIndicator color="#fff" /> : (
-              <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveSettingsBtnText}>Sačuvaj postavke</Text></>
+              <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveSetBtnTxt}>Sačuvaj postavke</Text></>
             )}
           </TouchableOpacity>
           <View style={{ height: 40 }} />
         </ScrollView>
-      ) : (
+      )}
 
-      /* Location list */
-      loading ? <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 40 }} /> : (
-        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
-          {locations.map(loc => (
-            <View key={loc.id} testID={`admin-loc-${loc.id}`} style={s.locCard}>
-              <View style={s.locBody}>
-                <View style={s.locTopRow}>
-                  <Text style={s.locName} numberOfLines={1}>{loc.name}</Text>
-                  {loc.is_premium && (
-                    <View style={s.premiumBadge}><Text style={s.premiumText}>PREMIUM</Text></View>
-                  )}
-                </View>
-                <Text style={s.locCat}>{getCatName(loc.category)}</Text>
-                <Text style={s.locAddr} numberOfLines={1}>{loc.address}</Text>
-              </View>
-              <View style={s.locActions}>
-                <TouchableOpacity testID={`edit-loc-${loc.id}`} style={s.editBtn} onPress={() => openEditLocation(loc)}>
-                  <Ionicons name="pencil" size={18} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity testID={`delete-loc-${loc.id}`} style={s.deleteBtn} onPress={() => deleteLocation(loc)}>
-                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      ))}
-
-      {/* Edit/Add Modal */}
+      {/* ===== EDIT/ADD LOCATION MODAL ===== */}
       <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
         <View style={s.modalOuter}>
           <TouchableOpacity style={s.modalBg} onPress={() => setEditModalVisible(false)} activeOpacity={1} />
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalKeyboard}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalKb}>
             <View testID="edit-location-modal" style={s.modalBox}>
               <View style={s.modalHead}>
                 <Text style={s.modalTitle}>{isNewLocation ? 'Nova lokacija' : 'Uredi lokaciju'}</Text>
                 <TouchableOpacity testID="close-edit-modal" onPress={() => setEditModalVisible(false)}>
-                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                  <Ionicons name="close" size={24} color={c.textSec} />
                 </TouchableOpacity>
               </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Images */}
+                {!isNewLocation && (
+                  <View style={s.imgSection}>
+                    <Text style={s.fldLbl}>Slike</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.imgScroll}>
+                      {(editLocation.images || []).map((img, i) => (
+                        <View key={i} style={s.imgThumbWrap}>
+                          <Image source={{ uri: img }} style={s.imgThumb} />
+                          <TouchableOpacity testID={`delete-img-${i}`} style={s.imgDelBtn} onPress={() => deleteImage(i)}>
+                            <Ionicons name="close" size={14} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      <TouchableOpacity testID="upload-image-btn" style={s.imgAddBtn} onPress={pickAndUploadImage} disabled={uploadingImage}>
+                        {uploadingImage ? <ActivityIndicator size="small" color={c.accent} /> : (
+                          <><Ionicons name="camera-outline" size={28} color={c.accent} /><Text style={s.imgAddTxt}>Dodaj</Text></>
+                        )}
+                      </TouchableOpacity>
+                    </ScrollView>
+                  </View>
+                )}
 
-              <ScrollView showsVerticalScrollIndicator={false} style={s.modalScroll}>
-                <Text style={s.fieldLabel}>Ime *</Text>
-                <TextInput testID="edit-name" style={s.fieldInput} value={editLocation.name || ''} onChangeText={v => setEditLocation(p => ({ ...p, name: v }))} placeholder="Naziv lokacije" />
+                <Text style={s.fldLbl}>Ime *</Text>
+                <TextInput testID="edit-name" style={s.fldInput} value={editLocation.name || ''} onChangeText={v => setEditLocation(p => ({ ...p, name: v }))} placeholder="Naziv" />
 
-                <Text style={s.fieldLabel}>Kategorija *</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catRow}>
+                <Text style={s.fldLbl}>Kategorija *</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                   {CATEGORIES.map(cat => (
                     <TouchableOpacity key={cat.id} testID={`edit-cat-${cat.id}`}
-                      style={[s.catOption, editLocation.category === cat.id && s.catOptionActive]}
+                      style={[s.catOpt, editLocation.category === cat.id && s.catOptActive]}
                       onPress={() => setEditLocation(p => ({ ...p, category: cat.id }))}>
-                      <Text style={[s.catOptionText, editLocation.category === cat.id && s.catOptionTextActive]}>{cat.name}</Text>
+                      <Text style={[s.catOptTxt, editLocation.category === cat.id && s.catOptTxtActive]}>{cat.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
 
-                <Text style={s.fieldLabel}>Adresa *</Text>
-                <TextInput testID="edit-address" style={s.fieldInput} value={editLocation.address || ''} onChangeText={v => setEditLocation(p => ({ ...p, address: v }))} placeholder="Ulica i broj" />
+                <Text style={s.fldLbl}>Adresa *</Text>
+                <TextInput testID="edit-address" style={s.fldInput} value={editLocation.address || ''} onChangeText={v => setEditLocation(p => ({ ...p, address: v }))} placeholder="Ulica" />
 
-                <View style={s.rowFields}>
-                  <View style={s.halfField}>
-                    <Text style={s.fieldLabel}>Latitude</Text>
-                    <TextInput testID="edit-lat" style={s.fieldInput} value={String(editLocation.latitude || '')} onChangeText={v => setEditLocation(p => ({ ...p, latitude: parseFloat(v) || 0 }))} keyboardType="numeric" />
+                <View style={s.rowFld}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.fldLbl}>Latitude</Text>
+                    <TextInput testID="edit-lat" style={s.fldInput} value={String(editLocation.latitude || '')} onChangeText={v => setEditLocation(p => ({ ...p, latitude: parseFloat(v) || 0 }))} keyboardType="numeric" />
                   </View>
-                  <View style={s.halfField}>
-                    <Text style={s.fieldLabel}>Longitude</Text>
-                    <TextInput testID="edit-lng" style={s.fieldInput} value={String(editLocation.longitude || '')} onChangeText={v => setEditLocation(p => ({ ...p, longitude: parseFloat(v) || 0 }))} keyboardType="numeric" />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={s.fldLbl}>Longitude</Text>
+                    <TextInput testID="edit-lng" style={s.fldInput} value={String(editLocation.longitude || '')} onChangeText={v => setEditLocation(p => ({ ...p, longitude: parseFloat(v) || 0 }))} keyboardType="numeric" />
                   </View>
                 </View>
 
-                <Text style={s.fieldLabel}>Telefon</Text>
-                <TextInput testID="edit-phone" style={s.fieldInput} value={editLocation.phone || ''} onChangeText={v => setEditLocation(p => ({ ...p, phone: v }))} placeholder="+387 35 ..." keyboardType="phone-pad" />
+                <Text style={s.fldLbl}>Telefon</Text>
+                <TextInput testID="edit-phone" style={s.fldInput} value={editLocation.phone || ''} onChangeText={v => setEditLocation(p => ({ ...p, phone: v }))} placeholder="+387 35 ..." keyboardType="phone-pad" />
 
-                <Text style={s.fieldLabel}>Opis</Text>
-                <TextInput testID="edit-description" style={[s.fieldInput, { height: 60 }]} value={editLocation.description || ''} onChangeText={v => setEditLocation(p => ({ ...p, description: v }))} placeholder="Kratki opis" multiline />
+                <Text style={s.fldLbl}>Opis</Text>
+                <TextInput testID="edit-description" style={[s.fldInput, { height: 70 }]} value={editLocation.description || ''} onChangeText={v => setEditLocation(p => ({ ...p, description: v }))} placeholder="Opis" multiline />
 
-                <Text style={s.fieldLabel}>Radno vrijeme</Text>
-                <TextInput testID="edit-hours" style={s.fieldInput} value={editLocation.working_hours || ''} onChangeText={v => setEditLocation(p => ({ ...p, working_hours: v }))} placeholder="08:00 - 22:00" />
+                <Text style={s.fldLbl}>Radno vrijeme</Text>
+                <TextInput testID="edit-hours" style={s.fldInput} value={editLocation.working_hours || ''} onChangeText={v => setEditLocation(p => ({ ...p, working_hours: v }))} placeholder="08:00 - 22:00" />
 
-                <TouchableOpacity testID="edit-premium-toggle" style={s.premiumToggle} onPress={() => setEditLocation(p => ({ ...p, is_premium: !p.is_premium }))}>
-                  <Ionicons name={editLocation.is_premium ? 'checkbox' : 'square-outline'} size={24} color={editLocation.is_premium ? colors.success : colors.textSecondary} />
-                  <Text style={s.premiumToggleText}>Premium lokacija (plaćena pretplata)</Text>
+                <TouchableOpacity testID="edit-premium-toggle" style={s.premToggle} onPress={() => setEditLocation(p => ({ ...p, is_premium: !p.is_premium }))}>
+                  <Ionicons name={editLocation.is_premium ? 'checkbox' : 'square-outline'} size={24} color={editLocation.is_premium ? c.success : c.textSec} />
+                  <Text style={s.premToggleTxt}>Premium lokacija</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity testID="save-location-btn" style={s.saveBtn} onPress={saveLocation} disabled={saving}>
+                <TouchableOpacity testID="save-location-btn" style={s.saveLocBtn} onPress={saveLocation} disabled={saving}>
                   {saving ? <ActivityIndicator color="#fff" /> : (
-                    <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveBtnText}>{isNewLocation ? 'Dodaj lokaciju' : 'Sačuvaj izmjene'}</Text></>
+                    <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveLocBtnTxt}>{isNewLocation ? 'Dodaj' : 'Sačuvaj'}</Text></>
                   )}
                 </TouchableOpacity>
                 <View style={{ height: 40 }} />
@@ -419,79 +503,101 @@ export default function AdminScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1, backgroundColor: c.bg },
   // Login
   loginWrap: { flex: 1, paddingHorizontal: 32, alignItems: 'center' },
-  backBtn: { position: 'absolute', top: 60, left: 24, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  loginIcon: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border, marginBottom: 20 },
-  loginTitle: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: colors.textPrimary, letterSpacing: -0.8 },
-  loginSub: { fontSize: 15, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginTop: 4, marginBottom: 32 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 16 : 12, borderWidth: 1, borderColor: colors.border, marginBottom: 14, width: '100%' },
-  input: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium', color: colors.textPrimary, marginLeft: 12 },
-  errorText: { color: colors.danger, fontSize: 14, fontFamily: 'Manrope_500Medium', marginBottom: 12 },
-  loginBtn: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, width: '100%', alignItems: 'center', marginTop: 8 },
-  loginBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold' },
+  backCircle: { position: 'absolute', top: 60, left: 24, width: 44, height: 44, borderRadius: 22, backgroundColor: c.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border },
+  loginIcon: { width: 96, height: 96, borderRadius: 48, backgroundColor: c.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border, marginBottom: 20 },
+  loginTitle: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: c.text },
+  loginSub: { fontSize: 15, fontFamily: 'Manrope_400Regular', color: c.textSec, marginTop: 4, marginBottom: 32 },
+  inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 14, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 16 : 12, borderWidth: 1, borderColor: c.border, marginBottom: 14, width: '100%' },
+  inputField: { flex: 1, fontSize: 15, fontFamily: 'Manrope_500Medium', color: c.text, marginLeft: 12 },
+  errorTxt: { color: c.danger, fontSize: 14, fontFamily: 'Manrope_500Medium', marginBottom: 12 },
+  loginBtn: { backgroundColor: c.primary, borderRadius: 14, paddingVertical: 16, width: '100%', alignItems: 'center', marginTop: 8 },
+  loginBtnTxt: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold' },
   // Header
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  headerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border, marginRight: 12 },
-  headerTitle: { fontSize: 22, fontFamily: 'Outfit_700Bold', color: colors.textPrimary },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  addBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.accent, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  addBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Manrope_700Bold', marginLeft: 4 },
-  logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  // Stats
-  stats: { flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 16, gap: 12 },
-  statCard: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  statNum: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: colors.textPrimary },
-  statLabel: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: colors.textSecondary, marginTop: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border },
+  headerL: { flexDirection: 'row', alignItems: 'center' },
+  headerBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border, marginRight: 12 },
+  headerTitle: { fontSize: 22, fontFamily: 'Outfit_700Bold', color: c.text },
+  headerR: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  addBtnTxt: { color: '#fff', fontSize: 14, fontFamily: 'Manrope_700Bold', marginLeft: 4 },
+  logoutBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border },
+  // Tabs
+  tabs: { flexDirection: 'row', marginHorizontal: 20, marginVertical: 12, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.border, overflow: 'hidden' },
+  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 11 },
+  tabActive: { backgroundColor: c.primary },
+  tabTxt: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.textSec, marginLeft: 5 },
+  tabTxtActive: { color: '#fff' },
   // List
   list: { flex: 1, paddingHorizontal: 20 },
-  locCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: colors.border },
+  stats: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  statCard: { flex: 1, backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, alignItems: 'center' },
+  statNum: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: c.text },
+  statLbl: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: c.textSec, marginTop: 4 },
+  // Loc card
+  locCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border },
+  locThumb: { width: 50, height: 50, borderRadius: 10, marginRight: 12 },
   locBody: { flex: 1 },
   locTopRow: { flexDirection: 'row', alignItems: 'center' },
-  locName: { fontSize: 16, fontFamily: 'Outfit_600SemiBold', color: colors.textPrimary, flex: 1 },
-  premiumBadge: { backgroundColor: '#E8F5E9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
-  premiumText: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: colors.success },
-  locCat: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: colors.accent, marginTop: 2 },
-  locAddr: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginTop: 2 },
-  locActions: { flexDirection: 'row', gap: 8, marginLeft: 12 },
-  editBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  deleteBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFF5F5', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FFE0E0' },
+  locName: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: c.text, flex: 1 },
+  premBadge: { backgroundColor: '#E8F5E9', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 6 },
+  premTxt: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: c.success },
+  locCat: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.accent, marginTop: 2 },
+  locAddr: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: c.textSec, marginTop: 1 },
+  locImgCount: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.primary, marginTop: 2 },
+  locActions: { flexDirection: 'row', gap: 6, marginLeft: 8 },
+  editBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border },
+  delBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#FFF5F5', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FFE0E0' },
+  // Notifications
+  notifCard: { backgroundColor: c.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: c.border, marginBottom: 20 },
+  notifHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  notifTitle: { fontSize: 20, fontFamily: 'Outfit_700Bold', color: c.text, marginLeft: 10 },
+  notifDevices: { fontSize: 13, fontFamily: 'Manrope_500Medium', color: c.textSec, marginBottom: 16 },
+  fldLbl: { fontSize: 11, fontFamily: 'Manrope_700Bold', color: c.textSec, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 10 },
+  fldInput: { backgroundColor: c.bg, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, fontFamily: 'Manrope_500Medium', color: c.text, borderWidth: 1, borderColor: c.border },
+  sendBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: c.notif, borderRadius: 14, paddingVertical: 16, marginTop: 16 },
+  sendBtnTxt: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold', marginLeft: 8 },
+  historyTitle: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: c.text, marginBottom: 12 },
+  emptyState: { alignItems: 'center', paddingVertical: 32 },
+  emptyTxt: { fontSize: 14, fontFamily: 'Manrope_400Regular', color: c.textSec },
+  historyCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: c.border },
+  historyTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  historyName: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: c.text, flex: 1 },
+  historyDate: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: c.textSec },
+  historyBody: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: c.textSec, marginTop: 6 },
+  historyStats: { flexDirection: 'row', gap: 16, marginTop: 10 },
+  historyStatTxt: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: c.textSec },
+  // Settings
+  settingsCard: { backgroundColor: c.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: c.border },
+  settingsTitle: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: c.text, marginBottom: 6 },
+  settingsDesc: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: c.textSec, marginBottom: 14, lineHeight: 20 },
+  saveSetBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary, borderRadius: 14, paddingVertical: 16, marginTop: 8 },
+  saveSetBtnTxt: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold', marginLeft: 8 },
   // Modal
   modalOuter: { flex: 1, justifyContent: 'flex-end' },
   modalBg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalKeyboard: { flex: 1, justifyContent: 'flex-end' },
-  modalBox: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 20, paddingHorizontal: 24, maxHeight: height * 0.85 },
-  modalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 22, fontFamily: 'Outfit_700Bold', color: colors.textPrimary },
-  modalScroll: { flex: 1 },
-  fieldLabel: { fontSize: 12, fontFamily: 'Manrope_700Bold', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
-  fieldInput: { backgroundColor: colors.background, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, fontFamily: 'Manrope_500Medium', color: colors.textPrimary, borderWidth: 1, borderColor: colors.border },
-  catRow: { marginBottom: 4 },
-  catOption: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.background, marginRight: 8, borderWidth: 1, borderColor: colors.border },
-  catOptionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  catOptionText: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: colors.textPrimary },
-  catOptionTextActive: { color: '#fff' },
-  rowFields: { flexDirection: 'row', gap: 12 },
-  halfField: { flex: 1 },
-  premiumToggle: { flexDirection: 'row', alignItems: 'center', marginTop: 16, paddingVertical: 8 },
-  premiumToggleText: { fontSize: 15, fontFamily: 'Manrope_500Medium', color: colors.textPrimary, marginLeft: 12 },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, marginTop: 20 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold', marginLeft: 8 },
-  // Tabs
-  tabRow: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-  tabActive: { backgroundColor: colors.primary },
-  tabText: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: colors.textSecondary, marginLeft: 6 },
-  tabTextActive: { color: '#fff' },
-  // Settings
-  settingsSection: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
-  settingsTitle: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: colors.textPrimary, marginBottom: 6 },
-  settingsDesc: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginBottom: 14, lineHeight: 20 },
-  fieldLbl: { fontSize: 12, fontFamily: 'Manrope_700Bold', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  settingsInput: { backgroundColor: colors.background, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, fontFamily: 'Manrope_500Medium', color: colors.textPrimary, borderWidth: 1, borderColor: colors.border },
-  settingsHint: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginTop: 6 },
-  saveSettingsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, marginTop: 8 },
-  saveSettingsBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold', marginLeft: 8 },
+  modalKb: { flex: 1, justifyContent: 'flex-end' },
+  modalBox: { backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 20, paddingHorizontal: 24, maxHeight: height * 0.88 },
+  modalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 22, fontFamily: 'Outfit_700Bold', color: c.text },
+  // Images in modal
+  imgSection: { marginBottom: 8 },
+  imgScroll: { marginTop: 4 },
+  imgThumbWrap: { position: 'relative', marginRight: 10 },
+  imgThumb: { width: 80, height: 80, borderRadius: 12 },
+  imgDelBtn: { position: 'absolute', top: -6, right: -6, width: 24, height: 24, borderRadius: 12, backgroundColor: c.danger, justifyContent: 'center', alignItems: 'center' },
+  imgAddBtn: { width: 80, height: 80, borderRadius: 12, borderWidth: 2, borderStyle: 'dashed', borderColor: c.border, justifyContent: 'center', alignItems: 'center' },
+  imgAddTxt: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: c.accent, marginTop: 2 },
+  // Cat options
+  catOpt: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: c.bg, marginRight: 8, borderWidth: 1, borderColor: c.border },
+  catOptActive: { backgroundColor: c.primary, borderColor: c.primary },
+  catOptTxt: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: c.text },
+  catOptTxtActive: { color: '#fff' },
+  rowFld: { flexDirection: 'row' },
+  premToggle: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingVertical: 8 },
+  premToggleTxt: { fontSize: 15, fontFamily: 'Manrope_500Medium', color: c.text, marginLeft: 12 },
+  saveLocBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent, borderRadius: 14, paddingVertical: 16, marginTop: 18 },
+  saveLocBtnTxt: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold', marginLeft: 8 },
 });

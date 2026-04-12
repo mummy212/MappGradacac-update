@@ -336,8 +336,8 @@ class PushTokenRegister(BaseModel):
     platform: str = "unknown"
 
 class NotificationCreate(BaseModel):
-    title: str
-    body: str
+    title: str = Field(min_length=1)
+    body: str = Field(min_length=1)
 
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
