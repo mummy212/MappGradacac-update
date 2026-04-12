@@ -238,6 +238,10 @@ export default function Index() {
 
         {/* Controls */}
         <View style={s.mapCtrl}>
+          <TouchableOpacity testID="about-btn" style={[s.mapBtn, { backgroundColor: colors.accent }]}
+            onPress={() => router.push('/about')} activeOpacity={0.7}>
+            <Ionicons name="heart-outline" size={22} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity testID="admin-panel-btn" style={[s.mapBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push('/admin')} activeOpacity={0.7}>
             <Ionicons name="settings-outline" size={22} color="#fff" />
