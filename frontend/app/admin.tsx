@@ -11,6 +11,36 @@ import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Web-safe storage wrapper
+const Storage = {
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      if (Platform.OS === 'web') {
+        return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+      }
+      return await AsyncStorage.getItem(key);
+    } catch { return null; }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    try {
+      if (Platform.OS === 'web') {
+        typeof window !== 'undefined' && window.localStorage.setItem(key, value);
+        return;
+      }
+      await AsyncStorage.setItem(key, value);
+    } catch {}
+  },
+  removeItem: async (key: string): Promise<void> => {
+    try {
+      if (Platform.OS === 'web') {
+        typeof window !== 'undefined' && window.localStorage.removeItem(key);
+        return;
+      }
+      await AsyncStorage.removeItem(key);
+    } catch {}
+  },
+};
+
 const { width, height } = Dimensions.get('window');
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -47,6 +77,10 @@ export default function AdminScreen() {
   const [editLocation, setEditLocation] = useState<Partial<LocationItem>>({});
   const [isNewLocation, setIsNewLocation] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [paypalLink, setPaypalLink] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -56,11 +90,12 @@ export default function AdminScreen() {
   useEffect(() => { checkAuth(); }, []);
 
   const checkAuth = async () => {
-    const savedToken = await AsyncStorage.getItem('admin_token');
+    const savedToken = await Storage.getItem('admin_token');
     if (savedToken) {
       setToken(savedToken);
       setIsLoggedIn(true);
       fetchLocations(savedToken);
+      fetchSettings(savedToken);
     }
   };
 
@@ -71,9 +106,10 @@ export default function AdminScreen() {
       const r = await axios.post(`${BACKEND_URL}/api/auth/login`, { email: email.toLowerCase(), password });
       const t = r.data.token;
       setToken(t);
-      await AsyncStorage.setItem('admin_token', t);
+      await Storage.setItem('admin_token', t);
       setIsLoggedIn(true);
       fetchLocations(t);
+      fetchSettings(t);
     } catch (e: any) {
       setLoginError(e.response?.data?.detail || 'Greška pri prijavi');
     } finally {
@@ -82,7 +118,7 @@ export default function AdminScreen() {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('admin_token');
+    await Storage.removeItem('admin_token');
     setIsLoggedIn(false);
     setToken('');
     setEmail('');
@@ -96,6 +132,25 @@ export default function AdminScreen() {
       setLocations(r.data);
     } catch (e) { console.error(e); }
     setLoading(false);
+  };
+
+  const fetchSettings = async (t: string) => {
+    try {
+      const r = await axios.get(`${BACKEND_URL}/api/settings`);
+      setPaypalLink(r.data.paypal_link || '');
+      setContactEmail(r.data.contact_email || '');
+    } catch (e) { console.error(e); }
+  };
+
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      await axios.put(`${BACKEND_URL}/api/admin/settings`, {
+        paypal_link: paypalLink, contact_email: contactEmail,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      Alert.alert('Uspješno', 'Postavke sačuvane');
+    } catch (e) { Alert.alert('Greška', 'Greška pri čuvanju postavki'); }
+    setSettingsSaving(false);
   };
 
   const openNewLocation = () => {
@@ -220,8 +275,51 @@ export default function AdminScreen() {
         </View>
       </View>
 
-      {/* Location list */}
-      {loading ? <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 40 }} /> : (
+      {/* Tab toggle */}
+      <View style={s.tabRow}>
+        <TouchableOpacity testID="tab-locations" style={[s.tab, !showSettings && s.tabActive]}
+          onPress={() => setShowSettings(false)}>
+          <Ionicons name="location-outline" size={18} color={!showSettings ? '#fff' : colors.textSecondary} />
+          <Text style={[s.tabText, !showSettings && s.tabTextActive]}>Lokacije</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="tab-settings" style={[s.tab, showSettings && s.tabActive]}
+          onPress={() => setShowSettings(true)}>
+          <Ionicons name="cog-outline" size={18} color={showSettings ? '#fff' : colors.textSecondary} />
+          <Text style={[s.tabText, showSettings && s.tabTextActive]}>Postavke</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Settings View */}
+      {showSettings ? (
+        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+          <View style={s.settingsSection}>
+            <Text style={s.settingsTitle}>PayPal Donacija</Text>
+            <Text style={s.settingsDesc}>Unesite vaš PayPal.me link za primanje donacija u aplikaciji.</Text>
+            <Text style={s.fieldLbl}>PayPal.me Link</Text>
+            <TextInput testID="paypal-link-input" style={s.settingsInput} value={paypalLink}
+              onChangeText={setPaypalLink} placeholder="https://paypal.me/VasUsername"
+              placeholderTextColor={colors.textSecondary} autoCapitalize="none" />
+            <Text style={s.settingsHint}>Npr: https://paypal.me/MojeIme ili paypal.me/MojeIme</Text>
+          </View>
+
+          <View style={s.settingsSection}>
+            <Text style={s.settingsTitle}>Kontakt Email</Text>
+            <TextInput testID="contact-email-input" style={s.settingsInput} value={contactEmail}
+              onChangeText={setContactEmail} placeholder="info@gradacac-mapa.ba"
+              placeholderTextColor={colors.textSecondary} keyboardType="email-address" autoCapitalize="none" />
+          </View>
+
+          <TouchableOpacity testID="save-settings-btn" style={s.saveSettingsBtn} onPress={saveSettings} disabled={settingsSaving}>
+            {settingsSaving ? <ActivityIndicator color="#fff" /> : (
+              <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveSettingsBtnText}>Sačuvaj postavke</Text></>
+            )}
+          </TouchableOpacity>
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      ) : (
+
+      /* Location list */
+      loading ? <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 40 }} /> : (
         <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
           {locations.map(loc => (
             <View key={loc.id} testID={`admin-loc-${loc.id}`} style={s.locCard}>
@@ -247,7 +345,7 @@ export default function AdminScreen() {
           ))}
           <View style={{ height: 40 }} />
         </ScrollView>
-      )}
+      ))}
 
       {/* Edit/Add Modal */}
       <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
@@ -381,4 +479,19 @@ const s = StyleSheet.create({
   premiumToggleText: { fontSize: 15, fontFamily: 'Manrope_500Medium', color: colors.textPrimary, marginLeft: 12 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent, borderRadius: 14, paddingVertical: 16, marginTop: 20 },
   saveBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold', marginLeft: 8 },
+  // Tabs
+  tabRow: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+  tabActive: { backgroundColor: colors.primary },
+  tabText: { fontSize: 14, fontFamily: 'Manrope_600SemiBold', color: colors.textSecondary, marginLeft: 6 },
+  tabTextActive: { color: '#fff' },
+  // Settings
+  settingsSection: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  settingsTitle: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: colors.textPrimary, marginBottom: 6 },
+  settingsDesc: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginBottom: 14, lineHeight: 20 },
+  fieldLbl: { fontSize: 12, fontFamily: 'Manrope_700Bold', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  settingsInput: { backgroundColor: colors.background, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, fontFamily: 'Manrope_500Medium', color: colors.textPrimary, borderWidth: 1, borderColor: colors.border },
+  settingsHint: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, marginTop: 6 },
+  saveSettingsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, marginTop: 8 },
+  saveSettingsBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Manrope_700Bold', marginLeft: 8 },
 });

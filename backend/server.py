@@ -413,6 +413,33 @@ async def get_push_stats(user: dict = Depends(get_current_user)):
     total = await db.push_tokens.count_documents({"active": True})
     return {"active_devices": total}
 
+# ========== App Settings (Admin) ==========
+class AppSettingsUpdate(BaseModel):
+    paypal_link: Optional[str] = None
+    contact_email: Optional[str] = None
+    app_description: Optional[str] = None
+
+@api_router.get("/settings")
+async def get_settings():
+    """Get public app settings (PayPal link, etc.)"""
+    settings = await db.app_settings.find_one({"id": "main"}, {"_id": 0})
+    if not settings:
+        return {"id": "main", "paypal_link": "", "contact_email": "info@gradacac-mapa.ba", "app_description": ""}
+    return settings
+
+@api_router.put("/admin/settings")
+async def update_settings(input: AppSettingsUpdate, user: dict = Depends(get_current_user)):
+    """Update app settings (admin)"""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    update_data = {k: v for k, v in input.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    await db.app_settings.update_one({"id": "main"}, {"$set": update_data}, upsert=True)
+    await db.app_settings.update_one({"id": "main"}, {"$set": {"id": "main"}}, upsert=True)
+    settings = await db.app_settings.find_one({"id": "main"}, {"_id": 0})
+    return settings
+
 app.include_router(api_router)
 
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])

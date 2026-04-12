@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput,
   Linking, StatusBar, Platform, Alert,
@@ -8,16 +8,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium } from '@expo-google-fonts/outfit';
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const colors = {
   background: '#FAF9F6', surface: '#FFFFFF', primary: '#4A5D4E', primaryFg: '#FFFFFF',
   accent: '#D97757', accentFg: '#FFFFFF', textPrimary: '#1C1C1C', textSecondary: '#6B6B6B',
   border: '#E5E4E2', paypal: '#0070BA',
 };
-
-// ⚠️ ZAMIJENI sa svojim PayPal.me linkom ili PayPal email adresom
-const PAYPAL_ME_USERNAME = 'GradacacMapa';
-// Alternativno, koristi PayPal email: const PAYPAL_EMAIL = 'tvoj@email.com';
 
 const FIXED_AMOUNTS_EUR = [1, 3, 5, 10];
 const FIXED_AMOUNTS_BAM = [2, 5, 10, 20];
@@ -28,6 +27,8 @@ export default function AboutScreen() {
   const [selectedCurrency, setSelectedCurrency] = useState<'EUR' | 'BAM'>('EUR');
   const [customAmount, setCustomAmount] = useState('');
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
+  const [paypalLink, setPaypalLink] = useState('');
+  const [contactEmail, setContactEmail] = useState('info@gradacac-mapa.ba');
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -37,12 +38,27 @@ export default function AboutScreen() {
   const amounts = selectedCurrency === 'EUR' ? FIXED_AMOUNTS_EUR : FIXED_AMOUNTS_BAM;
   const symbol = selectedCurrency === 'EUR' ? '€' : 'KM';
 
+  useEffect(() => {
+    axios.get(`${BACKEND_URL}/api/settings`).then(r => {
+      if (r.data.paypal_link) setPaypalLink(r.data.paypal_link);
+      if (r.data.contact_email) setContactEmail(r.data.contact_email);
+    }).catch(() => {});
+  }, []);
+
   const handleDonate = (amount: number) => {
-    const currencyCode = selectedCurrency === 'EUR' ? 'EUR' : 'BAM';
-    // PayPal.me link format
-    const url = `https://www.paypal.me/${PAYPAL_ME_USERNAME}/${amount}${currencyCode}`;
+    if (!paypalLink) {
+      Alert.alert('PayPal', 'PayPal link još nije podešen. Kontaktirajte administratora.');
+      return;
+    }
+    let url = paypalLink;
+    // Clean URL and append amount
+    if (!url.startsWith('http')) url = `https://${url}`;
+    if (url.includes('paypal.me')) {
+      const currencyCode = selectedCurrency === 'EUR' ? 'EUR' : 'BAM';
+      url = `${url.replace(/\/$/, '')}/${amount}${currencyCode}`;
+    }
     Linking.openURL(url).catch(() => {
-      Alert.alert('Greška', 'Nije moguće otvoriti PayPal. Provjerite da li imate instaliran browser.');
+      Alert.alert('Greška', 'Nije moguće otvoriti PayPal.');
     });
   };
 
