@@ -1,0 +1,241 @@
+{
+  "summary": "Offers/Coupons CRUD feature testing complete - All backend tests passed (9/9). All frontend tests passed. New feature: Admin panel Offers tab (8th tab with pricetag icon) allows creating, viewing, and deleting offers. Offers display on main page in 'Posebne ponude' section with discount badges. Admin panel now has 8 tabs (was 7 in iteration 15).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_offers_crud.py",
+    "/app/test_reports/pytest/pytest_admin_offers_crud.xml",
+    "/tmp/admin_dashboard_8tabs.png",
+    "/tmp/admin_offers_tab.png",
+    "/tmp/offer_modal_open.png",
+    "/tmp/offer_form_filled.png",
+    "/tmp/offers_after_create.png",
+    "/tmp/main_page_top.png",
+    "/tmp/main_page_offers_section.png",
+    "/tmp/main_page_categories.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "✓ Backend: POST /api/business/offers creates offer (requires admin/business auth)",
+    "✓ Backend: DELETE /api/business/offers/{id} deletes offer (requires auth)",
+    "✓ Backend: GET /api/offers?active_only=false returns all offers (public endpoint)",
+    "✓ Backend: GET /api/offers?active_only=true returns only active offers",
+    "✓ Backend: All endpoints return 401 without authentication",
+    "✓ Backend: Offers enriched with location_name and location_image",
+    "✓ Backend: discount_percent and expires_at are optional fields",
+    "✓ Frontend: Admin panel has 8 tabs (locations, categories, businesses, tourism, events, offers, notifications, settings)",
+    "✓ Frontend: Offers tab (pricetag icon - 6th tab) shows offers list with count",
+    "✓ Frontend: 'Nova' button (testID='add-offer-btn') opens modal",
+    "✓ Frontend: Modal has all required fields (location selector, title, description, discount %, expiry date)",
+    "✓ Frontend: Location selector is horizontal scroll of all locations",
+    "✓ Frontend: Save button creates offer (testID='save-offer-btn')",
+    "✓ Frontend: Delete button (trash icon) removes offer from list",
+    "✓ Frontend: Main page shows 'Posebne ponude' section with offer cards",
+    "✓ Frontend: Offer cards display discount badge, title, description, location name",
+    "✓ Regression: All previous features working (map, search, categories, events, tourism, leaderboard)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_admin_offers_crud.py - Created comprehensive test suite for admin offers CRUD (9 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100% (all UI tests passed)"
+  },
+  "seed_data_creation": "Test offers already exist in database from previous testing. No new seed data created during this test iteration.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New admin offers management feature fully functional. Admin panel now has 8 tabs including Offers tab (pricetag icon - 6th tab). Offers management allows creating and deleting offers with location selector (horizontal scroll), title, description, discount percentage, and expiry date. Backend endpoints require admin or business authentication. Main page 'Posebne ponude' section displays active offers with discount badges, titles, descriptions, and location names. All previous features verified working.",
+  "test_details": {
+    "backend_tests": {
+      "admin_offers_auth": {
+        "test_create_offer_without_auth_fails": "✓ POST /api/business/offers without auth returns 401",
+        "test_delete_offer_without_auth_fails": "✓ DELETE /api/business/offers/{id} without auth returns 401"
+      },
+      "admin_offers_crud": {
+        "test_create_offer_and_verify_persistence": "✓ POST creates offer, GET /api/offers shows it with correct data",
+        "test_delete_offer_removes_from_list": "✓ DELETE removes offer, GET /api/offers confirms deletion",
+        "test_get_offers_active_only_filter": "✓ GET /api/offers?active_only=true returns only active offers, active_only=false returns all",
+        "test_offer_structure_validation": "✓ Offer response has all required fields (id, location_id, title, description, is_active, created_at, discount_percent, expires_at)",
+        "test_create_offer_without_discount_optional": "✓ POST works without discount_percent field (optional)"
+      },
+      "offers_public_endpoint": {
+        "test_get_offers_public_access": "✓ GET /api/offers is public (no auth required)",
+        "test_offers_enriched_with_location_data": "✓ Offers enriched with location_name and location_image fields"
+      }
+    },
+    "frontend_tests": {
+      "admin_panel_tabs": {
+        "tab_count": "✓ 8 tabs present (increased from 7 in iteration 15)",
+        "tab_locations": "✓ Locations tab (location icon) visible",
+        "tab_categories": "✓ Categories tab (grid icon) visible",
+        "tab_businesses": "✓ Businesses tab (people icon) visible",
+        "tab_tourism": "✓ Tourism tab (business icon) visible",
+        "tab_events": "✓ Events tab (calendar icon) visible",
+        "tab_offers": "✓ Offers tab (pricetag icon) visible - NEW 8th tab",
+        "tab_notifications": "✓ Notifications tab (notifications icon) visible",
+        "tab_settings": "✓ Settings tab (cog icon) visible"
+      },
+      "offers_tab": {
+        "offers_list": "✓ Shows list of offers with count (e.g., '4 ponuda')",
+        "nova_button": "✓ 'Nova' button (testID='add-offer-btn') visible and clickable",
+        "offer_cards": "✓ Each offer displayed as card with discount badge, title, description, location name",
+        "delete_button": "✓ Delete (trash) button visible on each card"
+      },
+      "offer_modal": {
+        "modal_opens": "✓ Modal opens when clicking 'Nova' button",
+        "modal_title": "✓ Title shows 'Nova ponuda'",
+        "location_selector": "✓ Horizontal scroll selector with all locations (Restoran Stari Grad, Restoran Zmaj, Ćevab...)",
+        "title_input": "✓ Title input field present (testID='offer-title-input')",
+        "description_input": "✓ Description textarea present (testID='offer-desc-input')",
+        "discount_input": "✓ Discount % input field present (testID='offer-discount-input')",
+        "expires_input": "✓ Expires date input field present (testID='offer-expires-input') with format YYYY-MM-DD",
+        "save_button": "✓ Save button present (testID='save-offer-btn') with text 'Dodaj ponudu'"
+      },
+      "main_page_offers": {
+        "section_visible": "✓ 'Posebne ponude' section visible on main page",
+        "offer_cards": "✓ 4 offer cards displayed",
+        "card_structure": "✓ Each card has discount badge (-20%, -15%), title, description, location name",
+        "testids": "✓ Cards have testID='offer-{id}'",
+        "discount_badges": "✓ Discount badges visible: -20%, -15%",
+        "offer_data": "✓ Offers show: 'TEST_Popust 20%', 'TEST Admin Offer', '20% popusta na ćevape', etc."
+      },
+      "regression_tests": {
+        "map": "✓ Map loads with markers",
+        "search": "✓ Search input working",
+        "map_controls": "✓ QR, About, Admin, Locate buttons working",
+        "categories_section": "✓ 'Kategorije' grid with 6 items",
+        "events_section": "✓ 'Nadolazeći događaji' section visible",
+        "leaderboard_section": "✓ 'Top u Gradačcu' section visible",
+        "attractions_section": "✓ 'Znamenitosti' section visible"
+      }
+    },
+    "integration_tests": {
+      "admin_offers_flow": {
+        "backend": "✓ POST creates, DELETE removes offers",
+        "frontend": "✓ Admin panel Offers tab manages offers via modal form",
+        "ui_display": "✓ List shows offers with discount badge, title, description, location name, delete button",
+        "modal_form": "✓ Form has location selector (horizontal scroll), title, description, discount %, expiry date fields",
+        "status": "✓ Working correctly"
+      },
+      "main_page_offers_display": {
+        "backend": "✓ GET /api/offers returns active offers with location enrichment",
+        "frontend": "✓ Main page fetches and displays in 'Posebne ponude' section",
+        "ui_display": "✓ Cards show discount badge, title, description, location name",
+        "status": "✓ Working correctly"
+      }
+    }
+  },
+  "code_quality_review": {
+    "backend": {
+      "offers_crud_endpoints": {
+        "location": "server.py lines 400-414",
+        "create_endpoint": "POST /api/business/offers (lines 400-406)",
+        "delete_endpoint": "DELETE /api/business/offers/{oid} (lines 408-414)",
+        "get_endpoint": "GET /api/offers (lines 302-312)",
+        "auth": "✓ POST and DELETE endpoints use require_business_or_admin dependency",
+        "models": "✓ Offer and OfferCreate models defined (lines 95-104)",
+        "validation": "✓ Pydantic models validate input",
+        "enrichment": "✓ GET /api/offers enriches with location_name and location_image (lines 307-311)",
+        "filtering": "✓ GET /api/offers supports active_only query parameter (default true)"
+      }
+    },
+    "frontend": {
+      "admin_panel_tabs": {
+        "location": "admin.tsx lines 74, 456-463",
+        "tab_state": "✓ activeTab state with 8 options: locations, categories, businesses, tourism, events, offers, notifications, settings",
+        "tab_rendering": "✓ Tabs rendered with icons only (8 tabs, no text labels)",
+        "tab_icons": "✓ Offers tab uses pricetag-outline icon",
+        "tab_switching": "✓ setActiveTab updates view"
+      },
+      "offers_tab": {
+        "location": "admin.tsx lines 619-649",
+        "state": "✓ adminOffers state fetched from /api/offers?active_only=false (line 344)",
+        "list_rendering": "✓ Maps adminOffers to cards with discount badge, title, description, location name",
+        "add_button": "✓ 'Nova' button (testID='add-offer-btn') opens modal (line 624)",
+        "delete_button": "✓ Delete (trash) button on each card (line 642)"
+      },
+      "offer_modal": {
+        "location": "admin.tsx lines 813-855",
+        "state": "✓ editOffer state, savingOffer loading state",
+        "form_fields": "✓ Location selector (horizontal scroll of locations), title input (testID='offer-title-input'), description textarea (testID='offer-desc-input'), discount input (testID='offer-discount-input'), expires input (testID='offer-expires-input')",
+        "save_button": "✓ testID='save-offer-btn', calls saveOffer function",
+        "save_logic": "✓ POST to /api/business/offers (lines 347-355)",
+        "location_selector": "✓ Horizontal ScrollView of all locations (lines 824-831)"
+      },
+      "main_page_offers": {
+        "location": "index.tsx lines 238-253",
+        "state": "✓ offers state fetched from /api/offers (line 81)",
+        "conditional_rendering": "✓ Only renders if offers.length > 0",
+        "card_structure": "✓ Discount badge (if discount_percent), title, description, location name",
+        "testids": "✓ testID='offer-{o.id}'",
+        "navigation": "✓ Clicking offer navigates to location detail page"
+      }
+    }
+  },
+  "design_review": {
+    "admin_offers_tab": {
+      "layout": "✓ Vertical list of offer cards",
+      "header": "✓ Shows count (e.g., '4 ponuda') and 'Nova' button",
+      "card_styling": "✓ White background, rounded corners (16px), border, 14px padding",
+      "discount_badge": "✓ Circular badge with accent color background, shows discount percentage (-20%, -15%)",
+      "text_hierarchy": "✓ Title (15px semibold), description (12px regular), location name (11px medium gray)",
+      "delete_button": "✓ Trash icon button on right side",
+      "spacing": "✓ Appropriate margin between cards"
+    },
+    "offer_modal": {
+      "layout": "✓ Bottom sheet modal with rounded top corners",
+      "header": "✓ Title 'Nova ponuda' and close button",
+      "form_layout": "✓ Vertical stack of labeled inputs",
+      "location_selector": "✓ Horizontal scroll of location chips (catOpt style)",
+      "discount_expires_inputs": "✓ Side-by-side discount and expires inputs in rowFld",
+      "save_button": "✓ Full-width accent color button at bottom with checkmark icon and text 'Dodaj ponudu'",
+      "max_height": "✓ 75% of screen height with scroll"
+    },
+    "main_page_offers": {
+      "layout": "✓ Horizontal scroll of offer cards",
+      "section_title": "✓ 'Posebne ponude' heading (18px bold)",
+      "card_styling": "✓ Accent color background (8% opacity), rounded corners (16px), border, 16px padding",
+      "discount_badge": "✓ Positioned top-right, accent color background, white text",
+      "text_hierarchy": "✓ Title (15px semibold), description (12px regular), location name (11px semibold accent color)",
+      "card_width": "✓ 200px fixed width for horizontal scroll",
+      "spacing": "✓ 12px margin-right between cards, 20px padding-left for scroll container"
+    }
+  },
+  "bugs_found_and_fixed": [],
+  "known_issues": [],
+  "feature_verification": {
+    "new_features": {
+      "admin_offers_crud": "✓ Working - Create and delete offers in admin panel",
+      "admin_panel_8_tabs": "✓ Working - All 8 tabs present and functional (icons only)",
+      "offers_modal_form": "✓ Working - Form with location selector, title, description, discount %, expiry date",
+      "main_page_offers_section": "✓ Working - 'Posebne ponude' section displays active offers with discount badges"
+    },
+    "backend_endpoints": {
+      "POST_api_business_offers": "✓ Working - Creates offer (requires admin/business auth)",
+      "DELETE_api_business_offers_id": "✓ Working - Deletes offer (requires auth)",
+      "GET_api_offers": "✓ Working - Returns offers (public, supports active_only filter, enriched with location data)"
+    },
+    "frontend_ui": {
+      "admin_panel_tabs": "✓ Working - 8 tabs with icons (locations, categories, businesses, tourism, events, offers, notifications, settings)",
+      "offers_tab_list": "✓ Working - Shows offers with count, delete buttons",
+      "offer_modal": "✓ Working - Opens on 'Nova' click, form fields, save button",
+      "main_page_offers": "✓ Working - 'Posebne ponude' section with offer cards, discount badges"
+    },
+    "previous_features": {
+      "map": "✓ Working - Loads with markers",
+      "search": "✓ Working - Search input functional",
+      "categories": "✓ Working - Grid with 6 items",
+      "events": "✓ Working - Nadolazeći događaji section visible",
+      "tourism": "✓ Working - Znamenitosti section visible",
+      "leaderboard": "✓ Working - Top u Gradačcu section visible"
+    }
+  }
+}

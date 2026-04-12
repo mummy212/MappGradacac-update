@@ -71,7 +71,7 @@ export default function AdminScreen() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
   // Tabs
-  const [activeTab, setActiveTab] = useState<'locations' | 'categories' | 'businesses' | 'tourism' | 'events' | 'notifications' | 'settings'>('locations');
+  const [activeTab, setActiveTab] = useState<'locations' | 'categories' | 'businesses' | 'tourism' | 'events' | 'offers' | 'notifications' | 'settings'>('locations');
   // Locations
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -116,6 +116,11 @@ export default function AdminScreen() {
   const [editEvent, setEditEvent] = useState<any>({ title: '', description: '', location_name: '', date: '', time: '' });
   const [isNewEvent, setIsNewEvent] = useState(false);
   const [savingEvent, setSavingEvent] = useState(false);
+  // Offers
+  const [adminOffers, setAdminOffers] = useState<any[]>([]);
+  const [offerModalVisible, setOfferModalVisible] = useState(false);
+  const [editOffer, setEditOffer] = useState<any>({ location_id: '', title: '', description: '', discount_percent: 0, expires_at: '' });
+  const [savingOffer, setSavingOffer] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -129,7 +134,7 @@ export default function AdminScreen() {
     if (saved) { setToken(saved); setIsLoggedIn(true); loadAll(saved); }
   };
 
-  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); fetchBizAccounts(t); fetchTourism(); fetchAdminEvents(); };
+  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); fetchBizAccounts(t); fetchTourism(); fetchAdminEvents(); fetchAdminOffers(); };
 
   const handleLogin = async () => {
     setLoginLoading(true); setLoginError('');
@@ -334,6 +339,31 @@ export default function AdminScreen() {
     ]);
   };
 
+  // Offers
+  const fetchAdminOffers = async () => {
+    try { setAdminOffers((await axios.get(`${BACKEND_URL}/api/offers?active_only=false`)).data); } catch {}
+  };
+  const openNewOffer = () => { setEditOffer({ location_id: '', title: '', description: '', discount_percent: 0, expires_at: '' }); setOfferModalVisible(true); };
+  const saveOffer = async () => {
+    if (!editOffer.title || !editOffer.description || !editOffer.location_id) { Alert.alert('Greška', 'Naslov, opis i lokacija su obavezni'); return; }
+    setSavingOffer(true);
+    try {
+      const payload = { ...editOffer, discount_percent: editOffer.discount_percent ? parseInt(editOffer.discount_percent) : null };
+      await axios.post(`${BACKEND_URL}/api/business/offers`, payload, { headers: { Authorization: `Bearer ${token}` } });
+      setOfferModalVisible(false); fetchAdminOffers();
+    } catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
+    setSavingOffer(false);
+  };
+  const deleteOffer = (o: any) => {
+    Alert.alert('Brisanje', `Obrisati ponudu "${o.title}"?`, [
+      { text: 'Odustani', style: 'cancel' },
+      { text: 'Obriši', style: 'destructive', onPress: async () => {
+        try { await axios.delete(`${BACKEND_URL}/api/business/offers/${o.id}`, { headers: { Authorization: `Bearer ${token}` } }); fetchAdminOffers(); }
+        catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
+      }},
+    ]);
+  };
+
   const openNewCat = () => { setEditCat({ name: '', icon: 'location', color: '#888888' }); setIsNewCat(true); setCatModalVisible(true); };
   const openEditCat = (cat: any) => { setEditCat({ ...cat }); setIsNewCat(false); setCatModalVisible(true); };
 
@@ -423,10 +453,10 @@ export default function AdminScreen() {
 
       {/* Tabs */}
       <View style={s.tabs}>
-        {(['locations', 'categories', 'businesses', 'tourism', 'events', 'notifications', 'settings'] as const).map(tab => (
+        {(['locations', 'categories', 'businesses', 'tourism', 'events', 'offers', 'notifications', 'settings'] as const).map(tab => (
           <TouchableOpacity key={tab} testID={`tab-${tab}`} style={[s.tab, activeTab === tab && s.tabActive]}
             onPress={() => setActiveTab(tab)}>
-            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'businesses' ? 'people-outline' : tab === 'tourism' ? 'business-outline' : tab === 'events' ? 'calendar-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
+            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'businesses' ? 'people-outline' : tab === 'tourism' ? 'business-outline' : tab === 'events' ? 'calendar-outline' : tab === 'offers' ? 'pricetag-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
               size={13} color={activeTab === tab ? '#fff' : c.textSec} />
           </TouchableOpacity>
         ))}
@@ -578,6 +608,38 @@ export default function AdminScreen() {
                 <Text style={{ fontSize: 10, fontFamily: 'Manrope_500Medium', color: c.textSec }}>{ev.date} {ev.time ? `• ${ev.time}` : ''} • {ev.location_name}</Text>
               </View>
               <TouchableOpacity style={s.delBtn} onPress={() => deleteEvent(ev)}>
+                <Ionicons name="trash-outline" size={16} color={c.danger} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
+
+      {/* ===== OFFERS TAB ===== */}
+      {activeTab === 'offers' && (
+        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+          <View style={s.catHeader}>
+            <Text style={s.catHeaderTxt}>{adminOffers.length} ponuda</Text>
+            <TouchableOpacity testID="add-offer-btn" style={s.addCatBtn} onPress={openNewOffer}>
+              <Ionicons name="add" size={18} color="#fff" /><Text style={s.addCatBtnTxt}>Nova</Text>
+            </TouchableOpacity>
+          </View>
+          {adminOffers.map(o => (
+            <View key={o.id} testID={`offer-${o.id}`} style={s.catCard}>
+              <View style={[s.catColorDot, { backgroundColor: c.accent + '20' }]}>
+                {o.discount_percent ? (
+                  <Text style={{ fontSize: 10, fontFamily: 'Outfit_700Bold', color: c.accent }}>-{o.discount_percent}%</Text>
+                ) : (
+                  <Ionicons name="pricetag" size={16} color={c.accent} />
+                )}
+              </View>
+              <View style={s.catCardBody}>
+                <Text style={s.catCardName}>{o.title}</Text>
+                <Text style={s.catCardIcon} numberOfLines={1}>{o.description}</Text>
+                <Text style={{ fontSize: 10, fontFamily: 'Manrope_500Medium', color: c.textSec }}>{o.location_name || 'Lokacija'}{o.expires_at ? ` • do ${o.expires_at}` : ''}</Text>
+              </View>
+              <TouchableOpacity style={s.delBtn} onPress={() => deleteOffer(o)}>
                 <Ionicons name="trash-outline" size={16} color={c.danger} />
               </TouchableOpacity>
             </View>
@@ -748,6 +810,50 @@ export default function AdminScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      {/* ===== OFFER MODAL ===== */}
+      <Modal visible={offerModalVisible} animationType="slide" transparent onRequestClose={() => setOfferModalVisible(false)}>
+        <View style={s.modalOuter}>
+          <TouchableOpacity style={s.modalBg} onPress={() => setOfferModalVisible(false)} activeOpacity={1} />
+          <View testID="offer-modal" style={[s.modalBox, { maxHeight: height * 0.75 }]}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>Nova ponuda</Text>
+              <TouchableOpacity onPress={() => setOfferModalVisible(false)}><Ionicons name="close" size={24} color={c.textSec} /></TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.fldLbl}>Lokacija *</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                {locations.map(loc => (
+                  <TouchableOpacity key={loc.id} style={[s.catOpt, editOffer.location_id === loc.id && s.catOptActive]}
+                    onPress={() => setEditOffer((p: any) => ({ ...p, location_id: loc.id }))}>
+                    <Text style={[s.catOptTxt, editOffer.location_id === loc.id && s.catOptTxtActive]} numberOfLines={1}>{loc.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <Text style={s.fldLbl}>Naslov ponude *</Text>
+              <TextInput testID="offer-title-input" style={s.fldInput} value={editOffer.title} onChangeText={(v: string) => setEditOffer((p: any) => ({ ...p, title: v }))} placeholder="Npr: 20% popusta na ćevape" />
+              <Text style={s.fldLbl}>Opis *</Text>
+              <TextInput testID="offer-desc-input" style={[s.fldInput, { height: 60, textAlignVertical: 'top' }]} value={editOffer.description} onChangeText={(v: string) => setEditOffer((p: any) => ({ ...p, description: v }))} placeholder="Opis ponude" multiline />
+              <View style={s.rowFld}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.fldLbl}>Popust (%)</Text>
+                  <TextInput testID="offer-discount-input" style={s.fldInput} value={String(editOffer.discount_percent || '')} onChangeText={(v: string) => setEditOffer((p: any) => ({ ...p, discount_percent: v }))} keyboardType="numeric" placeholder="20" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={s.fldLbl}>Ističe (datum)</Text>
+                  <TextInput testID="offer-expires-input" style={s.fldInput} value={editOffer.expires_at} onChangeText={(v: string) => setEditOffer((p: any) => ({ ...p, expires_at: v }))} placeholder="2026-12-31" />
+                </View>
+              </View>
+              <TouchableOpacity testID="save-offer-btn" style={s.saveLocBtn} onPress={saveOffer} disabled={savingOffer}>
+                {savingOffer ? <ActivityIndicator color="#fff" /> : (
+                  <><Ionicons name="checkmark" size={20} color="#fff" /><Text style={s.saveLocBtnTxt}>Dodaj ponudu</Text></>
+                )}
+              </TouchableOpacity>
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* ===== EVENT MODAL ===== */}
       <Modal visible={eventModalVisible} animationType="slide" transparent onRequestClose={() => setEventModalVisible(false)}>
         <View style={s.modalOuter}>
