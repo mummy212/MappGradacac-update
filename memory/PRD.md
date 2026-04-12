@@ -39,6 +39,14 @@ Mobilna aplikacija za grad Gradačac, Bosna i Hercegovina. Interaktivna mapa gra
 - **Admin rute**: /api/admin/locations (POST, PUT, DELETE) - zahtijevaju JWT token
 - **Credentials**: admin@gradacac.ba / Gradacac2024!
 
+### Detalji lokacije (Prošireno)
+- **Galerija slika**: Upload slika iz galerije telefona (base64 storage)
+- **Tagovi usluga**: Npr. "Ćevapi", "Roštilj", "WiFi" za svaku lokaciju
+- **Nivo cijena**: €, €€, €€€
+- **Opis**: Detaljniji opis lokacije
+- **Ocjene korisnika**: 1-5 zvjezdica sa opcionim komentarom (bez registracije)
+- **Admin moderacija**: Admin može brisati neprikladne recenzije
+
 ## Buduće nadogradnje
 - Korisničke ocjene i recenzije
 - Dodavanje novih lokacija od strane korisnika
