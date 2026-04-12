@@ -4,20 +4,16 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response, Depends, UploadFile, File, Form
+from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response, Depends, UploadFile, File
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
-import os
-import logging
-import bcrypt
-import jwt
-import secrets
-import base64
+import os, logging, bcrypt, jwt, secrets, base64, math
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
+import httpx
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -27,119 +23,124 @@ JWT_SECRET = os.environ.get('JWT_SECRET', secrets.token_hex(32))
 JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@gradacac.ba')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Gradacac2024!')
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-# ========== Auth helpers ==========
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+# ===== Auth Helpers =====
+def hash_pw(pw: str) -> str: return bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
+def verify_pw(plain: str, hashed: str) -> bool: return bcrypt.checkpw(plain.encode(), hashed.encode())
+def make_token(uid: str, email: str, role: str = "user") -> str:
+    return jwt.encode({"sub": uid, "email": email, "role": role, "exp": datetime.now(timezone.utc) + timedelta(hours=24), "type": "access"}, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
-
-def create_access_token(user_id: str, email: str) -> str:
-    payload = {"sub": user_id, "email": email, "exp": datetime.now(timezone.utc) + timedelta(hours=24), "type": "access"}
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-async def get_current_user(request: Request) -> dict:
+async def get_user(request: Request) -> dict:
     token = request.cookies.get("access_token")
     if not token:
         auth = request.headers.get("Authorization", "")
-        if auth.startswith("Bearer "):
-            token = auth[7:]
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        if auth.startswith("Bearer "): token = auth[7:]
+    if not token: raise HTTPException(401, "Not authenticated")
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token")
-        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name", ""), "role": user.get("role", "user")}
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except (jwt.InvalidTokenError, Exception):
-        raise HTTPException(status_code=401, detail="Invalid token")
+        p = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if p.get("type") != "access": raise HTTPException(401, "Invalid token")
+        user = await db.users.find_one({"_id": ObjectId(p["sub"])})
+        if not user: raise HTTPException(401, "User not found")
+        return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name",""), "role": user.get("role","user"), "location_id": user.get("location_id","")}
+    except jwt.ExpiredSignatureError: raise HTTPException(401, "Token expired")
+    except: raise HTTPException(401, "Invalid token")
 
-# ========== Models ==========
+async def require_admin(request: Request) -> dict:
+    user = await get_user(request)
+    if user["role"] != "admin": raise HTTPException(403, "Admin required")
+    return user
+
+async def require_business_or_admin(request: Request) -> dict:
+    user = await get_user(request)
+    if user["role"] not in ("admin", "business"): raise HTTPException(403, "Business or admin required")
+    return user
+
+# ===== Models =====
 class Location(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    category: str
-    address: str
-    latitude: float
-    longitude: float
-    phone: Optional[str] = None
-    description: Optional[str] = None
-    working_hours: Optional[str] = None
-    is_premium: bool = False
-    images: List[str] = []  # base64 encoded images
-    service_tags: List[str] = []  # e.g. ["Ćevapi", "Pizza", "Domaća hrana"]
-    price_level: int = 0  # 0=not set, 1=€, 2=€€, 3=€€€
-    avg_rating: float = 0.0
-    review_count: int = 0
+    name: str; category: str; address: str; latitude: float; longitude: float
+    phone: Optional[str] = None; description: Optional[str] = None
+    working_hours: Optional[str] = None; is_premium: bool = False
+    images: List[str] = []; service_tags: List[str] = []
+    price_level: int = 0; avg_rating: float = 0.0; review_count: int = 0
+    views: int = 0; nav_clicks: int = 0; call_clicks: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class LocationCreate(BaseModel):
-    name: str
-    category: str
-    address: str
-    latitude: float
-    longitude: float
-    phone: Optional[str] = None
-    description: Optional[str] = None
-    working_hours: Optional[str] = None
-    is_premium: bool = False
-    service_tags: List[str] = []
-    price_level: int = 0
+    name: str; category: str; address: str; latitude: float; longitude: float
+    phone: Optional[str] = None; description: Optional[str] = None
+    working_hours: Optional[str] = None; is_premium: bool = False
+    service_tags: List[str] = []; price_level: int = 0
 
 class LocationUpdate(BaseModel):
-    name: Optional[str] = None
-    category: Optional[str] = None
-    address: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    phone: Optional[str] = None
-    description: Optional[str] = None
-    working_hours: Optional[str] = None
-    is_premium: Optional[bool] = None
-    service_tags: Optional[List[str]] = None
-    price_level: Optional[int] = None
+    name: Optional[str] = None; category: Optional[str] = None; address: Optional[str] = None
+    latitude: Optional[float] = None; longitude: Optional[float] = None
+    phone: Optional[str] = None; description: Optional[str] = None
+    working_hours: Optional[str] = None; is_premium: Optional[bool] = None
+    service_tags: Optional[List[str]] = None; price_level: Optional[int] = None
 
 class Review(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    location_id: str
-    author_name: str
-    stars: int = Field(ge=1, le=5)
+    location_id: str; author_name: str; stars: int = Field(ge=1, le=5)
     comment: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ReviewCreate(BaseModel):
-    author_name: str
-    stars: int = Field(ge=1, le=5)
-    comment: Optional[str] = None
+    author_name: str; stars: int = Field(ge=1, le=5); comment: Optional[str] = None
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-class Category(BaseModel):
+class Offer(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    icon: str
-    color: str
+    location_id: str; title: str; description: str
+    discount_percent: Optional[int] = None; expires_at: Optional[str] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class OfferCreate(BaseModel):
+    location_id: str; title: str; description: str
+    discount_percent: Optional[int] = None; expires_at: Optional[str] = None
+
+class Event(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str; description: str; location_name: str
+    date: str; time: Optional[str] = None
+    location_id: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class EventCreate(BaseModel):
+    title: str; description: str; location_name: str
+    date: str; time: Optional[str] = None; location_id: Optional[str] = None
+
+class MenuItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    location_id: str; name: str; price: float
+    description: Optional[str] = None; category: str = "Ostalo"
+    image: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class MenuItemCreate(BaseModel):
+    name: str; price: float; description: Optional[str] = None
+    category: str = "Ostalo"; image: Optional[str] = None
 
 class CategoryCreate(BaseModel):
-    name: str
-    icon: str = "location"
-    color: str = "#888888"
-
+    name: str; icon: str = "location"; color: str = "#888888"
 class CategoryUpdate(BaseModel):
-    name: Optional[str] = None
-    icon: Optional[str] = None
-    color: Optional[str] = None
+    name: Optional[str] = None; icon: Optional[str] = None; color: Optional[str] = None
+class LoginRequest(BaseModel):
+    email: str; password: str
+class BusinessCreate(BaseModel):
+    email: str; password: str; name: str; location_id: str
+
+class PushTokenRegister(BaseModel):
+    token: str; platform: str = "unknown"
+class NotificationCreate(BaseModel):
+    title: str = Field(min_length=1); body: str = Field(min_length=1)
+class AppSettingsUpdate(BaseModel):
+    paypal_link: Optional[str] = None; contact_email: Optional[str] = None
 
 DEFAULT_CATEGORIES = [
     {"id": "restaurant", "name": "Restorani", "icon": "restaurant", "color": "#FF6B6B"},
@@ -151,69 +152,84 @@ DEFAULT_CATEGORIES = [
 ]
 
 SAMPLE_LOCATIONS = [
-    {"name": "Restoran Stari Grad", "category": "restaurant", "address": "Husein-kapetana Gradaščevića bb", "latitude": 44.8797, "longitude": 18.4275, "phone": "+387 35 817 000", "description": "Tradicionalna bosanska kuhinja sa autentičnim receptima. Poznati po čorbama, pirama i ćevapima. Ugodan ambijent sa pogledom na stari grad.", "working_hours": "08:00 - 23:00", "service_tags": ["Bosanska kuhinja", "Ćevapi", "Pire"], "price_level": 2},
-    {"name": "Restoran Zmaj", "category": "restaurant", "address": "Zmaja od Bosne 12", "latitude": 44.8785, "longitude": 18.4290, "phone": "+387 35 818 111", "description": "Roštilj i domaća jela. Veliki izbor mesa sa roštilja i specijaliteta. Prostran prostor za proslave.", "working_hours": "10:00 - 23:00", "service_tags": ["Roštilj", "Domaća hrana", "Proslave"], "price_level": 2},
-    {"name": "Ćevabdžinica Kod Mehmeda", "category": "restaurant", "address": "Trg Husein-kapetana 5", "latitude": 44.8802, "longitude": 18.4268, "phone": "+387 35 817 222", "description": "Najbolji ćevapi u gradu. Tradicionalni recept koji se prenosi generacijama. Svježe pečeni somuni.", "working_hours": "08:00 - 22:00", "service_tags": ["Ćevapi", "Fast food", "Somun"], "price_level": 1},
-    {"name": "Bingo", "category": "market", "address": "Željeznička bb", "latitude": 44.8770, "longitude": 18.4310, "phone": "+387 35 816 000", "description": "Najveći supermarket u gradu. Širok asortiman prehrambenih i neprehrambenih proizvoda. Svježe voće i povrće svaki dan.", "working_hours": "07:00 - 22:00", "service_tags": ["Supermarket", "Svježe voće", "Mesnica"], "price_level": 2},
-    {"name": "Konzum", "category": "market", "address": "Titova 45", "latitude": 44.8792, "longitude": 18.4255, "phone": "+387 35 815 500", "description": "Prodavnica mješovite robe sa povoljnim cijenama i redovnim akcijama.", "working_hours": "07:00 - 21:00", "service_tags": ["Mješovita roba", "Akcije"], "price_level": 1},
-    {"name": "Robot", "category": "market", "address": "Alije Izetbegovića 18", "latitude": 44.8812, "longitude": 18.4240, "phone": "+387 35 814 333", "description": "Mali market u centru grada. Praktičan za brzu kupovinu.", "working_hours": "06:00 - 22:00", "service_tags": ["Mini market", "Brza kupovina"], "price_level": 1},
-    {"name": "Auto Servis Čamdžić", "category": "auto_service", "address": "Industrijska zona bb", "latitude": 44.8750, "longitude": 18.4350, "phone": "+387 35 820 100", "description": "Opravka svih vrsta vozila. Dijagnostika, mehanika, elektrika. Iskusni majstori sa dugogodišnjim iskustvom.", "working_hours": "08:00 - 17:00", "service_tags": ["Mehanika", "Dijagnostika", "Elektrika"], "price_level": 2},
-    {"name": "Vulkanizer Mehić", "category": "auto_service", "address": "Magistralni put bb", "latitude": 44.8730, "longitude": 18.4380, "phone": "+387 35 821 200", "description": "Gume i vulkanizacija. Prodaja novih i polovnih guma. Balansiranje i zamjena.", "working_hours": "07:00 - 19:00", "service_tags": ["Vulkanizacija", "Gume", "Balansiranje"], "price_level": 1},
-    {"name": "Auto Perionica", "category": "auto_service", "address": "Orašje put 5", "latitude": 44.8820, "longitude": 18.4200, "phone": "+387 35 822 300", "description": "Ručno pranje vozila. Unutrašnje i vanjsko čišćenje. Poliranje i zaštita laka.", "working_hours": "08:00 - 20:00", "service_tags": ["Pranje", "Poliranje", "Čišćenje"], "price_level": 1},
-    {"name": "Caffe Bar Central", "category": "cafe", "address": "Trg Husein-kapetana 1", "latitude": 44.8800, "longitude": 18.4270, "phone": "+387 35 817 444", "description": "Kafa i kolači u srcu grada. Terasa sa pogledom na trg. Odličan espresso i domaći kolači.", "working_hours": "07:00 - 24:00", "service_tags": ["Espresso", "Kolači", "Terasa"], "price_level": 2},
-    {"name": "Caffé di Milano", "category": "cafe", "address": "H.K. Gradaščevića 25", "latitude": 44.8795, "longitude": 18.4282, "phone": "+387 35 818 555", "description": "Moderni espresso bar sa italijanskim stilom. Širok izbor kafa i napitaka.", "working_hours": "08:00 - 23:00", "service_tags": ["Espresso", "Kokteli", "WiFi"], "price_level": 2},
-    {"name": "Slastičarna Ledo", "category": "cafe", "address": "Titova 30", "latitude": 44.8788, "longitude": 18.4260, "phone": "+387 35 819 666", "description": "Sladoled i kolači. Veliki izbor sladoleda i torti za sve prilike.", "working_hours": "09:00 - 22:00", "service_tags": ["Sladoled", "Torte", "Kolači"], "price_level": 1},
-    {"name": "Apoteka Gradačac", "category": "pharmacy", "address": "Titova 10", "latitude": 44.8798, "longitude": 18.4265, "phone": "+387 35 815 111", "description": "Glavna gradska apoteka sa širokim asortimanom lijekova i kozmetike.", "working_hours": "07:00 - 20:00", "service_tags": ["Lijekovi", "Kozmetika", "Vitamini"], "price_level": 2},
-    {"name": "Apoteka Zdravlje", "category": "pharmacy", "address": "Alije Izetbegovića 5", "latitude": 44.8808, "longitude": 18.4250, "phone": "+387 35 816 222", "description": "Apoteka sa širokim asortimanom. Stručno savjetovanje i brza usluga.", "working_hours": "08:00 - 21:00", "service_tags": ["Lijekovi", "Savjetovanje"], "price_level": 2},
-    {"name": "NIS Petrol", "category": "gas_station", "address": "Magistralni put bb", "latitude": 44.8720, "longitude": 18.4400, "phone": "+387 35 825 000", "description": "Benzinska pumpa sa 24h radnim vremenom. Benzin, dizel i LPG.", "working_hours": "00:00 - 24:00", "service_tags": ["Benzin", "Dizel", "LPG", "24h"], "price_level": 2},
-    {"name": "Hifa Petrol", "category": "gas_station", "address": "Ulaz u grad bb", "latitude": 44.8850, "longitude": 18.4150, "phone": "+387 35 826 000", "description": "Benzinska i auto gas. Prodavnica na pumpi sa grickalicama i pićima.", "working_hours": "06:00 - 22:00", "service_tags": ["Benzin", "Auto gas", "Prodavnica"], "price_level": 2},
+    {"name": "Restoran Stari Grad", "category": "restaurant", "address": "Husein-kapetana Gradaščevića bb", "latitude": 44.8797, "longitude": 18.4275, "phone": "+387 35 817 000", "description": "Tradicionalna bosanska kuhinja sa autentičnim receptima.", "working_hours": "08:00 - 23:00", "service_tags": ["Bosanska kuhinja", "Ćevapi"], "price_level": 2},
+    {"name": "Restoran Zmaj", "category": "restaurant", "address": "Zmaja od Bosne 12", "latitude": 44.8785, "longitude": 18.4290, "phone": "+387 35 818 111", "description": "Roštilj i domaća jela.", "working_hours": "10:00 - 23:00", "service_tags": ["Roštilj", "Domaća hrana"], "price_level": 2},
+    {"name": "Ćevabdžinica Kod Mehmeda", "category": "restaurant", "address": "Trg Husein-kapetana 5", "latitude": 44.8802, "longitude": 18.4268, "phone": "+387 35 817 222", "description": "Najbolji ćevapi u gradu.", "working_hours": "08:00 - 22:00", "service_tags": ["Ćevapi", "Fast food"], "price_level": 1},
+    {"name": "Bingo", "category": "market", "address": "Željeznička bb", "latitude": 44.8770, "longitude": 18.4310, "phone": "+387 35 816 000", "description": "Najveći supermarket u gradu.", "working_hours": "07:00 - 22:00", "service_tags": ["Supermarket", "Svježe voće"], "price_level": 2},
+    {"name": "Konzum", "category": "market", "address": "Titova 45", "latitude": 44.8792, "longitude": 18.4255, "phone": "+387 35 815 500", "description": "Prodavnica mješovite robe.", "working_hours": "07:00 - 21:00", "service_tags": ["Mješovita roba"], "price_level": 1},
+    {"name": "Robot", "category": "market", "address": "Alije Izetbegovića 18", "latitude": 44.8812, "longitude": 18.4240, "phone": "+387 35 814 333", "description": "Mali market u centru grada.", "working_hours": "06:00 - 22:00", "service_tags": ["Mini market"], "price_level": 1},
+    {"name": "Auto Servis Čamdžić", "category": "auto_service", "address": "Industrijska zona bb", "latitude": 44.8750, "longitude": 18.4350, "phone": "+387 35 820 100", "description": "Opravka svih vrsta vozila.", "working_hours": "08:00 - 17:00", "service_tags": ["Mehanika", "Dijagnostika"], "price_level": 2},
+    {"name": "Vulkanizer Mehić", "category": "auto_service", "address": "Magistralni put bb", "latitude": 44.8730, "longitude": 18.4380, "phone": "+387 35 821 200", "description": "Gume i vulkanizacija.", "working_hours": "07:00 - 19:00", "service_tags": ["Vulkanizacija", "Gume"], "price_level": 1},
+    {"name": "Caffe Bar Central", "category": "cafe", "address": "Trg Husein-kapetana 1", "latitude": 44.8800, "longitude": 18.4270, "phone": "+387 35 817 444", "description": "Kafa i kolači u srcu grada.", "working_hours": "07:00 - 24:00", "service_tags": ["Espresso", "Kolači"], "price_level": 2},
+    {"name": "Caffé di Milano", "category": "cafe", "address": "H.K. Gradaščevića 25", "latitude": 44.8795, "longitude": 18.4282, "phone": "+387 35 818 555", "description": "Moderni espresso bar.", "working_hours": "08:00 - 23:00", "service_tags": ["Espresso", "WiFi"], "price_level": 2},
+    {"name": "Apoteka Gradačac", "category": "pharmacy", "address": "Titova 10", "latitude": 44.8798, "longitude": 18.4265, "phone": "+387 35 815 111", "description": "Glavna gradska apoteka.", "working_hours": "07:00 - 20:00", "service_tags": ["Lijekovi", "Kozmetika"], "price_level": 2},
+    {"name": "NIS Petrol", "category": "gas_station", "address": "Magistralni put bb", "latitude": 44.8720, "longitude": 18.4400, "phone": "+387 35 825 000", "description": "Benzinska pumpa 24h.", "working_hours": "00:00 - 24:00", "service_tags": ["Benzin", "Dizel", "24h"], "price_level": 2},
+    {"name": "Hifa Petrol", "category": "gas_station", "address": "Ulaz u grad bb", "latitude": 44.8850, "longitude": 18.4150, "phone": "+387 35 826 000", "description": "Benzinska i auto gas.", "working_hours": "06:00 - 22:00", "service_tags": ["Benzin", "Auto gas"], "price_level": 2},
 ]
 
-# ========== Startup ==========
+# ===== Startup =====
 @app.on_event("startup")
 async def startup():
     await db.users.create_index("email", unique=True)
     await db.reviews.create_index("location_id")
+    await db.offers.create_index("location_id")
+    await db.events.create_index("date")
+    await db.menu_items.create_index("location_id")
+    await db.analytics.create_index([("location_id", 1), ("date", 1)])
     # Seed categories
-    cat_count = await db.categories.count_documents({})
-    if cat_count == 0:
-        for cat in DEFAULT_CATEGORIES:
-            await db.categories.insert_one(dict(cat))
-        logging.info(f"Seeded {len(DEFAULT_CATEGORIES)} categories")
+    if await db.categories.count_documents({}) == 0:
+        for cat in DEFAULT_CATEGORIES: await db.categories.insert_one(dict(cat))
     # Seed admin
     existing = await db.users.find_one({"email": ADMIN_EMAIL})
     if not existing:
-        await db.users.insert_one({"email": ADMIN_EMAIL, "password_hash": hash_password(ADMIN_PASSWORD), "name": "Admin", "role": "admin", "created_at": datetime.now(timezone.utc)})
-        logging.info(f"Admin seeded: {ADMIN_EMAIL}")
-    elif not verify_password(ADMIN_PASSWORD, existing["password_hash"]):
-        await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(ADMIN_PASSWORD)}})
-    # Seed locations - drop and reseed to update with new fields
-    count = await db.locations.count_documents({})
-    has_tags = await db.locations.find_one({"service_tags": {"$exists": True, "$ne": []}})
-    if count == 0 or not has_tags:
-        await db.locations.delete_many({})
+        await db.users.insert_one({"email": ADMIN_EMAIL, "password_hash": hash_pw(ADMIN_PASSWORD), "name": "Admin", "role": "admin", "created_at": datetime.now(timezone.utc)})
+    elif not verify_pw(ADMIN_PASSWORD, existing["password_hash"]):
+        await db.users.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_pw(ADMIN_PASSWORD)}})
+    # Seed locations
+    if await db.locations.count_documents({}) == 0:
         for loc in SAMPLE_LOCATIONS:
-            location = Location(**loc)
-            await db.locations.insert_one(location.dict())
-        logging.info(f"Seeded {len(SAMPLE_LOCATIONS)} locations with extended data")
+            await db.locations.insert_one(Location(**loc).dict())
 
-async def recalc_rating(location_id: str):
-    pipeline = [{"$match": {"location_id": location_id}}, {"$group": {"_id": None, "avg": {"$avg": "$stars"}, "cnt": {"$sum": 1}}}]
-    result = await db.reviews.aggregate(pipeline).to_list(1)
-    if result:
-        await db.locations.update_one({"id": location_id}, {"$set": {"avg_rating": round(result[0]["avg"], 1), "review_count": result[0]["cnt"]}})
-    else:
-        await db.locations.update_one({"id": location_id}, {"$set": {"avg_rating": 0, "review_count": 0}})
+async def recalc_rating(lid: str):
+    r = await db.reviews.aggregate([{"$match": {"location_id": lid}}, {"$group": {"_id": None, "avg": {"$avg": "$stars"}, "cnt": {"$sum": 1}}}]).to_list(1)
+    if r: await db.locations.update_one({"id": lid}, {"$set": {"avg_rating": round(r[0]["avg"], 1), "review_count": r[0]["cnt"]}})
+    else: await db.locations.update_one({"id": lid}, {"$set": {"avg_rating": 0, "review_count": 0}})
 
-# ========== Auth Routes ==========
+async def track_analytics(lid: str, action: str):
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    await db.analytics.update_one({"location_id": lid, "date": today}, {"$inc": {action: 1}}, upsert=True)
+    await db.locations.update_one({"id": lid}, {"$inc": {action: 1}})
+
+def is_open(working_hours: str) -> bool:
+    if not working_hours: return False
+    try:
+        parts = working_hours.replace(" ", "").split("-")
+        now = datetime.now(timezone(timedelta(hours=1)))  # CET
+        h, m = now.hour, now.minute
+        oh, om = int(parts[0].split(":")[0]), int(parts[0].split(":")[1])
+        ch, cm = int(parts[1].split(":")[0]), int(parts[1].split(":")[1])
+        current = h * 60 + m
+        opens = oh * 60 + om
+        closes = ch * 60 + cm
+        if closes == 0 and opens == 0: return True  # 00:00-24:00
+        if closes <= opens: return current >= opens or current < closes  # overnight
+        return opens <= current < closes
+    except: return False
+
+def calc_distance(lat1, lon1, lat2, lon2):
+    R = 6371000
+    p = math.pi / 180
+    a = 0.5 - math.cos((lat2-lat1)*p)/2 + math.cos(lat1*p)*math.cos(lat2*p)*(1-math.cos((lon2-lon1)*p))/2
+    return R * 2 * math.asin(math.sqrt(a))
+
+# ===== Auth =====
 @api_router.post("/auth/login")
 async def login(req: LoginRequest, response: Response):
     user = await db.users.find_one({"email": req.email.lower()})
-    if not user or not verify_password(req.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Pogrešan email ili lozinka")
-    token = create_access_token(str(user["_id"]), user["email"])
+    if not user or not verify_pw(req.password, user["password_hash"]): raise HTTPException(401, "Pogrešan email ili lozinka")
+    token = make_token(str(user["_id"]), user["email"], user.get("role", "user"))
     response.set_cookie(key="access_token", value=token, httponly=True, secure=False, samesite="lax", max_age=86400, path="/")
-    return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name", ""), "role": user.get("role", "user"), "token": token}
+    return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name",""), "role": user.get("role","user"), "token": token, "location_id": user.get("location_id", "")}
 
 @api_router.post("/auth/logout")
 async def logout(response: Response):
@@ -221,284 +237,297 @@ async def logout(response: Response):
     return {"message": "Logged out"}
 
 @api_router.get("/auth/me")
-async def get_me(user: dict = Depends(get_current_user)):
+async def get_me(user: dict = Depends(get_user)):
     return user
 
-# ========== Public Routes ==========
+# ===== Public =====
 @api_router.get("/")
 async def root():
-    return {"message": "Gradačac City Map API", "version": "2.0"}
+    return {"message": "Gradačac City Map API", "version": "3.0"}
 
 @api_router.get("/categories")
 async def get_categories():
-    cats = await db.categories.find({}, {"_id": 0}).to_list(100)
-    return cats
+    return await db.categories.find({}, {"_id": 0}).to_list(100)
 
 @api_router.get("/locations")
-async def get_locations(category: Optional[str] = Query(None)):
-    query = {}
-    if category:
-        query["category"] = category
-    locations = await db.locations.find(query, {"_id": 0}).to_list(1000)
-    return locations
+async def get_locations(category: Optional[str] = Query(None), lat: Optional[float] = Query(None), lng: Optional[float] = Query(None), sort: Optional[str] = Query(None)):
+    q = {}
+    if category: q["category"] = category
+    locs = await db.locations.find(q, {"_id": 0}).to_list(1000)
+    # Add is_open status
+    for loc in locs:
+        loc["is_open"] = is_open(loc.get("working_hours", ""))
+    # Sort by distance if coords provided
+    if lat and lng and sort == "distance":
+        for loc in locs:
+            loc["distance"] = round(calc_distance(lat, lng, loc["latitude"], loc["longitude"]))
+        locs.sort(key=lambda x: x["distance"])
+    return locs
 
-@api_router.get("/locations/{location_id}")
-async def get_location(location_id: str):
-    location = await db.locations.find_one({"id": location_id}, {"_id": 0})
-    if not location:
-        raise HTTPException(status_code=404, detail="Location not found")
-    return location
+@api_router.get("/locations/{lid}")
+async def get_location(lid: str):
+    loc = await db.locations.find_one({"id": lid}, {"_id": 0})
+    if not loc: raise HTTPException(404, "Not found")
+    loc["is_open"] = is_open(loc.get("working_hours", ""))
+    await track_analytics(lid, "views")
+    return loc
+
+@api_router.post("/locations/{lid}/track/{action}")
+async def track_action(lid: str, action: str):
+    if action not in ("nav_clicks", "call_clicks"): raise HTTPException(400, "Invalid action")
+    await track_analytics(lid, action)
+    return {"ok": True}
 
 @api_router.get("/search")
 async def search_locations(q: str = Query(..., min_length=2)):
-    locations = await db.locations.find({
-        "$or": [{"name": {"$regex": q, "$options": "i"}}, {"address": {"$regex": q, "$options": "i"}}]
-    }, {"_id": 0}).to_list(100)
-    return locations
+    locs = await db.locations.find({"$or": [{"name": {"$regex": q, "$options": "i"}}, {"address": {"$regex": q, "$options": "i"}}]}, {"_id": 0}).to_list(100)
+    for loc in locs: loc["is_open"] = is_open(loc.get("working_hours", ""))
+    return locs
 
-# ========== Reviews (Public) ==========
-@api_router.get("/locations/{location_id}/reviews")
-async def get_reviews(location_id: str):
-    reviews = await db.reviews.find({"location_id": location_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    return reviews
+# ===== Reviews =====
+@api_router.get("/locations/{lid}/reviews")
+async def get_reviews(lid: str):
+    return await db.reviews.find({"location_id": lid}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
-@api_router.post("/locations/{location_id}/reviews")
-async def create_review(location_id: str, input: ReviewCreate):
-    loc = await db.locations.find_one({"id": location_id})
-    if not loc:
-        raise HTTPException(status_code=404, detail="Location not found")
-    review = Review(location_id=location_id, **input.dict())
-    await db.reviews.insert_one(review.dict())
-    await recalc_rating(location_id)
-    return review.dict()
+@api_router.post("/locations/{lid}/reviews")
+async def create_review(lid: str, inp: ReviewCreate):
+    if not await db.locations.find_one({"id": lid}): raise HTTPException(404, "Not found")
+    r = Review(location_id=lid, **inp.dict())
+    to_ins = dict(r.dict())
+    await db.reviews.insert_one(to_ins)
+    await recalc_rating(lid)
+    return r.dict()
 
-# ========== Admin Routes (Protected) ==========
+# ===== Offers (Public read) =====
+@api_router.get("/offers")
+async def get_all_offers(active_only: bool = Query(True)):
+    q = {"is_active": True} if active_only else {}
+    offers = await db.offers.find(q, {"_id": 0}).sort("created_at", -1).to_list(100)
+    # Enrich with location name
+    for o in offers:
+        loc = await db.locations.find_one({"id": o["location_id"]}, {"_id": 0, "name": 1, "images": 1})
+        if loc:
+            o["location_name"] = loc.get("name", "")
+            o["location_image"] = loc.get("images", [""])[0] if loc.get("images") else ""
+    return offers
+
+@api_router.get("/locations/{lid}/offers")
+async def get_location_offers(lid: str):
+    return await db.offers.find({"location_id": lid, "is_active": True}, {"_id": 0}).to_list(50)
+
+# ===== Events (Public read) =====
+@api_router.get("/events")
+async def get_events():
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return await db.events.find({"date": {"$gte": today}}, {"_id": 0}).sort("date", 1).to_list(50)
+
+# ===== Menu (Public read) =====
+@api_router.get("/locations/{lid}/menu")
+async def get_menu(lid: str):
+    return await db.menu_items.find({"location_id": lid}, {"_id": 0}).to_list(200)
+
+# ===== Business Routes =====
+@api_router.put("/business/profile")
+async def update_business_profile(inp: LocationUpdate, user: dict = Depends(require_business_or_admin)):
+    lid = user.get("location_id")
+    if not lid: raise HTTPException(400, "No location linked")
+    update = {k: v for k, v in inp.dict().items() if v is not None}
+    if "category" in update: del update["category"]  # can't change category
+    if update: await db.locations.update_one({"id": lid}, {"$set": update})
+    return await db.locations.find_one({"id": lid}, {"_id": 0})
+
+@api_router.post("/business/offers")
+async def create_business_offer(inp: OfferCreate, user: dict = Depends(require_business_or_admin)):
+    if user["role"] == "business" and inp.location_id != user.get("location_id"): raise HTTPException(403, "Can only create offers for your location")
+    o = Offer(**inp.dict())
+    to_ins = dict(o.dict())
+    await db.offers.insert_one(to_ins)
+    return o.dict()
+
+@api_router.delete("/business/offers/{oid}")
+async def delete_business_offer(oid: str, user: dict = Depends(require_business_or_admin)):
+    offer = await db.offers.find_one({"id": oid})
+    if not offer: raise HTTPException(404, "Not found")
+    if user["role"] == "business" and offer["location_id"] != user.get("location_id"): raise HTTPException(403, "Not your offer")
+    await db.offers.delete_one({"id": oid})
+    return {"message": "Deleted"}
+
+@api_router.post("/business/menu")
+async def create_menu_item(lid: str = Query(...), inp: MenuItemCreate = ..., user: dict = Depends(require_business_or_admin)):
+    if user["role"] == "business" and lid != user.get("location_id"): raise HTTPException(403, "Not your location")
+    item = MenuItem(location_id=lid, **inp.dict())
+    to_ins = dict(item.dict())
+    await db.menu_items.insert_one(to_ins)
+    return item.dict()
+
+@api_router.delete("/business/menu/{mid}")
+async def delete_menu_item(mid: str, user: dict = Depends(require_business_or_admin)):
+    await db.menu_items.delete_one({"id": mid})
+    return {"message": "Deleted"}
+
+@api_router.get("/business/stats")
+async def get_business_stats(user: dict = Depends(require_business_or_admin)):
+    lid = user.get("location_id")
+    if not lid and user["role"] == "business": raise HTTPException(400, "No location")
+    if user["role"] == "admin": lid = None  # admin sees all
+    q = {"location_id": lid} if lid else {}
+    stats = await db.analytics.find(q, {"_id": 0}).sort("date", -1).to_list(30)
+    loc = await db.locations.find_one({"id": lid}, {"_id": 0}) if lid else None
+    return {"daily": stats, "totals": {"views": loc.get("views", 0) if loc else 0, "nav_clicks": loc.get("nav_clicks", 0) if loc else 0, "call_clicks": loc.get("call_clicks", 0) if loc else 0} if loc else {}}
+
+# ===== Admin =====
 @api_router.post("/admin/locations")
-async def admin_create_location(input: LocationCreate, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    location = Location(**input.dict())
-    await db.locations.insert_one(location.dict())
-    return location.dict()
+async def admin_create_loc(inp: LocationCreate, user: dict = Depends(require_admin)):
+    loc = Location(**inp.dict())
+    await db.locations.insert_one(loc.dict())
+    return loc.dict()
 
-@api_router.put("/admin/locations/{location_id}")
-async def admin_update_location(location_id: str, input: LocationUpdate, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    update_data = {k: v for k, v in input.dict().items() if v is not None}
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No data to update")
-    result = await db.locations.update_one({"id": location_id}, {"$set": update_data})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Location not found")
-    updated = await db.locations.find_one({"id": location_id}, {"_id": 0})
-    return updated
+@api_router.put("/admin/locations/{lid}")
+async def admin_update_loc(lid: str, inp: LocationUpdate, user: dict = Depends(require_admin)):
+    u = {k: v for k, v in inp.dict().items() if v is not None}
+    if not u: raise HTTPException(400, "No data")
+    r = await db.locations.update_one({"id": lid}, {"$set": u})
+    if r.matched_count == 0: raise HTTPException(404, "Not found")
+    return await db.locations.find_one({"id": lid}, {"_id": 0})
 
-@api_router.delete("/admin/locations/{location_id}")
-async def admin_delete_location(location_id: str, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    result = await db.locations.delete_one({"id": location_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Location not found")
-    await db.reviews.delete_many({"location_id": location_id})
-    return {"message": "Lokacija obrisana"}
+@api_router.delete("/admin/locations/{lid}")
+async def admin_delete_loc(lid: str, user: dict = Depends(require_admin)):
+    r = await db.locations.delete_one({"id": lid})
+    if r.deleted_count == 0: raise HTTPException(404, "Not found")
+    await db.reviews.delete_many({"location_id": lid})
+    await db.offers.delete_many({"location_id": lid})
+    await db.menu_items.delete_many({"location_id": lid})
+    return {"message": "Deleted"}
 
-# Image upload for location (admin)
-@api_router.post("/admin/locations/{location_id}/images")
-async def upload_image(location_id: str, file: UploadFile = File(...), user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    loc = await db.locations.find_one({"id": location_id})
-    if not loc:
-        raise HTTPException(status_code=404, detail="Location not found")
+@api_router.post("/admin/locations/{lid}/images")
+async def upload_image(lid: str, file: UploadFile = File(...), user: dict = Depends(require_business_or_admin)):
+    if user["role"] == "business" and lid != user.get("location_id"): raise HTTPException(403, "Not your location")
+    loc = await db.locations.find_one({"id": lid})
+    if not loc: raise HTTPException(404, "Not found")
     content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Slika ne smije biti veća od 5MB")
-    b64 = base64.b64encode(content).decode("utf-8")
-    mime = file.content_type or "image/jpeg"
-    data_uri = f"data:{mime};base64,{b64}"
-    await db.locations.update_one({"id": location_id}, {"$push": {"images": data_uri}})
-    return {"message": "Slika dodana", "image": data_uri}
+    if len(content) > 5*1024*1024: raise HTTPException(400, "Max 5MB")
+    b64 = base64.b64encode(content).decode()
+    uri = f"data:{file.content_type or 'image/jpeg'};base64,{b64}"
+    await db.locations.update_one({"id": lid}, {"$push": {"images": uri}})
+    return {"message": "OK", "image": uri}
 
-@api_router.delete("/admin/locations/{location_id}/images/{image_index}")
-async def delete_image(location_id: str, image_index: int, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    loc = await db.locations.find_one({"id": location_id}, {"_id": 0})
-    if not loc:
-        raise HTTPException(status_code=404, detail="Location not found")
-    images = loc.get("images", [])
-    if image_index < 0 or image_index >= len(images):
-        raise HTTPException(status_code=400, detail="Invalid image index")
-    images.pop(image_index)
-    await db.locations.update_one({"id": location_id}, {"$set": {"images": images}})
-    return {"message": "Slika obrisana"}
+@api_router.delete("/admin/locations/{lid}/images/{idx}")
+async def delete_image(lid: str, idx: int, user: dict = Depends(require_business_or_admin)):
+    loc = await db.locations.find_one({"id": lid}, {"_id": 0})
+    if not loc: raise HTTPException(404)
+    imgs = loc.get("images", [])
+    if idx < 0 or idx >= len(imgs): raise HTTPException(400)
+    imgs.pop(idx)
+    await db.locations.update_one({"id": lid}, {"$set": {"images": imgs}})
+    return {"message": "OK"}
 
-# Admin delete review
-@api_router.delete("/admin/reviews/{review_id}")
-async def admin_delete_review(review_id: str, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    review = await db.reviews.find_one({"id": review_id})
-    if not review:
-        raise HTTPException(status_code=404, detail="Review not found")
-    location_id = review["location_id"]
-    await db.reviews.delete_one({"id": review_id})
-    await recalc_rating(location_id)
-    return {"message": "Recenzija obrisana"}
+@api_router.delete("/admin/reviews/{rid}")
+async def admin_del_review(rid: str, user: dict = Depends(require_admin)):
+    r = await db.reviews.find_one({"id": rid})
+    if not r: raise HTTPException(404)
+    await db.reviews.delete_one({"id": rid})
+    await recalc_rating(r["location_id"])
+    return {"message": "OK"}
 
-# ========== Admin Category CRUD ==========
 @api_router.post("/admin/categories")
-async def admin_create_category(input: CategoryCreate, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    cat = Category(name=input.name, icon=input.icon, color=input.color)
-    await db.categories.insert_one(cat.dict())
-    return cat.dict()
+async def admin_create_cat(inp: CategoryCreate, user: dict = Depends(require_admin)):
+    cat = {"id": str(uuid.uuid4()), "name": inp.name, "icon": inp.icon, "color": inp.color}
+    await db.categories.insert_one(dict(cat))
+    return cat
 
-@api_router.put("/admin/categories/{category_id}")
-async def admin_update_category(category_id: str, input: CategoryUpdate, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    update_data = {k: v for k, v in input.dict().items() if v is not None}
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No data to update")
-    result = await db.categories.update_one({"id": category_id}, {"$set": update_data})
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Category not found")
-    updated = await db.categories.find_one({"id": category_id}, {"_id": 0})
-    return updated
+@api_router.put("/admin/categories/{cid}")
+async def admin_update_cat(cid: str, inp: CategoryUpdate, user: dict = Depends(require_admin)):
+    u = {k: v for k, v in inp.dict().items() if v is not None}
+    if not u: raise HTTPException(400)
+    r = await db.categories.update_one({"id": cid}, {"$set": u})
+    if r.matched_count == 0: raise HTTPException(404)
+    return await db.categories.find_one({"id": cid}, {"_id": 0})
 
-@api_router.delete("/admin/categories/{category_id}")
-async def admin_delete_category(category_id: str, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    loc_count = await db.locations.count_documents({"category": category_id})
-    if loc_count > 0:
-        raise HTTPException(status_code=400, detail=f"Ne može se obrisati - {loc_count} lokacija koristi ovu kategoriju")
-    result = await db.categories.delete_one({"id": category_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Category not found")
-    return {"message": "Kategorija obrisana"}
+@api_router.delete("/admin/categories/{cid}")
+async def admin_del_cat(cid: str, user: dict = Depends(require_admin)):
+    if await db.locations.count_documents({"category": cid}) > 0: raise HTTPException(400, "Kategorija u upotrebi")
+    r = await db.categories.delete_one({"id": cid})
+    if r.deleted_count == 0: raise HTTPException(404)
+    return {"message": "OK"}
 
-# ========== Push Notifications ==========
-class PushTokenRegister(BaseModel):
-    token: str
-    platform: str = "unknown"
+@api_router.post("/admin/business-accounts")
+async def create_business_account(inp: BusinessCreate, user: dict = Depends(require_admin)):
+    if await db.users.find_one({"email": inp.email.lower()}): raise HTTPException(400, "Email već postoji")
+    loc = await db.locations.find_one({"id": inp.location_id})
+    if not loc: raise HTTPException(404, "Lokacija ne postoji")
+    await db.users.insert_one({"email": inp.email.lower(), "password_hash": hash_pw(inp.password), "name": inp.name, "role": "business", "location_id": inp.location_id, "created_at": datetime.now(timezone.utc)})
+    return {"message": f"Biznis nalog kreiran za {inp.email}"}
 
-class NotificationCreate(BaseModel):
-    title: str = Field(min_length=1)
-    body: str = Field(min_length=1)
+@api_router.post("/admin/events")
+async def admin_create_event(inp: EventCreate, user: dict = Depends(require_business_or_admin)):
+    e = Event(created_by=user["id"], **inp.dict())
+    to_ins = dict(e.dict())
+    await db.events.insert_one(to_ins)
+    return e.dict()
 
-EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+@api_router.delete("/admin/events/{eid}")
+async def admin_del_event(eid: str, user: dict = Depends(require_admin)):
+    await db.events.delete_one({"id": eid})
+    return {"message": "OK"}
 
+# ===== Push =====
 @api_router.post("/push/register")
-async def register_push_token(input: PushTokenRegister):
-    """Register device push token (public - any user)"""
-    if not input.token:
-        raise HTTPException(status_code=400, detail="Token required")
-    await db.push_tokens.update_one(
-        {"token": input.token},
-        {"$set": {"token": input.token, "platform": input.platform, "active": True, "registered_at": datetime.now(timezone.utc)}},
-        upsert=True
-    )
-    return {"message": "Token registered"}
+async def reg_push(inp: PushTokenRegister):
+    await db.push_tokens.update_one({"token": inp.token}, {"$set": {"token": inp.token, "platform": inp.platform, "active": True, "registered_at": datetime.now(timezone.utc)}}, upsert=True)
+    return {"message": "OK"}
 
 @api_router.post("/push/unregister")
-async def unregister_push_token(input: PushTokenRegister):
-    """Unregister/deactivate push token"""
-    await db.push_tokens.update_one({"token": input.token}, {"$set": {"active": False}})
-    return {"message": "Token deactivated"}
+async def unreg_push(inp: PushTokenRegister):
+    await db.push_tokens.update_one({"token": inp.token}, {"$set": {"active": False}})
+    return {"message": "OK"}
 
 @api_router.get("/admin/notifications")
-async def get_notifications(user: dict = Depends(get_current_user)):
-    """Get notification history (admin)"""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    notifs = await db.notifications.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
-    return notifs
+async def get_notifs(user: dict = Depends(require_admin)):
+    return await db.notifications.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
 
 @api_router.post("/admin/notifications/send")
-async def send_notification(input: NotificationCreate, user: dict = Depends(get_current_user)):
-    """Send push notification to all active devices (admin)"""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+async def send_notif(inp: NotificationCreate, user: dict = Depends(require_admin)):
     tokens = await db.push_tokens.find({"active": True}, {"_id": 0}).to_list(10000)
-    valid_tokens = [t["token"] for t in tokens if t.get("token")]
-    total = len(valid_tokens)
-    successful = 0
-    failed = 0
-    if valid_tokens:
-        import httpx
-        chunks = [valid_tokens[i:i+100] for i in range(0, len(valid_tokens), 100)]
-        async with httpx.AsyncClient() as client_http:
+    valid = [t["token"] for t in tokens if t.get("token")]
+    total, ok, fail = len(valid), 0, 0
+    if valid:
+        chunks = [valid[i:i+100] for i in range(0, len(valid), 100)]
+        async with httpx.AsyncClient() as hc:
             for chunk in chunks:
                 try:
-                    payload = [{"to": tok, "sound": "default", "title": input.title, "body": input.body} for tok in chunk]
-                    resp = await client_http.post(EXPO_PUSH_URL, json=payload, timeout=30.0)
+                    payload = [{"to": t, "sound": "default", "title": inp.title, "body": inp.body} for t in chunk]
+                    resp = await hc.post(EXPO_PUSH_URL, json=payload, timeout=30.0)
                     if resp.status_code == 200:
                         for ticket in resp.json().get("data", []):
-                            if ticket.get("status") == "ok":
-                                successful += 1
-                            else:
-                                failed += 1
-                    else:
-                        failed += len(chunk)
-                except Exception as e:
-                    logging.error(f"Push error: {e}")
-                    failed += len(chunk)
-    notif_record = {
-        "id": str(uuid.uuid4()), "title": input.title, "body": input.body,
-        "total_devices": total, "successful": successful, "failed": failed,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    to_insert = dict(notif_record)
-    await db.notifications.insert_one(to_insert)
-    return notif_record
+                            if ticket.get("status") == "ok": ok += 1
+                            else: fail += 1
+                    else: fail += len(chunk)
+                except: fail += len(chunk)
+    rec = {"id": str(uuid.uuid4()), "title": inp.title, "body": inp.body, "total_devices": total, "successful": ok, "failed": fail, "created_at": datetime.now(timezone.utc).isoformat()}
+    to_ins = dict(rec)
+    await db.notifications.insert_one(to_ins)
+    return rec
 
 @api_router.get("/admin/push-stats")
-async def get_push_stats(user: dict = Depends(get_current_user)):
-    """Get push notification stats (admin)"""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    total = await db.push_tokens.count_documents({"active": True})
-    return {"active_devices": total}
+async def push_stats(user: dict = Depends(require_admin)):
+    return {"active_devices": await db.push_tokens.count_documents({"active": True})}
 
-# ========== App Settings (Admin) ==========
-class AppSettingsUpdate(BaseModel):
-    paypal_link: Optional[str] = None
-    contact_email: Optional[str] = None
-    app_description: Optional[str] = None
-
+# ===== Settings =====
 @api_router.get("/settings")
 async def get_settings():
-    """Get public app settings (PayPal link, etc.)"""
-    settings = await db.app_settings.find_one({"id": "main"}, {"_id": 0})
-    if not settings:
-        return {"id": "main", "paypal_link": "", "contact_email": "info@gradacac-mapa.ba", "app_description": ""}
-    return settings
+    s = await db.app_settings.find_one({"id": "main"}, {"_id": 0})
+    return s or {"id": "main", "paypal_link": "", "contact_email": "info@gradacac-mapa.ba"}
 
 @api_router.put("/admin/settings")
-async def update_settings(input: AppSettingsUpdate, user: dict = Depends(get_current_user)):
-    """Update app settings (admin)"""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    update_data = {k: v for k, v in input.dict().items() if v is not None}
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No data to update")
-    await db.app_settings.update_one({"id": "main"}, {"$set": update_data}, upsert=True)
-    await db.app_settings.update_one({"id": "main"}, {"$set": {"id": "main"}}, upsert=True)
-    settings = await db.app_settings.find_one({"id": "main"}, {"_id": 0})
-    return settings
+async def update_settings(inp: AppSettingsUpdate, user: dict = Depends(require_admin)):
+    u = {k: v for k, v in inp.dict().items() if v is not None}
+    if not u: raise HTTPException(400)
+    await db.app_settings.update_one({"id": "main"}, {"$set": {**u, "id": "main"}}, upsert=True)
+    return await db.app_settings.find_one({"id": "main"}, {"_id": 0})
 
 app.include_router(api_router)
-
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+async def shutdown(): client.close()
