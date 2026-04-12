@@ -598,7 +598,7 @@ async def loyalty_checkin(inp: LoyaltyAction):
     if not loc: raise HTTPException(404)
     await db.loyalty.update_one(
         {"user_name": inp.user_name.lower()},
-        {"$inc": {"points": 10, "total_visits": 1}, "$push": {"visits": {"location_id": inp.location_id, "location_name": loc["name"], "date": datetime.now(timezone.utc).isoformat()}}, "$set": {"user_name": inp.user_name}},
+        {"$inc": {"points": 10, "total_visits": 1}, "$push": {"visits": {"location_id": inp.location_id, "location_name": loc["name"], "date": datetime.now(timezone.utc).isoformat()}}, "$set": {"user_name": inp.user_name.lower()}},
         upsert=True
     )
     user_loyalty = await db.loyalty.find_one({"user_name": inp.user_name.lower()}, {"_id": 0})

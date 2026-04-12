@@ -51,6 +51,10 @@ export default function Index() {
   const [selectedCat, setSelectedCat] = useState<string|null>(null);
   const [showCatList, setShowCatList] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [attractions, setAttractions] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [loyaltyName, setLoyaltyName] = useState('');
 
   const [fontsLoaded] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
 
@@ -58,7 +62,7 @@ export default function Index() {
 
   const init = async () => {
     await getGPS();
-    await Promise.all([fetchCats(), fetchLocs(), fetchOffers(), fetchEvents(), loadFavorites()]);
+    await Promise.all([fetchCats(), fetchLocs(), fetchOffers(), fetchEvents(), loadFavorites(), fetchAttractions(), fetchLeaderboard(), loadLoyalty()]);
     setLoading(false);
   };
 
@@ -76,6 +80,21 @@ export default function Index() {
   const fetchLocs = async () => { try { setLocs((await axios.get(`${BACKEND}/api/locations`)).data); } catch {} };
   const fetchOffers = async () => { try { setOffers((await axios.get(`${BACKEND}/api/offers`)).data); } catch {} };
   const fetchEvents = async () => { try { setEvents((await axios.get(`${BACKEND}/api/events`)).data); } catch {} };
+
+  const fetchAttractions = async () => { try { setAttractions((await axios.get(`${BACKEND}/api/tourism/attractions`)).data); } catch {} };
+  const fetchLeaderboard = async () => { try { setLeaderboard((await axios.get(`${BACKEND}/api/leaderboard`)).data); } catch {} };
+  const loadLoyalty = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        const name = window.localStorage.getItem('loyalty_name');
+        if (name) {
+          setLoyaltyName(name);
+          const r = await axios.get(`${BACKEND}/api/loyalty/${name}`);
+          setLoyaltyPoints(r.data.points || 0);
+        }
+      }
+    } catch {}
+  };
 
   const loadFavorites = async () => {
     try {
@@ -292,6 +311,56 @@ export default function Index() {
             </View>
           )}
 
+          {/* Leaderboard - Top u Gradačcu */}
+          {leaderboard.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Top u Gradačcu</Text>
+              {leaderboard.slice(0, 5).map((loc: any, i: number) => (
+                <TouchableOpacity key={loc.id} testID={`leader-${loc.id}`} style={s.leaderCard} onPress={() => router.push(`/location/${loc.id}`)}>
+                  <View style={s.leaderRank}><Text style={s.leaderRankTxt}>#{i + 1}</Text></View>
+                  <View style={s.leaderBody}>
+                    <Text style={s.leaderName} numberOfLines={1}>{loc.name}</Text>
+                    <View style={s.leaderMeta}>
+                      <Ionicons name="star" size={14} color={C.star} />
+                      <Text style={s.leaderRating}>{loc.avg_rating?.toFixed(1)}</Text>
+                      <Text style={s.leaderReviews}>({loc.review_count} recenzija)</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={C.textSec} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* Tourism - Znamenitosti */}
+          {attractions.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Znamenitosti</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20 }}>
+                {attractions.map((a: any) => (
+                  <View key={a.id} testID={`attraction-${a.id}`} style={s.attractionCard}>
+                    <View style={s.attractionIcon}><Ionicons name="business-outline" size={24} color={C.primary} /></View>
+                    <Text style={s.attractionName} numberOfLines={2}>{a.name}</Text>
+                    <Text style={s.attractionDesc} numberOfLines={3}>{a.description}</Text>
+                    <View style={s.attractionCat}><Text style={s.attractionCatTxt}>{a.category}</Text></View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Loyalty Points */}
+          {loyaltyPoints > 0 && (
+            <View style={s.loyaltyCard}>
+              <Ionicons name="trophy" size={28} color={C.star} />
+              <View style={s.loyaltyBody}>
+                <Text style={s.loyaltyTitle}>Vaši bodovi</Text>
+                <Text style={s.loyaltyDesc}>Skenirajte QR kod na lokacijama za više bodova!</Text>
+              </View>
+              <Text style={s.loyaltyPts}>{loyaltyPoints}</Text>
+            </View>
+          )}
+
           {/* Browse all */}
           <TouchableOpacity testID="browse-all-btn" style={s.browseBtn} onPress={() => { setSelectedCat(null); setShowCatList(true); }}>
             <Ionicons name="list" size={20} color={C.primary} />
@@ -350,6 +419,28 @@ const s = StyleSheet.create({
   // Browse all
   browseBtn: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, padding: 16, backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border },
   browseTxt: { flex: 1, fontSize: 15, fontFamily: 'Manrope_600SemiBold', color: C.text, marginLeft: 12 },
+  // Leaderboard
+  leaderCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 8, backgroundColor: C.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: C.border },
+  leaderRank: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.star + '15', justifyContent: 'center', alignItems: 'center' },
+  leaderRankTxt: { fontSize: 14, fontFamily: 'Outfit_700Bold', color: C.star },
+  leaderBody: { flex: 1, marginLeft: 12 },
+  leaderName: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: C.text },
+  leaderMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  leaderRating: { fontSize: 14, fontFamily: 'Manrope_700Bold', color: C.star, marginLeft: 4 },
+  leaderReviews: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: C.textSec, marginLeft: 4 },
+  // Attractions
+  attractionCard: { width: 170, backgroundColor: C.surface, borderRadius: 16, padding: 16, marginRight: 12, borderWidth: 1, borderColor: C.border },
+  attractionIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: C.primary + '12', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  attractionName: { fontSize: 14, fontFamily: 'Outfit_600SemiBold', color: C.text, marginBottom: 4 },
+  attractionDesc: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: C.textSec, lineHeight: 16, marginBottom: 8 },
+  attractionCat: { backgroundColor: C.primary + '12', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' },
+  attractionCatTxt: { fontSize: 10, fontFamily: 'Manrope_600SemiBold', color: C.primary },
+  // Loyalty
+  loyaltyCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 16, backgroundColor: C.star + '0C', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: C.star + '25' },
+  loyaltyBody: { flex: 1, marginLeft: 12 },
+  loyaltyTitle: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: C.text },
+  loyaltyDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: C.textSec, marginTop: 2 },
+  loyaltyPts: { fontSize: 28, fontFamily: 'Outfit_700Bold', color: C.star },
   // Open/closed badge
   openBadge: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   openDot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
