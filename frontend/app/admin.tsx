@@ -70,8 +70,8 @@ export default function AdminScreen() {
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
-  // Tabs: locations, notifications, settings, categories
-  const [activeTab, setActiveTab] = useState<'locations' | 'notifications' | 'settings' | 'categories'>('locations');
+  // Tabs
+  const [activeTab, setActiveTab] = useState<'locations' | 'categories' | 'businesses' | 'notifications' | 'settings'>('locations');
   // Locations
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -96,6 +96,14 @@ export default function AdminScreen() {
   const [paypalLink, setPaypalLink] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
+  // Business accounts
+  const [bizAccounts, setBizAccounts] = useState<any[]>([]);
+  const [bizModalVisible, setBizModalVisible] = useState(false);
+  const [newBizEmail, setNewBizEmail] = useState('');
+  const [newBizPassword, setNewBizPassword] = useState('');
+  const [newBizName, setNewBizName] = useState('');
+  const [newBizLocId, setNewBizLocId] = useState('');
+  const [savingBiz, setSavingBiz] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -109,7 +117,7 @@ export default function AdminScreen() {
     if (saved) { setToken(saved); setIsLoggedIn(true); loadAll(saved); }
   };
 
-  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); };
+  const loadAll = (t: string) => { fetchLocations(t); fetchSettings(); fetchNotifications(t); fetchPushStats(t); fetchAdminCategories(); fetchBizAccounts(t); };
 
   const handleLogin = async () => {
     setLoginLoading(true); setLoginError('');
@@ -231,6 +239,31 @@ export default function AdminScreen() {
     try { const r = await axios.get(`${BACKEND_URL}/api/categories`); setAdminCategories(r.data); } catch {}
   };
 
+  const fetchBizAccounts = async (t: string) => {
+    try { const r = await axios.get(`${BACKEND_URL}/api/admin/business-accounts`, { headers: { Authorization: `Bearer ${t}` } }); setBizAccounts(r.data); } catch {}
+  };
+
+  const createBizAccount = async () => {
+    if (!newBizEmail || !newBizPassword || !newBizName || !newBizLocId) { Alert.alert('Greška', 'Sva polja su obavezna'); return; }
+    setSavingBiz(true);
+    try {
+      await axios.post(`${BACKEND_URL}/api/admin/business-accounts`, { email: newBizEmail, password: newBizPassword, name: newBizName, location_id: newBizLocId }, { headers: { Authorization: `Bearer ${token}` } });
+      Alert.alert('Uspjeh', `Biznis nalog kreiran za ${newBizEmail}`);
+      setBizModalVisible(false); setNewBizEmail(''); setNewBizPassword(''); setNewBizName(''); setNewBizLocId('');
+      fetchBizAccounts(token);
+    } catch (e: any) { Alert.alert('Greška', e.response?.data?.detail || 'Greška'); }
+    setSavingBiz(false);
+  };
+
+  const deleteBizAccount = (biz: any) => {
+    Alert.alert('Brisanje', `Obrisati nalog "${biz.email}"?`, [
+      { text: 'Odustani', style: 'cancel' },
+      { text: 'Obriši', style: 'destructive', onPress: async () => {
+        try { await axios.delete(`${BACKEND_URL}/api/admin/business-accounts/${biz.id}`, { headers: { Authorization: `Bearer ${token}` } }); fetchBizAccounts(token); } catch {}
+      }},
+    ]);
+  };
+
   const openNewCat = () => { setEditCat({ name: '', icon: 'location', color: '#888888' }); setIsNewCat(true); setCatModalVisible(true); };
   const openEditCat = (cat: any) => { setEditCat({ ...cat }); setIsNewCat(false); setCatModalVisible(true); };
 
@@ -320,13 +353,13 @@ export default function AdminScreen() {
 
       {/* Tabs */}
       <View style={s.tabs}>
-        {(['locations', 'categories', 'notifications', 'settings'] as const).map(tab => (
+        {(['locations', 'categories', 'businesses', 'notifications', 'settings'] as const).map(tab => (
           <TouchableOpacity key={tab} testID={`tab-${tab}`} style={[s.tab, activeTab === tab && s.tabActive]}
             onPress={() => setActiveTab(tab)}>
-            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
-              size={16} color={activeTab === tab ? '#fff' : c.textSec} />
+            <Ionicons name={tab === 'locations' ? 'location-outline' : tab === 'categories' ? 'grid-outline' : tab === 'businesses' ? 'people-outline' : tab === 'notifications' ? 'notifications-outline' : 'cog-outline'}
+              size={14} color={activeTab === tab ? '#fff' : c.textSec} />
             <Text style={[s.tabTxt, activeTab === tab && s.tabTxtActive]}>
-              {tab === 'locations' ? 'Lokacije' : tab === 'categories' ? 'Kateg.' : tab === 'notifications' ? 'Obav.' : 'Post.'}
+              {tab === 'locations' ? 'Lok.' : tab === 'categories' ? 'Kat.' : tab === 'businesses' ? 'Biz.' : tab === 'notifications' ? 'Obav.' : 'Post.'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -369,6 +402,34 @@ export default function AdminScreen() {
             <View style={{ height: 40 }} />
           </ScrollView>
         )
+      )}
+
+      {/* ===== BUSINESSES TAB ===== */}
+      {activeTab === 'businesses' && (
+        <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+          <View style={s.catHeader}>
+            <Text style={s.catHeaderTxt}>{bizAccounts.length} biznis naloga</Text>
+            <TouchableOpacity testID="add-biz-btn" style={s.addCatBtn} onPress={() => setBizModalVisible(true)}>
+              <Ionicons name="add" size={18} color="#fff" /><Text style={s.addCatBtnTxt}>Novi</Text>
+            </TouchableOpacity>
+          </View>
+          {bizAccounts.map(biz => (
+            <View key={biz.id} testID={`biz-${biz.id}`} style={s.catCard}>
+              <View style={[s.catColorDot, { backgroundColor: c.primary }]}>
+                <Ionicons name="person" size={18} color="#fff" />
+              </View>
+              <View style={s.catCardBody}>
+                <Text style={s.catCardName}>{biz.name}</Text>
+                <Text style={s.catCardIcon}>{biz.email}</Text>
+                <Text style={{ fontSize: 11, fontFamily: 'Manrope_500Medium', color: c.accent }}>{biz.location_name}</Text>
+              </View>
+              <TouchableOpacity style={s.delBtn} onPress={() => deleteBizAccount(biz)}>
+                <Ionicons name="trash-outline" size={16} color={c.danger} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          <View style={{ height: 40 }} />
+        </ScrollView>
       )}
 
       {/* ===== CATEGORIES TAB ===== */}
@@ -561,6 +622,42 @@ export default function AdminScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      {/* ===== BUSINESS ACCOUNT MODAL ===== */}
+      <Modal visible={bizModalVisible} animationType="slide" transparent onRequestClose={() => setBizModalVisible(false)}>
+        <View style={s.modalOuter}>
+          <TouchableOpacity style={s.modalBg} onPress={() => setBizModalVisible(false)} activeOpacity={1} />
+          <View testID="biz-modal" style={[s.modalBox, { maxHeight: height * 0.65 }]}>
+            <View style={s.modalHead}>
+              <Text style={s.modalTitle}>Novi biznis nalog</Text>
+              <TouchableOpacity onPress={() => setBizModalVisible(false)}><Ionicons name="close" size={24} color={c.textSec} /></TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={s.fldLbl}>Ime biznisa *</Text>
+              <TextInput testID="biz-name-input" style={s.fldInput} value={newBizName} onChangeText={setNewBizName} placeholder="Npr: Restoran Stari Grad" />
+              <Text style={s.fldLbl}>Email *</Text>
+              <TextInput testID="biz-email-input" style={s.fldInput} value={newBizEmail} onChangeText={setNewBizEmail} placeholder="biznis@email.com" keyboardType="email-address" autoCapitalize="none" />
+              <Text style={s.fldLbl}>Lozinka *</Text>
+              <TextInput testID="biz-password-input" style={s.fldInput} value={newBizPassword} onChangeText={setNewBizPassword} placeholder="Min. 6 znakova" secureTextEntry />
+              <Text style={s.fldLbl}>Lokacija (odaberite) *</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                {locations.map(loc => (
+                  <TouchableOpacity key={loc.id} style={[s.catOpt, newBizLocId === loc.id && s.catOptActive]}
+                    onPress={() => setNewBizLocId(loc.id)}>
+                    <Text style={[s.catOptTxt, newBizLocId === loc.id && s.catOptTxtActive]} numberOfLines={1}>{loc.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity testID="create-biz-btn" style={s.saveLocBtn} onPress={createBizAccount} disabled={savingBiz}>
+                {savingBiz ? <ActivityIndicator color="#fff" /> : (
+                  <><Ionicons name="person-add" size={20} color="#fff" /><Text style={s.saveLocBtnTxt}>Kreiraj nalog</Text></>
+                )}
+              </TouchableOpacity>
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* ===== CATEGORY MODAL ===== */}
       <Modal visible={catModalVisible} animationType="slide" transparent onRequestClose={() => setCatModalVisible(false)}>
         <View style={s.modalOuter}>
@@ -698,7 +795,7 @@ const s = StyleSheet.create({
   addCatBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.accent, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   addCatBtnTxt: { color: '#fff', fontSize: 14, fontFamily: 'Manrope_700Bold', marginLeft: 4 },
   catCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border },
-  catColorDot: { width: 36, height: 36, borderRadius: 18 },
+  catColorDot: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   catCardBody: { flex: 1, marginLeft: 14 },
   catCardName: { fontSize: 16, fontFamily: 'Outfit_600SemiBold', color: c.text },
   catCardIcon: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: c.textSec, marginTop: 2 },

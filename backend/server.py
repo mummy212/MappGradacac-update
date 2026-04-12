@@ -586,6 +586,103 @@ async def update_settings(inp: AppSettingsUpdate, user: dict = Depends(require_a
     await db.app_settings.update_one({"id": "main"}, {"$set": {**u, "id": "main"}}, upsert=True)
     return await db.app_settings.find_one({"id": "main"}, {"_id": 0})
 
+# ===== Loyalty / Points =====
+class LoyaltyAction(BaseModel):
+    user_name: str
+    location_id: str
+
+@api_router.post("/loyalty/checkin")
+async def loyalty_checkin(inp: LoyaltyAction):
+    """User checks in at location via QR scan - earns points"""
+    loc = await db.locations.find_one({"id": inp.location_id})
+    if not loc: raise HTTPException(404)
+    await db.loyalty.update_one(
+        {"user_name": inp.user_name.lower()},
+        {"$inc": {"points": 10, "total_visits": 1}, "$push": {"visits": {"location_id": inp.location_id, "location_name": loc["name"], "date": datetime.now(timezone.utc).isoformat()}}, "$set": {"user_name": inp.user_name}},
+        upsert=True
+    )
+    user_loyalty = await db.loyalty.find_one({"user_name": inp.user_name.lower()}, {"_id": 0})
+    if not user_loyalty:
+        # Fallback in case of race condition
+        return {"points": 10, "total_visits": 1, "message": "+10 bodova!"}
+    pts = user_loyalty.get("points", 10)
+    vis = user_loyalty.get("total_visits", 1)
+    return {"points": pts, "total_visits": vis, "message": "+10 bodova!"}
+
+@api_router.get("/loyalty/{user_name}")
+async def get_loyalty(user_name: str):
+    data = await db.loyalty.find_one({"user_name": user_name.lower()}, {"_id": 0})
+    if not data: return {"user_name": user_name, "points": 0, "total_visits": 0, "visits": []}
+    return data
+
+# ===== Chat / Messages =====
+class MessageCreate(BaseModel):
+    sender_name: str
+    message: str
+
+@api_router.post("/locations/{lid}/messages")
+async def send_message(lid: str, inp: MessageCreate):
+    loc = await db.locations.find_one({"id": lid})
+    if not loc: raise HTTPException(404)
+    msg = {"id": str(uuid.uuid4()), "location_id": lid, "sender_name": inp.sender_name, "message": inp.message, "reply": None, "created_at": datetime.now(timezone.utc).isoformat()}
+    to_ins = dict(msg)
+    await db.messages.insert_one(to_ins)
+    return msg
+
+@api_router.get("/locations/{lid}/messages")
+async def get_messages(lid: str):
+    return await db.messages.find({"location_id": lid}, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+@api_router.put("/business/messages/{mid}/reply")
+async def reply_message(mid: str, inp: MessageCreate, user: dict = Depends(require_business_or_admin)):
+    await db.messages.update_one({"id": mid}, {"$set": {"reply": inp.message, "replied_at": datetime.now(timezone.utc).isoformat()}})
+    return {"message": "Odgovor poslan"}
+
+# ===== Tourism / Attractions =====
+ATTRACTIONS = [
+    {"id": "1", "name": "Gradačačka tvrđava", "description": "Srednjovjekovna tvrđava iz 15. vijeka, simbol grada Gradačca. Poznata kao Husejn-kapetanova kula.", "latitude": 44.8802, "longitude": 18.4260, "category": "Historija"},
+    {"id": "2", "name": "Husejnija džamija", "description": "Glavna džamija u centru grada, izgrađena u osmanskom periodu.", "latitude": 44.8798, "longitude": 18.4268, "category": "Religija"},
+    {"id": "3", "name": "Gradski park", "description": "Zelena oaza u centru grada za odmor i rekreaciju.", "latitude": 44.8790, "longitude": 18.4280, "category": "Priroda"},
+    {"id": "4", "name": "Savska promenada", "description": "Šetalište uz rijeku, idealno za trčanje i biciklizam.", "latitude": 44.8810, "longitude": 18.4300, "category": "Priroda"},
+    {"id": "5", "name": "Muzej Gradačac", "description": "Gradski muzej sa eksponatima iz bogate historije grada.", "latitude": 44.8795, "longitude": 18.4265, "category": "Kultura"},
+]
+
+@api_router.get("/tourism/attractions")
+async def get_attractions():
+    # Check DB first, fallback to defaults
+    db_attrs = await db.attractions.find({}, {"_id": 0}).to_list(100)
+    if db_attrs: return db_attrs
+    return ATTRACTIONS
+
+@api_router.post("/admin/tourism/attractions")
+async def create_attraction(user: dict = Depends(require_admin)):
+    # Seed defaults if empty
+    if await db.attractions.count_documents({}) == 0:
+        for a in ATTRACTIONS: await db.attractions.insert_one(dict(a))
+    return await db.attractions.find({}, {"_id": 0}).to_list(100)
+
+# ===== Leaderboard =====
+@api_router.get("/leaderboard")
+async def get_leaderboard(limit: int = Query(10)):
+    """Top locations by rating and review count"""
+    locs = await db.locations.find({"review_count": {"$gt": 0}}, {"_id": 0}).sort([("avg_rating", -1), ("review_count", -1)]).to_list(limit)
+    return [{"id": l["id"], "name": l["name"], "category": l["category"], "avg_rating": l.get("avg_rating", 0), "review_count": l.get("review_count", 0), "images": l.get("images", [])[:1]} for l in locs]
+
+# ===== Admin Business List =====
+@api_router.get("/admin/business-accounts")
+async def list_business_accounts(user: dict = Depends(require_admin)):
+    users = await db.users.find({"role": "business"}).to_list(100)
+    result = []
+    for u in users:
+        loc = await db.locations.find_one({"id": u.get("location_id", "")}, {"_id": 0, "name": 1})
+        result.append({"id": str(u["_id"]), "email": u["email"], "name": u.get("name", ""), "location_id": u.get("location_id", ""), "location_name": loc.get("name", "") if loc else "", "created_at": u.get("created_at", "")})
+    return result
+
+@api_router.delete("/admin/business-accounts/{uid}")
+async def delete_business_account(uid: str, user: dict = Depends(require_admin)):
+    await db.users.delete_one({"_id": ObjectId(uid), "role": "business"})
+    return {"message": "OK"}
+
 app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
