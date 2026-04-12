@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium } from '@expo-google-fonts/outfit';
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
+import { useRouter } from 'expo-router';
 import axios from 'axios';
 import LeafletMap, { LeafletMapRef } from '../components/LeafletMap';
 
@@ -78,6 +79,7 @@ interface LocationItem {
 
 export default function Index() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const mapRef = useRef<LeafletMapRef>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [locations, setLocations] = useState<LocationItem[]>([]);
@@ -253,6 +255,10 @@ export default function Index() {
 
         {/* Controls */}
         <View style={s.mapCtrl}>
+          <TouchableOpacity testID="admin-panel-btn" style={[s.mapBtn, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/admin')} activeOpacity={0.7}>
+            <Ionicons name="settings-outline" size={22} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity testID="center-user-btn" style={s.mapBtn} onPress={centerOnUser} activeOpacity={0.7}>
             <Ionicons name="locate" size={22} color={colors.primary} />
           </TouchableOpacity>

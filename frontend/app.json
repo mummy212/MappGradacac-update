@@ -56,7 +56,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Omogući pristup lokaciji za navigaciju do mjesta u gradu."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
