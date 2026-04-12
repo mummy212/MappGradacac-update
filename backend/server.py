@@ -330,6 +330,89 @@ async def admin_delete_review(review_id: str, user: dict = Depends(get_current_u
     await recalc_rating(location_id)
     return {"message": "Recenzija obrisana"}
 
+# ========== Push Notifications ==========
+class PushTokenRegister(BaseModel):
+    token: str
+    platform: str = "unknown"
+
+class NotificationCreate(BaseModel):
+    title: str
+    body: str
+
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+@api_router.post("/push/register")
+async def register_push_token(input: PushTokenRegister):
+    """Register device push token (public - any user)"""
+    if not input.token:
+        raise HTTPException(status_code=400, detail="Token required")
+    await db.push_tokens.update_one(
+        {"token": input.token},
+        {"$set": {"token": input.token, "platform": input.platform, "active": True, "registered_at": datetime.now(timezone.utc)}},
+        upsert=True
+    )
+    return {"message": "Token registered"}
+
+@api_router.post("/push/unregister")
+async def unregister_push_token(input: PushTokenRegister):
+    """Unregister/deactivate push token"""
+    await db.push_tokens.update_one({"token": input.token}, {"$set": {"active": False}})
+    return {"message": "Token deactivated"}
+
+@api_router.get("/admin/notifications")
+async def get_notifications(user: dict = Depends(get_current_user)):
+    """Get notification history (admin)"""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    notifs = await db.notifications.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return notifs
+
+@api_router.post("/admin/notifications/send")
+async def send_notification(input: NotificationCreate, user: dict = Depends(get_current_user)):
+    """Send push notification to all active devices (admin)"""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    tokens = await db.push_tokens.find({"active": True}, {"_id": 0}).to_list(10000)
+    valid_tokens = [t["token"] for t in tokens if t.get("token")]
+    total = len(valid_tokens)
+    successful = 0
+    failed = 0
+    if valid_tokens:
+        import httpx
+        chunks = [valid_tokens[i:i+100] for i in range(0, len(valid_tokens), 100)]
+        async with httpx.AsyncClient() as client_http:
+            for chunk in chunks:
+                try:
+                    payload = [{"to": tok, "sound": "default", "title": input.title, "body": input.body} for tok in chunk]
+                    resp = await client_http.post(EXPO_PUSH_URL, json=payload, timeout=30.0)
+                    if resp.status_code == 200:
+                        for ticket in resp.json().get("data", []):
+                            if ticket.get("status") == "ok":
+                                successful += 1
+                            else:
+                                failed += 1
+                    else:
+                        failed += len(chunk)
+                except Exception as e:
+                    logging.error(f"Push error: {e}")
+                    failed += len(chunk)
+    notif_record = {
+        "id": str(uuid.uuid4()), "title": input.title, "body": input.body,
+        "total_devices": total, "successful": successful, "failed": failed,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    to_insert = dict(notif_record)
+    await db.notifications.insert_one(to_insert)
+    return notif_record
+
+@api_router.get("/admin/push-stats")
+async def get_push_stats(user: dict = Depends(get_current_user)):
+    """Get push notification stats (admin)"""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    total = await db.push_tokens.count_documents({"active": True})
+    return {"active_devices": total}
+
 app.include_router(api_router)
 
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
