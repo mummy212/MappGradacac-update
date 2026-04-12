@@ -226,6 +226,8 @@ export default function Index() {
             onPress={() => router.push('/about')}><Ionicons name="heart-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity testID="admin-btn" style={[s.mapBtn, { backgroundColor: C.primary }]}
             onPress={() => router.push('/admin')}><Ionicons name="settings-outline" size={20} color="#fff" /></TouchableOpacity>
+          <TouchableOpacity testID="biz-panel-btn" style={[s.mapBtn, { backgroundColor: C.accent }]}
+            onPress={() => router.push('/business')}><Ionicons name="storefront-outline" size={20} color="#fff" /></TouchableOpacity>
           <TouchableOpacity testID="locate-btn" style={s.mapBtn}
             onPress={() => { if (userLoc) mapRef.current?.flyTo(userLoc.latitude, userLoc.longitude, 16); }}><Ionicons name="locate" size={20} color={C.primary} /></TouchableOpacity>
         </View>
@@ -338,12 +340,13 @@ export default function Index() {
               <Text style={s.sectionTitle}>Znamenitosti</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20 }}>
                 {attractions.map((a: any) => (
-                  <View key={a.id} testID={`attraction-${a.id}`} style={s.attractionCard}>
+                  <TouchableOpacity key={a.id} testID={`attraction-${a.id}`} style={s.attractionCard}
+                    onPress={() => router.push(`/attraction/${a.id}`)} activeOpacity={0.7}>
                     <View style={s.attractionIcon}><Ionicons name="business-outline" size={24} color={C.primary} /></View>
                     <Text style={s.attractionName} numberOfLines={2}>{a.name}</Text>
                     <Text style={s.attractionDesc} numberOfLines={3}>{a.description}</Text>
                     <View style={s.attractionCat}><Text style={s.attractionCatTxt}>{a.category}</Text></View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
