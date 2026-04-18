@@ -22,6 +22,17 @@ const colors = {
 
 const PRICE_LABELS = ['', '€', '€€', '€€€'];
 
+// Mapa oznaka po kategoriji (meni / ponuda / usluge)
+const OFFERING_MAP: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; emptyMsg: string }> = {
+  restaurant:   { label: 'Meni',    icon: 'restaurant-outline', emptyMsg: 'Meni još nije dodan' },
+  cafe:         { label: 'Meni',    icon: 'cafe-outline',       emptyMsg: 'Meni još nije dodan' },
+  market:       { label: 'Ponuda',  icon: 'pricetags-outline',  emptyMsg: 'Ponuda još nije dodana' },
+  pharmacy:     { label: 'Ponuda',  icon: 'medkit-outline',     emptyMsg: 'Ponuda još nije dodana' },
+  auto_service: { label: 'Usluge',  icon: 'construct-outline',  emptyMsg: 'Usluge još nisu dodane' },
+  gas_station:  { label: 'Usluge',  icon: 'car-outline',        emptyMsg: 'Usluge još nisu dodane' },
+};
+const getOffering = (cat?: string) => OFFERING_MAP[cat || ''] || { label: 'Ponuda', icon: 'pricetags-outline' as any, emptyMsg: 'Ponuda još nije dodana' };
+
 interface LocationDetail {
   id: string; name: string; category: string; address: string;
   latitude: number; longitude: number; phone?: string;
@@ -266,25 +277,25 @@ export default function LocationDetailScreen() {
             </View>
           )}
 
-          {/* Section Tabs: Info / Meni / Chat */}
+          {/* Section Tabs: Info / Meni (ili Ponuda/Usluge) / Chat */}
           <View style={{ flexDirection: 'row', marginTop: 16, marginBottom: 12, backgroundColor: colors.background, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
             {(['info', 'menu', 'chat'] as const).map(tab => (
               <TouchableOpacity key={tab} testID={`section-${tab}`} style={{ flex: 1, paddingVertical: 11, alignItems: 'center', backgroundColor: activeSection === tab ? colors.primary : 'transparent' }}
                 onPress={() => setActiveSection(tab)}>
                 <Text style={{ fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: activeSection === tab ? '#fff' : colors.textSecondary }}>
-                  {tab === 'info' ? 'Recenzije' : tab === 'menu' ? 'Meni' : 'Chat'}
+                  {tab === 'info' ? 'Recenzije' : tab === 'menu' ? getOffering(location?.category).label : 'Chat'}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* Menu Section */}
+          {/* Menu / Ponuda / Usluge Section */}
           {activeSection === 'menu' && (
             <View>
               {menuItems.length === 0 ? (
                 <View style={s.noReviews}>
-                  <Ionicons name="restaurant-outline" size={36} color={colors.border} />
-                  <Text style={s.noReviewsText}>Meni još nije dodan</Text>
+                  <Ionicons name={getOffering(location?.category).icon} size={36} color={colors.border} />
+                  <Text style={s.noReviewsText}>{getOffering(location?.category).emptyMsg}</Text>
                 </View>
               ) : (
                 menuItems.map((item: any) => (

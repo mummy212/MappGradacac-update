@@ -22,6 +22,17 @@ const { height } = Dimensions.get('window');
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL;
 const c = { bg: '#FAF9F6', surface: '#FFF', primary: '#4A5D4E', primaryFg: '#FFF', accent: '#D97757', text: '#1C1C1C', textSec: '#6B6B6B', border: '#E5E4E2', danger: '#E74C3C', success: '#27AE60', notif: '#3B82F6' };
 
+// Mapa oznaka po kategoriji - "Meni" samo za restorane/kafiće
+const OFFERING_MAP: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; singular: string; empty: string; placeholder: string; cats: string }> = {
+  restaurant:   { label: 'Meni',    icon: 'restaurant-outline', singular: 'stavka menija',  empty: 'Meni je prazan',     placeholder: 'Npr: Ćevapi 10 kom', cats: 'Jela, Pića...' },
+  cafe:         { label: 'Meni',    icon: 'cafe-outline',       singular: 'stavka menija',  empty: 'Meni je prazan',     placeholder: 'Npr: Espresso',      cats: 'Pića, Kolači...' },
+  market:       { label: 'Ponuda',  icon: 'pricetags-outline',  singular: 'proizvod',        empty: 'Nema proizvoda',     placeholder: 'Npr: Jabuke 1kg',    cats: 'Voće, Povrće...' },
+  pharmacy:     { label: 'Ponuda',  icon: 'medkit-outline',     singular: 'proizvod',        empty: 'Nema proizvoda',     placeholder: 'Npr: Paracetamol',   cats: 'Lijekovi, Kozmetika...' },
+  auto_service: { label: 'Usluge',  icon: 'construct-outline',  singular: 'usluga',          empty: 'Nema usluga',        placeholder: 'Npr: Zamjena ulja',  cats: 'Servis, Dijagnostika...' },
+  gas_station:  { label: 'Usluge',  icon: 'car-outline',         singular: 'usluga',          empty: 'Nema usluga',        placeholder: 'Npr: Pranje auta',   cats: 'Gorivo, Pranje...' },
+};
+const getOffering = (cat?: string) => OFFERING_MAP[cat || ''] || { label: 'Ponuda', icon: 'pricetags-outline' as any, singular: 'stavka', empty: 'Nema stavki', placeholder: 'Naziv', cats: 'Kategorija' };
+
 export default function BusinessPanel() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -169,7 +180,10 @@ export default function BusinessPanel() {
 
       {/* Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabsWrap} contentContainerStyle={s.tabsContent}>
-        {([['profil','person-outline','Profil'],['ponude','pricetag-outline','Ponude'],['meni','restaurant-outline','Meni'],['poruke','chatbubble-outline','Poruke'],['stats','stats-chart-outline','Stats']] as const).map(([id, icon, label]) => (
+        {(() => {
+          const off = getOffering(location?.category);
+          return ([['profil','person-outline','Profil'],['ponude','pricetag-outline','Ponude'],['meni', off.icon, off.label],['poruke','chatbubble-outline','Poruke'],['stats','stats-chart-outline','Stats']] as const);
+        })().map(([id, icon, label]) => (
           <TouchableOpacity key={id} testID={`biz-tab-${id}`} style={[s.bizTab, tab === id && s.bizTabActive]} onPress={() => setTab(id as any)}>
             <Ionicons name={icon as any} size={16} color={tab === id ? '#fff' : c.textSec} />
             <Text style={[s.bizTabTxt, tab === id && s.bizTabTxtActive]}>{label}</Text>
@@ -236,11 +250,11 @@ export default function BusinessPanel() {
           </View>
         )}
 
-        {/* MENI */}
+        {/* MENI / PONUDA / USLUGE */}
         {tab === 'meni' && (
           <View>
             <TouchableOpacity testID="add-biz-menu-btn" style={s.addItemBtn} onPress={() => setMenuModal(true)}>
-              <Ionicons name="add-circle" size={22} color={c.accent} /><Text style={s.addItemTxt}>Nova stavka menija</Text>
+              <Ionicons name="add-circle" size={22} color={c.accent} /><Text style={s.addItemTxt}>Nova {getOffering(location?.category).singular}</Text>
             </TouchableOpacity>
             {menuItems.map(m => (
               <View key={m.id} testID={`biz-menu-${m.id}`} style={s.itemCard}>
@@ -253,7 +267,7 @@ export default function BusinessPanel() {
                 <TouchableOpacity onPress={() => deleteMenuItem(m)} style={{ marginLeft: 8 }}><Ionicons name="trash-outline" size={18} color={c.danger} /></TouchableOpacity>
               </View>
             ))}
-            {menuItems.length === 0 && <Text style={s.emptyTxt}>Meni je prazan</Text>}
+            {menuItems.length === 0 && <Text style={s.emptyTxt}>{getOffering(location?.category).empty}</Text>}
           </View>
         )}
 
@@ -313,20 +327,20 @@ export default function BusinessPanel() {
         </View>
       </Modal>
 
-      {/* MENU MODAL */}
+      {/* MENU MODAL - prilagođen kategoriji (Meni/Ponuda/Usluge) */}
       <Modal visible={menuModal} animationType="slide" transparent onRequestClose={() => setMenuModal(false)}>
         <View style={s.modalOuter}>
           <TouchableOpacity style={s.modalBg} onPress={() => setMenuModal(false)} activeOpacity={1} />
           <View testID="biz-menu-modal" style={s.modalBox}>
-            <Text style={s.modalTitle}>Nova stavka menija</Text>
-            <Text style={s.fldLbl}>Naziv *</Text><TextInput testID="biz-menu-name" style={s.fldInput} value={newMenu.name} onChangeText={(v: string) => setNewMenu((p: any) => ({ ...p, name: v }))} placeholder="Npr: Ćevapi 10 kom" />
+            <Text style={s.modalTitle}>Nova {getOffering(location?.category).singular}</Text>
+            <Text style={s.fldLbl}>Naziv *</Text><TextInput testID="biz-menu-name" style={s.fldInput} value={newMenu.name} onChangeText={(v: string) => setNewMenu((p: any) => ({ ...p, name: v }))} placeholder={getOffering(location?.category).placeholder} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}><Text style={s.fldLbl}>Cijena (KM) *</Text><TextInput style={s.fldInput} value={newMenu.price} onChangeText={(v: string) => setNewMenu((p: any) => ({ ...p, price: v }))} keyboardType="numeric" placeholder="8.00" /></View>
-              <View style={{ flex: 1 }}><Text style={s.fldLbl}>Kategorija</Text><TextInput style={s.fldInput} value={newMenu.category} onChangeText={(v: string) => setNewMenu((p: any) => ({ ...p, category: v }))} placeholder="Jela, Pića..." /></View>
+              <View style={{ flex: 1 }}><Text style={s.fldLbl}>Kategorija</Text><TextInput style={s.fldInput} value={newMenu.category} onChangeText={(v: string) => setNewMenu((p: any) => ({ ...p, category: v }))} placeholder={getOffering(location?.category).cats} /></View>
             </View>
             <Text style={s.fldLbl}>Opis</Text><TextInput style={s.fldInput} value={newMenu.description} onChangeText={(v: string) => setNewMenu((p: any) => ({ ...p, description: v }))} placeholder="Kratki opis" />
             <TouchableOpacity testID="save-biz-menu" style={[s.actionBtn, { backgroundColor: c.accent, marginTop: 16 }]} onPress={createMenuItem} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.actionBtnTxt}>Dodaj na meni</Text>}
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.actionBtnTxt}>Dodaj</Text>}
             </TouchableOpacity>
           </View>
         </View>
