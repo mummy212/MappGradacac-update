@@ -41,6 +41,9 @@
         "ACCESS_COARSE_LOCATION",
         "CAMERA"
       ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "config": {
         "googleMaps": {
           "apiKey": ""
@@ -72,7 +75,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Skeniraj QR kod za ostvarivanje popusta na lokacijama."
+          "cameraPermission": "Skeniraj QR kod za ostvarivanje popusta na lokacijama.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
