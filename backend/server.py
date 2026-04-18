@@ -8,7 +8,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response,
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
-import os, logging, bcrypt, jwt, secrets, base64, math
+import os, logging, bcrypt, jwt, secrets, base64, math, re
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
@@ -280,7 +280,8 @@ async def track_action(lid: str, action: str):
 
 @api_router.get("/search")
 async def search_locations(q: str = Query(..., min_length=2)):
-    locs = await db.locations.find({"$or": [{"name": {"$regex": q, "$options": "i"}}, {"address": {"$regex": q, "$options": "i"}}]}, {"_id": 0}).to_list(100)
+    safe_q = re.escape(q)
+    locs = await db.locations.find({"$or": [{"name": {"$regex": safe_q, "$options": "i"}}, {"address": {"$regex": safe_q, "$options": "i"}}]}, {"_id": 0}).to_list(100)
     for loc in locs: loc["is_open"] = is_open(loc.get("working_hours", ""))
     return locs
 
@@ -303,9 +304,14 @@ async def create_review(lid: str, inp: ReviewCreate):
 async def get_all_offers(active_only: bool = Query(True)):
     q = {"is_active": True} if active_only else {}
     offers = await db.offers.find(q, {"_id": 0}).sort("created_at", -1).to_list(100)
-    # Enrich with location name
+    # Batch fetch locations (avoid N+1)
+    loc_ids = list({o["location_id"] for o in offers if o.get("location_id")})
+    loc_map = {}
+    if loc_ids:
+        locs = await db.locations.find({"id": {"$in": loc_ids}}, {"_id": 0, "id": 1, "name": 1, "images": 1}).to_list(None)
+        loc_map = {l["id"]: l for l in locs}
     for o in offers:
-        loc = await db.locations.find_one({"id": o["location_id"]}, {"_id": 0, "name": 1, "images": 1})
+        loc = loc_map.get(o.get("location_id"))
         if loc:
             o["location_name"] = loc.get("name", "")
             o["location_image"] = loc.get("images", [""])[0] if loc.get("images") else ""
@@ -320,9 +326,15 @@ async def get_location_offers(lid: str):
 async def get_nearby_offers(lat: float = Query(...), lng: float = Query(...), radius: int = Query(500)):
     """Get active offers from locations within radius (meters)"""
     offers = await db.offers.find({"is_active": True}, {"_id": 0}).to_list(100)
+    # Batch fetch locations (avoid N+1)
+    loc_ids = list({o["location_id"] for o in offers if o.get("location_id")})
+    loc_map = {}
+    if loc_ids:
+        locs = await db.locations.find({"id": {"$in": loc_ids}}, {"_id": 0}).to_list(None)
+        loc_map = {l["id"]: l for l in locs}
     nearby = []
     for o in offers:
-        loc = await db.locations.find_one({"id": o["location_id"]}, {"_id": 0})
+        loc = loc_map.get(o.get("location_id"))
         if loc:
             dist = calc_distance(lat, lng, loc["latitude"], loc["longitude"])
             if dist <= radius:
@@ -701,10 +713,15 @@ async def get_leaderboard(limit: int = Query(10)):
 @api_router.get("/admin/business-accounts")
 async def list_business_accounts(user: dict = Depends(require_admin)):
     users = await db.users.find({"role": "business"}).to_list(100)
+    # Batch fetch locations (avoid N+1)
+    loc_ids = list({u.get("location_id") for u in users if u.get("location_id")})
+    loc_map = {}
+    if loc_ids:
+        locs = await db.locations.find({"id": {"$in": loc_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(None)
+        loc_map = {l["id"]: l.get("name", "") for l in locs}
     result = []
     for u in users:
-        loc = await db.locations.find_one({"id": u.get("location_id", "")}, {"_id": 0, "name": 1})
-        result.append({"id": str(u["_id"]), "email": u["email"], "name": u.get("name", ""), "location_id": u.get("location_id", ""), "location_name": loc.get("name", "") if loc else "", "created_at": u.get("created_at", "")})
+        result.append({"id": str(u["_id"]), "email": u["email"], "name": u.get("name", ""), "location_id": u.get("location_id", ""), "location_name": loc_map.get(u.get("location_id", ""), ""), "created_at": u.get("created_at", "")})
     return result
 
 @api_router.delete("/admin/business-accounts/{uid}")
