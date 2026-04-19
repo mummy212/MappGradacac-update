@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
-  Dimensions, Platform, Alert, TextInput, Keyboard, StatusBar, Image,
+  Dimensions, Platform, Alert, TextInput, Keyboard, StatusBar, Image, RefreshControl,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,6 +57,7 @@ export default function Index() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [loyaltyName, setLoyaltyName] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const [fontsLoaded] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
 
@@ -67,6 +68,15 @@ export default function Index() {
     await Promise.all([fetchCats(), fetchLocs(), fetchOffers(), fetchEvents(), loadFavorites(), fetchAttractions(), fetchLeaderboard(), loadLoyalty()]);
     setLoading(false);
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchCats(), fetchLocs(), fetchOffers(), fetchEvents(), fetchAttractions(), fetchLeaderboard(), loadLoyalty()]);
+      if (userLoc) await checkNearbyOffers();
+    } catch {}
+    setRefreshing(false);
+  }, [userLoc]);
 
   // Check nearby offers after GPS is ready
   useEffect(() => {
@@ -249,7 +259,19 @@ export default function Index() {
 
       {/* CONTENT */}
       <View style={s.content}>
-        <ScrollView showsVerticalScrollIndicator={false} bounces={true}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={C.primary}
+              colors={[C.primary, C.accent]}
+              progressBackgroundColor={C.surface}
+            />
+          }
+        >
           {/* Nearby Offers Banner */}
           {showNearbyBanner && nearbyOffers.length > 0 && (
             <View testID="nearby-banner" style={s.nearbyBanner}>

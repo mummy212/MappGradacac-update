@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, StatusBar, Dimensions,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, StatusBar, Dimensions, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +22,7 @@ export default function AttractionDetail() {
   const insets = useSafeAreaInsets();
   const [attraction, setAttraction] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [fontsLoaded] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
 
@@ -49,7 +50,18 @@ export default function AttractionDetail() {
   return (
     <View testID="attraction-detail" style={s.root}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView bounces={false}>
+      <ScrollView
+        bounces={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => { setRefreshing(true); await fetchAttraction(); setRefreshing(false); }}
+            tintColor={C.primary}
+            colors={[C.primary, C.accent]}
+            progressBackgroundColor={C.surface}
+          />
+        }
+      >
         {/* Map header */}
         <View style={s.mapWrap}>
           <LeafletMap

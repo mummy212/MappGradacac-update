@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Image,
   ActivityIndicator, Dimensions, Platform, Alert, Modal, TextInput,
-  StatusBar, KeyboardAvoidingView, Linking, FlatList,
+  StatusBar, KeyboardAvoidingView, Linking, FlatList, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -85,6 +85,7 @@ export default function LocationDetailScreen() {
   const [offers, setOffers] = useState<any[]>([]);
   // Active tab
   const [activeSection, setActiveSection] = useState<'info'|'menu'|'chat'>('info');
+  const [refreshing, setRefreshing] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
@@ -168,7 +169,19 @@ export default function LocationDetailScreen() {
     <View testID="location-detail-screen" style={s.container}>
       <StatusBar barStyle="light-content" />
 
-      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => { setRefreshing(true); await fetchData(); setRefreshing(false); }}
+            tintColor={colors.primary}
+            colors={[colors.primary, colors.accent]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
+      >
         {/* Hero Image / Header */}
         <View style={s.hero}>
           {location.images && location.images.length > 0 ? (
