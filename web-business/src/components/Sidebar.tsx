@@ -1,17 +1,27 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LayoutDashboard, MapPin, Tag, Star, LogOut, Map } from 'lucide-react'
+import { LayoutDashboard, MapPin, Tag, Star, LogOut, Map, UtensilsCrossed, ShoppingCart, Wrench } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import type { Location } from '../types'
 
-// Determine label based on category
-function getOfferLabel(category: string): string {
-  const menuCats = ['restaurant', 'cafe']
-  const serviceCats = ['auto_service', 'gas_station']
-  if (menuCats.includes(category)) return 'Meni'
-  if (serviceCats.includes(category)) return 'Usluge'
-  return 'Ponuda'
+type Mode = 'menu' | 'market' | 'pharmacy' | 'service'
+
+function getCategoryConfig(category: string): { label: string; mode: Mode; icon: React.ReactNode } {
+  switch (category) {
+    case 'restaurant':
+    case 'cafe':
+      return { label: 'Meni', mode: 'menu', icon: <UtensilsCrossed size={17} /> }
+    case 'market':
+      return { label: 'Cjenovnik', mode: 'market', icon: <ShoppingCart size={17} /> }
+    case 'pharmacy':
+      return { label: 'Ponuda', mode: 'pharmacy', icon: <Tag size={17} /> }
+    case 'auto_service':
+    case 'gas_station':
+      return { label: 'Cjenovnik usluga', mode: 'service', icon: <Wrench size={17} /> }
+    default:
+      return { label: 'Ponuda', mode: 'pharmacy', icon: <Tag size={17} /> }
+  }
 }
 
 export default function Sidebar() {
@@ -24,13 +34,13 @@ export default function Sidebar() {
     enabled: !!user?.location_id
   })
 
-  const offerLabel = location ? getOfferLabel(location.category) : 'Ponuda'
+  const catConfig = location ? getCategoryConfig(location.category) : getCategoryConfig('')
 
   const navItems = [
-    { to: '/', label: 'Pregled', icon: LayoutDashboard, end: true },
-    { to: '/lokacija', label: 'Moja Lokacija', icon: MapPin, end: false },
-    { to: '/ponuda', label: offerLabel, icon: Tag, end: false },
-    { to: '/recenzije', label: 'Recenzije', icon: Star, end: false },
+    { to: '/', label: 'Pregled', icon: <LayoutDashboard size={17} />, end: true },
+    { to: '/lokacija', label: 'Moja Lokacija', icon: <MapPin size={17} />, end: false },
+    { to: '/ponuda', label: catConfig.label, icon: catConfig.icon, end: false },
+    { to: '/recenzije', label: 'Recenzije', icon: <Star size={17} />, end: false },
   ]
 
   const handleLogout = async () => { await logout(); navigate('/login') }
@@ -58,7 +68,7 @@ export default function Sidebar() {
       )}
 
       <nav className="flex-1 p-3 space-y-0.5 mt-2">
-        {navItems.map(({ to, label, icon: Icon, end }) => (
+        {navItems.map(({ to, label, icon, end }) => (
           <NavLink
             key={to} to={to} end={end}
             className={({ isActive }) =>
@@ -67,7 +77,7 @@ export default function Sidebar() {
               }`
             }
           >
-            <Icon size={17} />{label}
+            {icon}{label}
           </NavLink>
         ))}
       </nav>
