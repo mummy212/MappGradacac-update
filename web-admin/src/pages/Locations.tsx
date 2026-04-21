@@ -1,8 +1,192 @@
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
-import { Plus, Edit2, Trash2, Star, Crown, X, Upload, Image as ImageIcon } from 'lucide-react'
+import { Plus, Edit2, Trash2, Star, Crown, X, Upload, Image as ImageIcon, FileUp, Download, CheckCircle, AlertCircle } from 'lucide-react'
 import type { Location, Category } from '../types'
+
+// ─── CSV Template download ───────────────────────────────────────────────────
+function downloadTemplate() {
+  const headers = ['name', 'category', 'address', 'latitude', 'longitude', 'phone', 'description', 'working_hours', 'is_premium', 'service_tags', 'price_level']
+  const example = ['Restoran Primjer', 'Restorani', 'Titova 1', '44.8797', '18.4275', '+38735123456', 'Opis restorana', '08:00 - 22:00', 'false', 'Roštilj;Pizza', '1']
+  const csv = [headers.join(','), example.join(',')].join('\n')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = 'gradacac-lokacije-template.csv'
+  a.click(); URL.revokeObjectURL(url)
+}
+
+// ─── Bulk Import Modal ────────────────────────────────────────────────────────
+function BulkImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [result, setResult] = useState<{ total: number; success: number; failed: number; errors: { row: number; name: string; error: string }[] } | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = (f: File) => {
+    if (!f.name.endsWith('.csv')) { alert('Samo CSV fajlovi su podržani'); return }
+    setFile(f)
+    setResult(null)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDragging(false)
+    const f = e.dataTransfer.files[0]
+    if (f) handleFile(f)
+  }
+
+  const handleImport = async () => {
+    if (!file) return
+    setImporting(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await api.post('/admin/locations/bulk-import', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setResult(res.data)
+      if (res.data.success > 0) onSuccess()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      alert(e.response?.data?.detail || 'Greška pri importu')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileUp size={18} className="text-blue-600" />
+            <h2 className="font-semibold text-slate-800">Bulk Import Lokacija</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
+        </div>
+
+        <div className="p-6">
+          {!result ? (
+            <>
+              {/* Template download */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                <p className="text-sm text-blue-800 font-medium mb-2">📋 Kako koristiti CSV import</p>
+                <p className="text-xs text-blue-700 mb-3">
+                  Preuzmite template, popunite podatke i uploadajte. Kategorija mora biti tačno ime (npr. "Restorani", "Marketi"). Tagovi razdvojiti sa tačka-zarezom (;).
+                </p>
+                <button
+                  onClick={downloadTemplate}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+                >
+                  <Download size={13} />
+                  Preuzmi CSV Template
+                </button>
+              </div>
+
+              {/* Drop zone */}
+              <div
+                onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                  dragging ? 'border-blue-400 bg-blue-50' : file ? 'border-green-400 bg-green-50' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'
+                }`}
+              >
+                {file ? (
+                  <div>
+                    <CheckCircle size={28} className="mx-auto text-green-500 mb-2" />
+                    <p className="font-medium text-sm text-slate-800">{file.name}</p>
+                    <p className="text-xs text-slate-400 mt-1">{(file.size / 1024).toFixed(1)} KB — Kliknite za promjenu</p>
+                  </div>
+                ) : (
+                  <div>
+                    <Upload size={28} className="mx-auto text-slate-300 mb-2" />
+                    <p className="text-sm font-medium text-slate-600">Prevucite CSV fajl ovdje</p>
+                    <p className="text-xs text-slate-400 mt-1">ili kliknite za odabir</p>
+                  </div>
+                )}
+                <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]) }} />
+              </div>
+
+              <div className="mt-4 flex justify-end gap-3">
+                <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">Odustani</button>
+                <button
+                  onClick={handleImport}
+                  disabled={!file || importing}
+                  className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {importing ? (
+                    <>⏳ Importujem...</>
+                  ) : (
+                    <><FileUp size={14} /> Importuj lokacije</>
+                  )}
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Results */
+            <div>
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="bg-slate-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-slate-800">{result.total}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Ukupno redova</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-green-600">{result.success}</p>
+                  <p className="text-xs text-green-600 mt-0.5">Uspješno</p>
+                </div>
+                <div className={`${result.failed > 0 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl p-4 text-center`}>
+                  <p className={`text-2xl font-bold ${result.failed > 0 ? 'text-red-600' : 'text-slate-400'}`}>{result.failed}</p>
+                  <p className={`text-xs mt-0.5 ${result.failed > 0 ? 'text-red-500' : 'text-slate-400'}`}>Greške</p>
+                </div>
+              </div>
+
+              {result.success > 0 && (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg mb-4">
+                  <CheckCircle size={16} />
+                  {result.success} lokacija je uspješno importovano!
+                </div>
+              )}
+
+              {result.errors.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1.5">
+                    <AlertCircle size={15} className="text-red-500" /> Redovi s greškama:
+                  </p>
+                  <div className="bg-red-50 border border-red-200 rounded-lg divide-y divide-red-100 max-h-40 overflow-y-auto">
+                    {result.errors.map((e, i) => (
+                      <div key={i} className="px-3 py-2">
+                        <p className="text-xs font-medium text-red-700">Red {e.row}: {e.name || '—'}</p>
+                        <p className="text-xs text-red-500">{e.error}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-5 flex justify-end gap-3">
+                {result.failed > 0 && (
+                  <button onClick={() => { setResult(null); setFile(null) }} className="px-4 py-2 text-sm text-blue-600 hover:underline">
+                    Pokušaj ponovo
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Zatvori
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 interface LocationFormData {
   name: string
@@ -297,6 +481,7 @@ export default function Locations() {
   const [search, setSearch] = useState('')
   const [editLoc, setEditLoc] = useState<Location | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [showBulkImport, setShowBulkImport] = useState(false)
 
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ['locations'],
@@ -332,13 +517,22 @@ export default function Locations() {
           <h1 className="text-2xl font-bold text-slate-800">Lokacije</h1>
           <p className="text-slate-500 text-sm mt-1">{(locations as Location[]).length} ukupno</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          <Plus size={16} />
-          Nova lokacija
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowBulkImport(true)}
+            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <FileUp size={16} />
+            CSV Import
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} />
+            Nova lokacija
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100">
@@ -444,6 +638,12 @@ export default function Locations() {
           categories={categories as Category[]}
           onClose={() => { setShowCreate(false); setEditLoc(null) }}
           onSuccess={handleModalSuccess}
+        />
+      )}
+      {showBulkImport && (
+        <BulkImportModal
+          onClose={() => setShowBulkImport(false)}
+          onSuccess={() => qc.invalidateQueries({ queryKey: ['locations'] })}
         />
       )}
     </div>

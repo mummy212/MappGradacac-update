@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
-import os, logging, bcrypt, jwt, secrets, base64, math, re
+import os, logging, bcrypt, jwt, secrets, base64, math, re, csv, io
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -474,6 +474,81 @@ async def admin_delete_loc(lid: str, user: dict = Depends(require_admin)):
     await db.offers.delete_many({"location_id": lid})
     await db.menu_items.delete_many({"location_id": lid})
     return {"message": "Deleted"}
+
+@api_router.post("/admin/locations/bulk-import")
+async def bulk_import_locations(file: UploadFile = File(...), user: dict = Depends(require_admin)):
+    """CSV import: name,category,address,latitude,longitude,phone,description,working_hours,is_premium,service_tags,price_level"""
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")  # handle BOM
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+
+    # Fetch categories for name matching
+    cats = await db.categories.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(None)
+    cat_by_name = {c["name"].lower(): c["id"] for c in cats}
+    cat_by_id = {c["id"]: c["id"] for c in cats}
+
+    reader = csv.DictReader(io.StringIO(text))
+    rows = list(reader)
+
+    success, failed, errors = 0, 0, []
+    to_insert = []
+
+    for i, row in enumerate(rows, start=2):  # row 1 = header
+        row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
+        try:
+            name = row.get("name") or row.get("naziv", "")
+            if not name: raise ValueError("Naziv je obavezan")
+
+            cat_raw = row.get("category") or row.get("kategorija", "")
+            category = cat_by_id.get(cat_raw) or cat_by_name.get(cat_raw.lower())
+            if not category: raise ValueError(f"Kategorija '{cat_raw}' nije pronađena")
+
+            address = row.get("address") or row.get("adresa", "")
+            if not address: raise ValueError("Adresa je obavezna")
+
+            lat_str = row.get("latitude") or row.get("latitude") or "44.8797"
+            lon_str = row.get("longitude") or row.get("longitude") or "18.4275"
+            latitude = float(lat_str.replace(",", "."))
+            longitude = float(lon_str.replace(",", "."))
+
+            is_premium_str = (row.get("is_premium") or row.get("premium", "false")).lower()
+            is_premium = is_premium_str in ("true", "1", "da", "yes")
+
+            tags_raw = row.get("service_tags") or row.get("tagovi", "")
+            service_tags = [t.strip() for t in re.split(r"[;|]", tags_raw) if t.strip()]
+
+            price_level = int(row.get("price_level") or row.get("cijena", "0") or "0")
+
+            loc = Location(
+                name=name,
+                category=category,
+                address=address,
+                latitude=latitude,
+                longitude=longitude,
+                phone=row.get("phone") or row.get("telefon") or None,
+                description=row.get("description") or row.get("opis") or None,
+                working_hours=row.get("working_hours") or row.get("radno_vrijeme") or None,
+                is_premium=is_premium,
+                service_tags=service_tags,
+                price_level=price_level,
+            )
+            to_insert.append(loc.dict())
+            success += 1
+        except Exception as e:
+            failed += 1
+            errors.append({"row": i, "name": row.get("name") or row.get("naziv", ""), "error": str(e)})
+
+    if to_insert:
+        await db.locations.insert_many(to_insert)
+
+    return {
+        "total": len(rows),
+        "success": success,
+        "failed": failed,
+        "errors": errors[:20]  # max 20 errors returned
+    }
 
 @api_router.post("/admin/locations/{lid}/images")
 async def upload_image(lid: str, file: UploadFile = File(...), user: dict = Depends(require_business_or_admin)):
