@@ -441,6 +441,14 @@ async def delete_menu_item(mid: str, user: dict = Depends(require_business_or_ad
     await db.menu_items.delete_one({"id": mid})
     return {"message": "Deleted"}
 
+@api_router.delete("/business/menu/all")
+async def delete_all_menu_items(user: dict = Depends(require_business_or_admin)):
+    lid = user.get("location_id")
+    if not lid and user["role"] == "business":
+        raise HTTPException(400, "Vaš nalog nije vezan za lokaciju")
+    result = await db.menu_items.delete_many({"location_id": lid})
+    return {"deleted": result.deleted_count}
+
 @api_router.post("/business/menu/import")
 async def import_menu_items(file: UploadFile = File(...), user: dict = Depends(require_business_or_admin)):
     """CSV import: naziv/name, cijena/price, kategorija/category, opis/description"""

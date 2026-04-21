@@ -458,10 +458,25 @@ export default function Offers() {
         <div className="flex items-center gap-2">
           {/* CSV import only for price-list modes (not pharmacy offers) */}
           {!isOfferMode && (
-            <button onClick={() => setShowImport(true)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              <Upload size={15} />Uvezi CSV
-            </button>
+            <>
+              <button onClick={() => setShowImport(true)}
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <Upload size={15} />Uvezi CSV
+              </button>
+              {(menuItems as MenuItem[]).length > 0 && (
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Obrisati svih ${(menuItems as MenuItem[]).length} stavki? Ova akcija je nepovratna.`)) return
+                    try {
+                      await api.delete('/business/menu/all')
+                      qc.invalidateQueries({ queryKey: ['my-menu'] })
+                    } catch { alert('Greška pri brisanju') }
+                  }}
+                  className="flex items-center gap-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                  <Trash2 size={15} />Izbriši sve
+                </button>
+              )}
+            </>
           )}
           <button onClick={() => setShowModal(true)}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
