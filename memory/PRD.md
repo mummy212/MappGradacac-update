@@ -89,3 +89,20 @@ Mobilna aplikacija za grad Gradačac, Bosna i Hercegovina. Interaktivna mapa gra
 - Radno vrijeme - otvoreno/zatvoreno status
 - Push notifikacije za posebne ponude
 - Offline mapa
+
+---
+
+## Implementirano (Changelog)
+
+### Faza 4 — Web Admin Panel (Februar 2026)
+- **Web Admin Panel** (React+Vite+TypeScript) u `/app/web-admin/`
+- URL: `/api/admin-panel/` — serviran iz FastAPI backend-a
+- Stranice: Login, Dashboard, Lokacije (CRUD + slike), Kategorije, Događaji, Atrakcije, Biznis Nalozi, Obavještenja, Postavke
+- Testiranje: 100% prolaz (8/8 feature testova)
+
+### Faza 3 — Backend optimizacije (Travanj 2026)
+- N+1 query optimizacija, regex zaštita, dinamičke labele, pull-to-refresh, store compliance
+
+### Ranije faze
+- P0: Interaktivna mapa (Leaflet), kategorije, lokacije, search, admin panel (hidden), business panel (hidden)
+- P0: Push notifikacije, QR kod skener, PayPal donacije, recenzije/ocjene, atrakcije/eventi
