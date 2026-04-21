@@ -830,6 +830,29 @@ async def serve_admin_panel(path: str):
         return FileResponse(index)
     return HTMLResponse("<h1>Not found</h1>")
 
+# ===== Business Web Panel (Static Files) =====
+BUSINESS_PANEL_DIR = Path(__file__).parent / "business-panel-dist"
+
+@api_router.get("/business-panel", include_in_schema=False)
+@api_router.get("/business-panel/", include_in_schema=False)
+async def serve_business_root():
+    index = BUSINESS_PANEL_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return HTMLResponse("<h1>Biznis panel nije izgrađen.</h1>")
+
+@api_router.get("/business-panel/{path:path}", include_in_schema=False)
+async def serve_business_panel(path: str):
+    if not BUSINESS_PANEL_DIR.exists():
+        return HTMLResponse("<h1>Biznis panel nije izgrađen.</h1>")
+    file_path = BUSINESS_PANEL_DIR / path
+    if file_path.exists() and file_path.is_file():
+        return FileResponse(file_path)
+    index = BUSINESS_PANEL_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return HTMLResponse("<h1>Not found</h1>")
+
 app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

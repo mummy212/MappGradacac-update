@@ -94,6 +94,12 @@ Mobilna aplikacija za grad Gradačac, Bosna i Hercegovina. Interaktivna mapa gra
 
 ## Implementirano (Changelog)
 
+### Faza 5 — Web Business Panel (April 2026)
+- **Web Business Panel** (React+Vite+TypeScript) u `/app/web-business/`
+- URL: `/api/business-panel/` — serviran iz FastAPI backend-a
+- Stranice: Login, Dashboard (statistike + recenzije), Moja Lokacija (edit + slike), Meni/Ponuda/Usluge (dinamično po kategoriji), Recenzije (distribucija ocjena + lista)
+- Testiranje: Vizualno potvrđeno screenshotovima — sve 4 stranice rade ispravno
+
 ### Faza 4 — Web Admin Panel (Februar 2026)
 - **Web Admin Panel** (React+Vite+TypeScript) u `/app/web-admin/`
 - URL: `/api/admin-panel/` — serviran iz FastAPI backend-a

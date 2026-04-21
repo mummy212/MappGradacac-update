@@ -215,6 +215,66 @@ test_plan:
         agent: "main"
         comment: "Web admin login at /api/admin-panel/ with admin@gradacac.ba / Gradacac2024!"
 
+  - task: "GET /api/business-panel/ - Web Business Panel served from backend"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Business panel built with React+Vite, served from FastAPI at /api/business-panel/. Login tested OK with starigrad@test.ba / Test1234!"
+
+  - task: "Business panel Dashboard - shows stats and recent reviews"
+    implemented: true
+    working: true
+    file: "/app/web-business/src/pages/Dashboard.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Dashboard shows rating, views/navigation/calls/reviews counts and recent reviews. Screenshot verified."
+
+  - task: "Business panel Moja Lokacija - edit location info and images"
+    implemented: true
+    working: true
+    file: "/app/web-business/src/pages/LocationEdit.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Location edit with name/phone/hours/description/tags/price_level. Image upload tab. Screenshot verified."
+
+  - task: "Business panel Meni/Ponuda/Usluge - manage offers and menu items"
+    implemented: true
+    working: true
+    file: "/app/web-business/src/pages/Offers.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Dynamic label: Meni for restaurants, Ponuda for markets, Usluge for auto. Menu/offer add+delete. Screenshot verified."
+
+  - task: "Business panel Recenzije - view all reviews with rating distribution"
+    implemented: true
+    working: true
+    file: "/app/web-business/src/pages/Reviews.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Reviews page with aggregate rating bar chart and full review list. Screenshot verified."
+
 agent_communication:
   - agent: "main"
-    message: "Web Admin Panel (Phase 1) implemented as React+Vite app. Accessible at /api/admin-panel/ URL. Features: Login, Dashboard (stats), Locations CRUD with image upload, Categories CRUD, Events CRUD, Attractions CRUD, Business Accounts management, Push Notifications, Settings. Test: 1) Navigate to /api/admin-panel/ 2) Login with admin@gradacac.ba / Gradacac2024! 3) Verify dashboard shows stats 4) Test creating a location 5) Test sending a notification. Backend serves static files via FastAPI route at /api/admin-panel/{path:path}"
+    message: "Web Business Panel (Faza 2) implemented as React+Vite app. Accessible at /api/business-panel/ URL. Features: Login, Dashboard (stats+reviews), Moja Lokacija (edit info+images), Meni/Ponuda/Usluge (dynamic by category, add/delete), Recenzije (rating distribution + full list). Built from /app/web-business/, dist copied to /app/backend/business-panel-dist/. Backend serves static files at /api/business-panel/{path:path}. Test credentials: starigrad@test.ba / Test1234!"
