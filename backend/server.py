@@ -5,10 +5,13 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 from fastapi import FastAPI, APIRouter, HTTPException, Query, Request, Response, Depends, UploadFile, File
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 import os, logging, bcrypt, jwt, secrets, base64, math, re
+from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
@@ -728,6 +731,29 @@ async def list_business_accounts(user: dict = Depends(require_admin)):
 async def delete_business_account(uid: str, user: dict = Depends(require_admin)):
     await db.users.delete_one({"_id": ObjectId(uid), "role": "business"})
     return {"message": "OK"}
+
+# ===== Admin Web Panel (Static Files) =====
+ADMIN_PANEL_DIR = Path(__file__).parent / "admin-panel-dist"
+
+@api_router.get("/admin-panel", include_in_schema=False)
+@api_router.get("/admin-panel/", include_in_schema=False)
+async def serve_admin_root():
+    index = ADMIN_PANEL_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return HTMLResponse("<h1>Admin panel nije izgrađen.</h1><p>Pokrenite: cd /app/web-admin && npm run build && cp -r dist/* ../backend/admin-panel-dist/</p>")
+
+@api_router.get("/admin-panel/{path:path}", include_in_schema=False)
+async def serve_admin_panel(path: str):
+    if not ADMIN_PANEL_DIR.exists():
+        return HTMLResponse("<h1>Admin panel nije izgrađen.</h1>")
+    file_path = ADMIN_PANEL_DIR / path
+    if file_path.exists() and file_path.is_file():
+        return FileResponse(file_path)
+    index = ADMIN_PANEL_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return HTMLResponse("<h1>Not found</h1>")
 
 app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])

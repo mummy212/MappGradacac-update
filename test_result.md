@@ -191,6 +191,30 @@ test_plan:
   test_all: true
   test_priority: "high_first"
 
+  - task: "GET /api/admin-panel/ - Web Admin Panel served from backend"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Admin panel built with React+Vite, served from FastAPI at /api/admin-panel/"
+
+  - task: "POST /api/auth/login - Admin login from web panel"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Web admin login at /api/admin-panel/ with admin@gradacac.ba / Gradacac2024!"
+
 agent_communication:
   - agent: "main"
-    message: "Initial MVP implemented. Backend has categories, locations, search, CRUD endpoints. Frontend has Leaflet map (iframe on web), category chips, search bar, location list, detail modal. Please test all features - backend API and frontend UI flows."
+    message: "Web Admin Panel (Phase 1) implemented as React+Vite app. Accessible at /api/admin-panel/ URL. Features: Login, Dashboard (stats), Locations CRUD with image upload, Categories CRUD, Events CRUD, Attractions CRUD, Business Accounts management, Push Notifications, Settings. Test: 1) Navigate to /api/admin-panel/ 2) Login with admin@gradacac.ba / Gradacac2024! 3) Verify dashboard shows stats 4) Test creating a location 5) Test sending a notification. Backend serves static files via FastAPI route at /api/admin-panel/{path:path}"

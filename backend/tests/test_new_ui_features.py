@@ -11,7 +11,7 @@ import requests
 import os
 from datetime import datetime
 
-BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'https://city-compass-9.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('EXPO_PUBLIC_BACKEND_URL', 'https://gradacac-map.preview.emergentagent.com').rstrip('/')
 
 @pytest.fixture
 def api_client():
