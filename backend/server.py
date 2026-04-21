@@ -441,6 +441,48 @@ async def delete_menu_item(mid: str, user: dict = Depends(require_business_or_ad
     await db.menu_items.delete_one({"id": mid})
     return {"message": "Deleted"}
 
+@api_router.post("/business/menu/import")
+async def import_menu_items(file: UploadFile = File(...), user: dict = Depends(require_business_or_admin)):
+    """CSV import: naziv/name, cijena/price, kategorija/category, opis/description"""
+    lid = user.get("location_id")
+    if not lid and user["role"] == "business":
+        raise HTTPException(400, "Vaš nalog nije vezan za lokaciju")
+    # Admin must provide location via query param — for business, use their location
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(text))
+    rows = list(reader)
+    success, failed, errors = 0, 0, []
+    to_insert = []
+
+    for i, row in enumerate(rows, start=2):
+        row = {k.strip().lower(): v.strip() for k, v in row.items() if k}
+        try:
+            name = row.get("naziv") or row.get("name", "")
+            if not name:
+                raise ValueError("Naziv je obavezan")
+            price_str = row.get("cijena") or row.get("price", "")
+            if not price_str:
+                raise ValueError("Cijena je obavezna")
+            price = float(price_str.replace(",", "."))
+            category = row.get("kategorija") or row.get("category") or "Ostalo"
+            description = row.get("opis") or row.get("description") or None
+            item = MenuItem(location_id=lid, name=name, price=price, category=category, description=description)
+            to_insert.append(item.dict())
+            success += 1
+        except Exception as e:
+            failed += 1
+            errors.append({"row": i, "name": row.get("naziv") or row.get("name", ""), "error": str(e)})
+
+    if to_insert:
+        await db.menu_items.insert_many(to_insert)
+
+    return {"total": len(rows), "success": success, "failed": failed, "errors": errors[:20]}
+
 @api_router.get("/business/stats")
 async def get_business_stats(user: dict = Depends(require_business_or_admin)):
     lid = user.get("location_id")

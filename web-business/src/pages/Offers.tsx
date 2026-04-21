@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
-import { Plus, Trash2, X, Tag, UtensilsCrossed, ShoppingCart, Wrench } from 'lucide-react'
+import { Plus, Trash2, X, Tag, UtensilsCrossed, ShoppingCart, Wrench, Upload, Download, CheckCircle, AlertCircle, FileText } from 'lucide-react'
 import type { Offer, MenuItem, Location } from '../types'
 
 // ─── Category config per business type ───────────────────────────────────────
@@ -199,6 +199,162 @@ function PharmacyOfferModal({ lid, onClose, onSuccess }: { lid: string; onClose:
   )
 }
 
+// ─── CSV Import Modal ─────────────────────────────────────────────────────────
+interface ImportResult {
+  total: number; success: number; failed: number
+  errors: { row: number; name: string; error: string }[]
+}
+
+function ImportModal({ config, onClose, onSuccess }: {
+  config: ModeConfig; onClose: () => void; onSuccess: () => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [error, setError] = useState('')
+
+  // Build CSV template based on mode
+  const buildTemplate = () => {
+    const cats = config.categories || ['Ostalo']
+    const rows = cats.slice(0, 3).map((cat, i) => {
+      const sampleNames: Record<string, string[]> = {
+        menu: ['Miješani roštilj', 'Bosanski lonac', 'Baklava'],
+        market: ['Mlijeko 1L', 'Hljeb bijeli', 'Jabuke 1kg'],
+        service: ['Zamjena ulja', 'Dijagnostika', 'Balansiranje'],
+        pharmacy: ['Vitamin C 500mg', 'Ibuprofen 400mg', 'Krema za ruke'],
+      }
+      const names = sampleNames[config.mode] || ['Primjer']
+      return `${names[i] || 'Stavka ' + (i + 1)},${(5 + i * 3).toFixed(2)},${cat},Opis (opciono)`
+    })
+    return 'naziv,cijena,kategorija,opis\n' + rows.join('\n')
+  }
+
+  const downloadTemplate = () => {
+    const content = buildTemplate()
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `sablon_${config.mode}.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (f) { setFile(f); setResult(null); setError('') }
+  }
+
+  const handleImport = async () => {
+    if (!file) { setError('Odaberite CSV fajl'); return }
+    setUploading(true); setError(''); setResult(null)
+    try {
+      const fd = new FormData(); fd.append('file', file)
+      const res = await api.post('/business/menu/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setResult(res.data)
+      if (res.data.success > 0) onSuccess()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } }
+      setError(e.response?.data?.detail || 'Greška pri uvozu')
+    } finally { setUploading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Upload size={18} className="text-emerald-600" />
+            <h2 className="font-semibold text-slate-800">Uvoz iz CSV fajla</h2>
+          </div>
+          <button onClick={onClose}><X size={18} /></button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Step 1: Download template */}
+          <div className="bg-slate-50 rounded-xl p-4">
+            <p className="text-sm font-medium text-slate-700 mb-1">Korak 1 — Preuzmite šablon</p>
+            <p className="text-xs text-slate-500 mb-3">
+              Popunite šablon sa vašim stavkama. Kolone: <span className="font-mono bg-white px-1 rounded">naziv, cijena, kategorija, opis</span>
+            </p>
+            <button onClick={downloadTemplate}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm rounded-lg hover:bg-slate-100 transition-colors">
+              <Download size={14} />Preuzmi šablon ({config.label}.csv)
+            </button>
+          </div>
+
+          {/* Step 2: Upload file */}
+          <div>
+            <p className="text-sm font-medium text-slate-700 mb-2">Korak 2 — Odaberite CSV fajl</p>
+            <div
+              onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                file ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300 hover:bg-slate-50'
+              }`}
+            >
+              {file ? (
+                <div className="flex items-center justify-center gap-2 text-emerald-700">
+                  <FileText size={20} />
+                  <span className="text-sm font-medium">{file.name}</span>
+                  <span className="text-xs text-emerald-500">({(file.size / 1024).toFixed(1)} KB)</span>
+                </div>
+              ) : (
+                <>
+                  <Upload size={24} className="mx-auto text-slate-400 mb-2" />
+                  <p className="text-sm text-slate-500">Kliknite ili prevucite CSV fajl ovdje</p>
+                  <p className="text-xs text-slate-400 mt-1">Podržano: .csv (max 2MB)</p>
+                </>
+              )}
+              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg flex items-center gap-2">
+              <AlertCircle size={15} />{error}
+            </div>
+          )}
+
+          {/* Import result */}
+          {result && (
+            <div className={`rounded-xl p-4 ${result.failed === 0 ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle size={16} className="text-green-600" />
+                <p className="text-sm font-semibold text-slate-800">Uvoz završen</p>
+              </div>
+              <div className="flex gap-4 text-sm">
+                <span className="text-green-700 font-medium">✓ {result.success} uvezeno</span>
+                {result.failed > 0 && <span className="text-red-600 font-medium">✗ {result.failed} greška</span>}
+              </div>
+              {result.errors.length > 0 && (
+                <div className="mt-3 space-y-1 max-h-28 overflow-y-auto">
+                  {result.errors.map((e, i) => (
+                    <div key={i} className="text-xs text-red-600 bg-white rounded px-2 py-1">
+                      Red {e.row}: {e.name || '—'} — {e.error}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600">
+            {result ? 'Zatvori' : 'Odustani'}
+          </button>
+          {!result && (
+            <button onClick={handleImport} disabled={uploading || !file}
+              className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+              <Upload size={14} />{uploading ? 'Uvoz u toku...' : 'Uvezi'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Grouped price list (menu / market / service) ─────────────────────────────
 function PriceList({ items, config, onDelete }: {
   items: MenuItem[]; config: ModeConfig; onDelete: (id: string) => void
@@ -253,6 +409,7 @@ export default function Offers() {
   const { user } = useAuth()
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const { data: location } = useQuery<Location>({
     queryKey: ['my-location'],
@@ -298,10 +455,19 @@ export default function Offers() {
           <h1 className="text-2xl font-bold text-slate-800">{config.label}</h1>
           <p className="text-slate-500 text-sm mt-1">{config.subtitle}</p>
         </div>
-        <button onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          <Plus size={16} />{config.addBtnLabel}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* CSV import only for price-list modes (not pharmacy offers) */}
+          {!isOfferMode && (
+            <button onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              <Upload size={15} />Uvezi CSV
+            </button>
+          )}
+          <button onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            <Plus size={16} />{config.addBtnLabel}
+          </button>
+        </div>
       </div>
 
       {/* Price list mode (menu / market / service) */}
@@ -352,6 +518,17 @@ export default function Offers() {
         isOfferMode
           ? <PharmacyOfferModal lid={lid} onClose={() => setShowModal(false)} onSuccess={handleSuccess} />
           : <ItemModal lid={lid} config={config} onClose={() => setShowModal(false)} onSuccess={handleSuccess} />
+      )}
+
+      {showImport && !isOfferMode && (
+        <ImportModal
+          config={config}
+          onClose={() => setShowImport(false)}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ['my-menu'] })
+            setShowImport(false)
+          }}
+        />
       )}
     </div>
   )
