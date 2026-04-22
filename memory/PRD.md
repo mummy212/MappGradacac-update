@@ -107,3 +107,27 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
 - Multi-language Support (BS/EN)
 - Stripe subscription integration
 - Offline Map Tile Downloads
+
+
+## Changelog
+
+### Session 2026-04-22 (Latest)
+- **P0**: Emergency Numbers CRUD in Admin Panel
+  - Backend: EmergencyContact model + full CRUD endpoints
+  - 13 emergency contacts seeded (Hitni Servisi, Zdravstvo, Gradska uprava, Ostale Usluge)
+  - Mobile emergency.tsx fetches from API with fallback
+  - Web Admin: New EmergencyContacts.tsx page
+- **P1**: City News / Gradske Vijesti
+  - Backend: NewsArticle model + full CRUD endpoints
+  - 4 news articles seeded (Kultura, Turizam, Vijesti, Obavještenje)
+  - EventsTab.tsx refactored with Gradske Vijesti section
+  - Web Admin: New News.tsx page
+- **P1**: Loyalty Stamp Kartice
+  - New /loyalty screen with 10-stamp card UI
+  - ProfileTab.tsx updated with Loyalty Kartica menu item
+- All features tested: 100% pass rate (28 backend + 11 frontend tests)
+
+### Remaining P1/P2 Items
+- Custom App Icon
+- Multi-language support (BS/EN)
+- Offline Map Tile Downloads
