@@ -44,6 +44,13 @@ export default function ProfileTab() {
 
   const menuItems = [
     {
+      icon: 'call' as const,
+      label: 'Hitni Brojevi',
+      desc: '112 · Policija · Vatrogasci · Hitna',
+      color: '#EF4444',
+      action: () => router.push('/emergency'),
+    },
+    {
       icon: 'heart-outline' as const,
       label: 'Omiljene lokacije',
       desc: `${favCount} sačuvano`,
