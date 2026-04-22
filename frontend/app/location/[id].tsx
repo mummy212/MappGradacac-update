@@ -10,6 +10,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium } from '@expo-google-fonts/outfit';
 import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const FAV_KEY = 'gradacac_favorites';
 
 const { width, height } = Dimensions.get('window');
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -89,13 +92,33 @@ export default function LocationDetailScreen() {
   // Active tab
   const [activeSection, setActiveSection] = useState<'info'|'menu'|'chat'>('info');
   const [refreshing, setRefreshing] = useState(false);
+  // Favorites
+  const [isFav, setIsFav] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
     Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold,
   });
 
-  useEffect(() => { if (id) { fetchData(); } }, [id]);
+  useEffect(() => { if (id) { fetchData(); loadFavState(); } }, [id]);
+
+  const loadFavState = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(FAV_KEY);
+      const ids: string[] = raw ? JSON.parse(raw) : [];
+      setIsFav(ids.includes(id as string));
+    } catch {}
+  };
+
+  const toggleFav = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(FAV_KEY);
+      const ids: string[] = raw ? JSON.parse(raw) : [];
+      const next = isFav ? ids.filter(x => x !== id) : [...ids, id as string];
+      await AsyncStorage.setItem(FAV_KEY, JSON.stringify(next));
+      setIsFav(!isFav);
+    } catch {}
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -200,6 +223,9 @@ export default function LocationDetailScreen() {
           <View style={[s.heroOverlay, { paddingTop: insets.top + 8 }]}>
             <TouchableOpacity testID="back-detail-btn" style={s.backCircle} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={22} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity testID="fav-btn" style={s.backCircle} onPress={toggleFav}>
+              <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={22} color={isFav ? '#EF4444' : '#fff'} />
             </TouchableOpacity>
           </View>
           {location.images && location.images.length > 1 && (
@@ -512,7 +538,7 @@ const s = StyleSheet.create({
   heroImage: { width: '100%', height: 260 },
   heroPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0EFED' },
   heroPlaceholderText: { fontSize: 14, fontFamily: 'Manrope_500Medium', color: colors.textSecondary, marginTop: 8 },
-  heroOverlay: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 16, flexDirection: 'row' },
+  heroOverlay: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   backCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center' },
   imageCount: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   imageCountText: { color: '#fff', fontSize: 13, fontFamily: 'Manrope_700Bold', marginLeft: 4 },

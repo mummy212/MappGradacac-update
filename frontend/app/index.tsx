@@ -93,6 +93,7 @@ export default function Index() {
           return (
             <TouchableOpacity
               key={tab.key}
+              testID={`tab-${tab.key}`}
               style={s.tabItem}
               onPress={() => handleTabChange(tab.key)}
               activeOpacity={0.7}

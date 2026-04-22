@@ -37,7 +37,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Mobile app - city map of Gradačac, Bosnia. Interactive map with GPS, categories (restaurants, markets, auto services, cafes, pharmacies, gas stations), search bar, location details with call and navigation."
+user_problem_statement: "Mobile app - city map of Gradačac, Bosnia. Interactive map with GPS, categories (restaurants, markets, auto services, cafes, pharmacies, gas stations), search bar, location details with call and navigation. Latest task: Complete Home Screen UI Redesign with Bottom Tab Navigation (Početna, Mapa, Rezervacije, Favoriti, Profil), Hero Carousel, Nearby locations, Favorites system using AsyncStorage, Events/Attractions tab, Profile tab with Easter egg."
 
 backend:
   - task: "GET /api/categories - returns 6 categories"
