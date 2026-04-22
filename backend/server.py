@@ -71,6 +71,8 @@ class Location(BaseModel):
     images: List[str] = []; service_tags: List[str] = []
     price_level: int = 0; avg_rating: float = 0.0; review_count: int = 0
     views: int = 0; nav_clicks: int = 0; call_clicks: int = 0
+    total_spots: Optional[int] = None
+    is_free_parking: Optional[bool] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class LocationCreate(BaseModel):
@@ -78,6 +80,8 @@ class LocationCreate(BaseModel):
     phone: Optional[str] = None; description: Optional[str] = None
     working_hours: Optional[str] = None; is_premium: bool = False
     service_tags: List[str] = []; price_level: int = 0
+    total_spots: Optional[int] = None
+    is_free_parking: Optional[bool] = None
 
 class LocationUpdate(BaseModel):
     name: Optional[str] = None; category: Optional[str] = None; address: Optional[str] = None
@@ -85,6 +89,8 @@ class LocationUpdate(BaseModel):
     phone: Optional[str] = None; description: Optional[str] = None
     working_hours: Optional[str] = None; is_premium: Optional[bool] = None
     service_tags: Optional[List[str]] = None; price_level: Optional[int] = None
+    total_spots: Optional[int] = None
+    is_free_parking: Optional[bool] = None
 
 class Review(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -152,6 +158,42 @@ DEFAULT_CATEGORIES = [
     {"id": "cafe", "name": "Kafići", "icon": "cafe", "color": "#96CEB4"},
     {"id": "pharmacy", "name": "Ljekarne", "icon": "medkit", "color": "#FFEAA7"},
     {"id": "gas_station", "name": "Benzinske", "icon": "water", "color": "#DDA0DD"},
+    {"id": "parking", "name": "Parkinzi", "icon": "car-sport", "color": "#4A90D9"},
+    {"id": "prenociste", "name": "Prenoćišta", "icon": "bed", "color": "#9B59B6"},
+]
+
+SAMPLE_PARKINGS = [
+    {"name": "Gradski Parking Centar", "category": "parking", "address": "Centar, Gradačac",
+     "latitude": 44.8792, "longitude": 18.4262, "description": "Centralni gradski parking u srcu grada, blizu tvrđave i džamije.",
+     "working_hours": "00:00 - 24:00", "total_spots": 80, "is_free_parking": True,
+     "service_tags": ["Besplatan", "24h", "Centar"], "price_level": 0},
+    {"name": "Parking Tvrđava", "category": "parking", "address": "Kod Gradačačke tvrđave",
+     "latitude": 44.8808, "longitude": 18.4256, "description": "Parking uz Gradačačku tvrđavu, idealan za turiste i posjetioce.",
+     "working_hours": "07:00 - 22:00", "total_spots": 40, "is_free_parking": True,
+     "service_tags": ["Besplatan", "Tvrđava", "Turisti"], "price_level": 0},
+    {"name": "Parking Pijaca", "category": "parking", "address": "Pored pijace, Gradačac",
+     "latitude": 44.8780, "longitude": 18.4285, "description": "Parking uz gradsku pijacu, plaćen tokom radnog vremena pijace.",
+     "working_hours": "06:00 - 17:00", "total_spots": 60, "is_free_parking": False,
+     "service_tags": ["Plaćen", "Pijaca", "Dnevni"], "price_level": 1},
+    {"name": "Parking Sportski Centar", "category": "parking", "address": "Sportski centar Gradačac",
+     "latitude": 44.8764, "longitude": 18.4240, "description": "Veliki parking uz sportski centar. Besplatan tokom dana.",
+     "working_hours": "00:00 - 24:00", "total_spots": 120, "is_free_parking": True,
+     "service_tags": ["Besplatan", "Veliki", "Sport"], "price_level": 0},
+]
+
+SAMPLE_PRENOCISTA = [
+    {"name": "Hotel Gradačac", "category": "prenociste", "address": "Husein-kapetana Gradaščevića 12, Gradačac",
+     "latitude": 44.8799, "longitude": 18.4271, "phone": "+387 35 817 800",
+     "description": "Centralni hotel u srcu Gradačca. Savremeno opremljene sobe, restoran i besplatan WiFi.",
+     "working_hours": "00:00 - 24:00", "service_tags": ["WiFi", "Restoran", "Parking"], "price_level": 2},
+    {"name": "Motel Bosna", "category": "prenociste", "address": "Magistralni put M-14, Gradačac",
+     "latitude": 44.8730, "longitude": 18.4400, "phone": "+387 35 820 500",
+     "description": "Pristojan motel uz magistralni put. Parking za vozila i kamione.",
+     "working_hours": "00:00 - 24:00", "service_tags": ["WiFi", "Parking", "Magistrala"], "price_level": 1},
+    {"name": "Pansion Stari Grad", "category": "prenociste", "address": "Alije Izetbegovića 8, Gradačac",
+     "latitude": 44.8796, "longitude": 18.4258, "phone": "+387 35 816 900",
+     "description": "Porodični pansion blizu historijskog centra. Domaći doručak uključen.",
+     "working_hours": "00:00 - 24:00", "service_tags": ["Doručak", "Porodično", "Historija"], "price_level": 1},
 ]
 
 SAMPLE_LOCATIONS = [
@@ -191,6 +233,18 @@ async def startup():
     # Seed locations
     if await db.locations.count_documents({}) == 0:
         for loc in SAMPLE_LOCATIONS:
+            await db.locations.insert_one(Location(**loc).dict())
+    # Seed parking & prenociste categories (idempotent)
+    for cat in DEFAULT_CATEGORIES:
+        if not await db.categories.find_one({"id": cat["id"]}):
+            await db.categories.insert_one(dict(cat))
+    # Seed parking locations
+    if await db.locations.count_documents({"category": "parking"}) == 0:
+        for loc in SAMPLE_PARKINGS:
+            await db.locations.insert_one(Location(**loc).dict())
+    # Seed prenociste locations
+    if await db.locations.count_documents({"category": "prenociste"}) == 0:
+        for loc in SAMPLE_PRENOCISTA:
             await db.locations.insert_one(Location(**loc).dict())
 
 async def recalc_rating(lid: str):
@@ -829,6 +883,18 @@ async def delete_attraction(aid: str, user: dict = Depends(require_admin)):
     r = await db.attractions.delete_one({"id": aid})
     if r.deleted_count == 0: raise HTTPException(404)
     return {"message": "OK"}
+
+# ===== Nearby Parkings =====
+@api_router.get("/parkings/nearby")
+async def get_nearby_parkings(lat: float = Query(...), lng: float = Query(...)):
+    """Returns parking locations sorted by distance from given coords"""
+    parkings = await db.locations.find({"category": "parking"}, {"_id": 0}).to_list(100)
+    result = []
+    for p in parkings:
+        dist = calc_distance(lat, lng, p.get("latitude", 0), p.get("longitude", 0))
+        result.append({**p, "distance": int(dist)})
+    result.sort(key=lambda x: x["distance"])
+    return result
 
 # ===== Leaderboard =====
 @api_router.get("/leaderboard")

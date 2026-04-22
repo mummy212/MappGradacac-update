@@ -30,6 +30,8 @@ const OFFERING_MAP: Record<string, { label: string; icon: keyof typeof Ionicons.
   pharmacy:     { label: 'Ponuda',  icon: 'medkit-outline',     emptyMsg: 'Ponuda još nije dodana' },
   auto_service: { label: 'Usluge',  icon: 'construct-outline',  emptyMsg: 'Usluge još nisu dodane' },
   gas_station:  { label: 'Usluge',  icon: 'car-outline',        emptyMsg: 'Usluge još nisu dodane' },
+  parking:      { label: 'Info',    icon: 'car-sport-outline',  emptyMsg: 'Info nije dodan' },
+  prenociste:   { label: 'Sadrzaj', icon: 'bed-outline',        emptyMsg: 'Sadrzaj nije dodan' },
 };
 const getOffering = (cat?: string) => OFFERING_MAP[cat || ''] || { label: 'Ponuda', icon: 'pricetags-outline' as any, emptyMsg: 'Ponuda još nije dodana' };
 
@@ -39,6 +41,7 @@ interface LocationDetail {
   description?: string; working_hours?: string; is_premium?: boolean;
   images: string[]; service_tags: string[]; price_level: number;
   avg_rating: number; review_count: number;
+  total_spots?: number; is_free_parking?: boolean;
 }
 
 interface ReviewItem {
@@ -237,6 +240,28 @@ export default function LocationDetailScreen() {
             {location.working_hours && <InfoRow icon="time-outline" text={location.working_hours} />}
             {location.phone && <InfoRow icon="call-outline" text={location.phone} />}
           </View>
+
+          {/* Parking Info */}
+          {location.category === 'parking' && (
+            <View style={[s.infoSection, { marginTop: 0 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {location.total_spots != null && (
+                  <View style={s.parkInfoBadge}>
+                    <Ionicons name="car-outline" size={15} color={colors.primary} />
+                    <Text style={s.parkInfoTxt}>{location.total_spots} mjesta</Text>
+                  </View>
+                )}
+                <View style={[s.parkInfoBadge, { backgroundColor: location.is_free_parking ? '#27AE6015' : '#E74C3C15' }]}>
+                  <Ionicons name={location.is_free_parking ? 'checkmark-circle-outline' : 'card-outline'} size={15}
+                    color={location.is_free_parking ? '#27AE60' : '#E74C3C'} />
+                  <Text style={[s.parkInfoTxt, { color: location.is_free_parking ? '#27AE60' : '#E74C3C' }]}>
+                    {location.is_free_parking ? 'Besplatan parking' : 'Parking se placa'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
 
           {/* Description */}
           {location.description && (
@@ -509,6 +534,8 @@ const s = StyleSheet.create({
   infoText: { fontSize: 15, fontFamily: 'Manrope_400Regular', color: colors.textPrimary, marginLeft: 14, flex: 1, lineHeight: 22 },
   // Description
   descSection: { marginTop: 8 },
+  parkInfoBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#4A5D4E10', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
+  parkInfoTxt: { fontSize: 13, fontFamily: 'Manrope_600SemiBold', color: colors.primary },
   sectionTitle: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: colors.textPrimary, marginBottom: 12 },
   descText: { fontSize: 15, fontFamily: 'Manrope_400Regular', color: colors.textSecondary, lineHeight: 24 },
   // Gallery

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator,
-  Dimensions, Platform, Alert, TextInput, Keyboard, StatusBar, Image, RefreshControl,
+  Dimensions, Platform, Alert, TextInput, Keyboard, StatusBar, Image, RefreshControl, Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +33,7 @@ interface Loc {
   latitude: number; longitude: number; phone?: string; description?: string;
   working_hours?: string; avg_rating?: number; review_count?: number;
   is_open?: boolean; distance?: number; images?: string[]; is_premium?: boolean;
+  total_spots?: number; is_free_parking?: boolean;
 }
 interface OfferItem { id: string; location_id: string; title: string; description: string; discount_percent?: number; location_name?: string; location_image?: string; }
 interface EventItem { id: string; title: string; description: string; location_name: string; date: string; time?: string; }
@@ -295,6 +296,67 @@ export default function Index() {
             </View>
           )}
 
+          {/* Parkinzi u blizini */}
+          {(() => {
+            const parkLocs = locs
+              .filter(l => l.category === 'parking')
+              .map(l => {
+                if (!userLoc) return l;
+                const R = 6371000, p = Math.PI / 180;
+                const a = 0.5 - Math.cos((l.latitude - userLoc.latitude) * p) / 2
+                  + Math.cos(userLoc.latitude * p) * Math.cos(l.latitude * p)
+                  * (1 - Math.cos((l.longitude - userLoc.longitude) * p)) / 2;
+                return { ...l, distance: Math.round(R * 2 * Math.asin(Math.sqrt(a))) };
+              })
+              .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+            if (parkLocs.length === 0) return null;
+            return (
+              <View style={s.section}>
+                <Text style={s.sectionTitle}>🅿️ Parkinzi u blizini</Text>
+                {parkLocs.map((p, i) => (
+                  <TouchableOpacity key={p.id} style={s.parkCard}
+                    onPress={() => router.push(`/location/${p.id}`)}>
+                    <View style={s.parkLeft}>
+                      {i === 0 && (
+                        <View style={s.nearestBadge}><Text style={s.nearestTxt}>★ Najbliži</Text></View>
+                      )}
+                      <Text style={s.parkName}>{p.name}</Text>
+                      <Text style={s.parkAddr} numberOfLines={1}>{p.address}</Text>
+                      <View style={s.parkMeta}>
+                        {p.total_spots != null && (
+                          <View style={s.parkMetaItem}>
+                            <Ionicons name="car-outline" size={13} color={C.textSec} />
+                            <Text style={s.parkMetaTxt}>{p.total_spots} mjesta</Text>
+                          </View>
+                        )}
+                        <View style={[s.freeBadge, { backgroundColor: p.is_free_parking ? '#27AE6015' : '#E74C3C15' }]}>
+                          <Text style={[s.freeTxt, { color: p.is_free_parking ? '#27AE60' : '#E74C3C' }]}>
+                            {p.is_free_parking ? 'Besplatan' : 'Plaćen'}
+                          </Text>
+                        </View>
+                        {p.distance != null && (
+                          <Text style={s.parkDist}>{p.distance < 1000 ? `${p.distance}m` : `${(p.distance / 1000).toFixed(1)}km`}</Text>
+                        )}
+                      </View>
+                    </View>
+                    <TouchableOpacity style={s.parkNavBtn} onPress={(e) => {
+                      e.stopPropagation();
+                      const url = Platform.select({
+                        ios: `maps:0,0?q=${p.latitude},${p.longitude}`,
+                        android: `geo:0,0?q=${p.latitude},${p.longitude}(${p.name})`,
+                        default: `https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}`,
+                      });
+                      if (url) Linking.openURL(url);
+                    }}>
+                      <Ionicons name="navigate" size={18} color="#fff" />
+                      <Text style={s.parkNavTxt}>Navigiraj</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            );
+          })()}
+
           {/* Featured Offers */}
           {offers.length > 0 && (
             <View style={s.section}>
@@ -515,6 +577,21 @@ const s = StyleSheet.create({
   openBadge: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   openDot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
   openText: { fontSize: 11, fontFamily: 'Manrope_600SemiBold' },
+  // Parking section
+  parkCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, backgroundColor: C.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
+  parkLeft: { flex: 1 },
+  parkName: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: C.text, marginBottom: 2 },
+  parkAddr: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: C.textSec, marginBottom: 6 },
+  parkMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  parkMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  parkMetaTxt: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: C.textSec },
+  freeBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  freeTxt: { fontSize: 11, fontFamily: 'Manrope_700Bold' },
+  parkDist: { fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#4A90D9' },
+  parkNavBtn: { marginLeft: 12, backgroundColor: '#4A90D9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', gap: 4 },
+  parkNavTxt: { fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#fff' },
+  nearestBadge: { backgroundColor: '#4A90D915', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, marginBottom: 4, alignSelf: 'flex-start' },
+  nearestTxt: { fontSize: 11, fontFamily: 'Manrope_700Bold', color: '#4A90D9' },
   // Category list view
   catListHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
   backCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.border, marginRight: 12 },
