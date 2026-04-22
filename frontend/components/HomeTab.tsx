@@ -20,6 +20,30 @@ const NC = {
 
 const HERO_COLORS = ['#1A1A2E', '#16213E', '#2D1B69', '#1B2838', '#1C3A2E', '#2C1A0E'];
 
+/* Fallback slike po kategoriji */
+const CAT_IMAGES: Record<string, string> = {
+  restaurant:   'https://images.pexels.com/photos/33158981/pexels-photo-33158981.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+  cafe:         'https://images.pexels.com/photos/15259599/pexels-photo-15259599.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+  market:       'https://images.pexels.com/photos/5951182/pexels-photo-5951182.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+  auto_service: 'https://images.pexels.com/photos/4489761/pexels-photo-4489761.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+  pharmacy:     'https://images.unsplash.com/photo-1765031092161-a9ebe556117e?w=600&q=80',
+  gas_station:  'https://images.unsplash.com/photo-1717988241438-408ebc1a04c0?w=600&q=80',
+  parking:      'https://images.unsplash.com/photo-1740479231174-43522f4eab3f?w=600&q=80',
+  prenociste:   'https://images.pexels.com/photos/7821341/pexels-photo-7821341.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+};
+
+/* Hero pozadine - ljepote Bosne i Hercegovine */
+const HERO_BKGS = [
+  'https://images.unsplash.com/photo-1723083640587-7fbdf55ff158?w=800&q=80',
+  'https://images.pexels.com/photos/12657546/pexels-photo-12657546.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=800',
+  'https://images.pexels.com/photos/19101067/pexels-photo-19101067.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=800',
+  'https://images.pexels.com/photos/30894209/pexels-photo-30894209.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=800',
+  'https://images.unsplash.com/photo-1719915959351-24e8e0861879?w=800&q=80',
+  'https://images.unsplash.com/photo-1723083640621-9b5927252b79?w=800&q=80',
+];
+
+function catImg(cat?: string) { return cat ? (CAT_IMAGES[cat] || CAT_IMAGES.restaurant) : CAT_IMAGES.restaurant; }
+
 interface Loc {
   id: string; name: string; category: string; address: string;
   latitude: number; longitude: number; avg_rating?: number;
@@ -61,7 +85,9 @@ function timeLeft(exp?: string) {
   return h < 24 ? `Još ${h}h` : `Još ${Math.floor(h / 24)}d`;
 }
 function imgUri(img?: string) {
-  return !img ? undefined : img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+  if (!img) return undefined;
+  if (img.startsWith('data:') || img.startsWith('http')) return img;
+  return `data:image/jpeg;base64,${img}`;
 }
 
 function buildHero(events: EvItem[], offers: Offer[]): HeroItem[] {
@@ -165,15 +191,17 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
             data={heroItems} keyExtractor={i => i.id} horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
             snapToInterval={HERO_W + 12} decelerationRate="fast"
-            renderItem={({ item: it }) => (
+            renderItem={({ item: it, index }) => (
               <TouchableOpacity
                 style={[hs.heroCard, { width: HERO_W }]}
                 onPress={() => it.locationId && router.push(`/location/${it.locationId}`)}
                 activeOpacity={0.95}
               >
-                {it.image
-                  ? <Image source={{ uri: imgUri(it.image) }} style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]} resizeMode="cover" />
-                  : <View style={[StyleSheet.absoluteFillObject, { backgroundColor: it.bgColor, borderRadius: 20 }]} />}
+                <Image
+                  source={{ uri: imgUri(it.image) || HERO_BKGS[index % HERO_BKGS.length] }}
+                  style={[StyleSheet.absoluteFillObject, { borderRadius: 20 }]}
+                  resizeMode="cover"
+                />
                 <View style={hs.heroOverlay} />
                 <View style={hs.heroTop}>
                   <View style={[hs.heroBadge, { backgroundColor: it.badgeColor }]}>
@@ -222,11 +250,11 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
               return (
                 <TouchableOpacity style={hs.nearCard} onPress={() => router.push(`/location/${loc.id}`)} activeOpacity={0.9}>
                   <View style={hs.nearImgWrap}>
-                    {loc.images?.[0]
-                      ? <Image source={{ uri: imgUri(loc.images[0]) }} style={hs.nearImg} resizeMode="cover" />
-                      : <View style={[hs.nearImg, { backgroundColor: NC.purpleLight, justifyContent: 'center', alignItems: 'center' }]}>
-                        <Ionicons name="storefront-outline" size={26} color={NC.purple} />
-                      </View>}
+                    <Image
+                      source={{ uri: imgUri(loc.images?.[0]) || catImg(loc.category) }}
+                      style={hs.nearImg}
+                      resizeMode="cover"
+                    />
                     <View style={[hs.nearBadge, { backgroundColor: loc.is_open !== false ? NC.green : NC.orange }]}>
                       <Text style={hs.nearBadgeTxt}>{loc.is_open !== false ? 'OTVORENO' : 'ZATVORENO'}</Text>
                     </View>
@@ -267,11 +295,11 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
                 onPress={() => o.location_id && router.push(`/location/${o.location_id}`)}
               >
                 <View style={hs.specialThumb}>
-                  {o.location_image
-                    ? <Image source={{ uri: imgUri(o.location_image) }} style={hs.specialImg} resizeMode="cover" />
-                    : <View style={[hs.specialImg, { backgroundColor: NC.orangeBg, justifyContent: 'center', alignItems: 'center' }]}>
-                      <Ionicons name="pricetag" size={20} color={NC.orange} />
-                    </View>}
+                  <Image
+                    source={{ uri: imgUri(o.location_image) || CAT_IMAGES.restaurant }}
+                    style={hs.specialImg}
+                    resizeMode="cover"
+                  />
                   {(o.discount_percent || 0) > 0 && (
                     <View style={hs.discBadge}><Text style={hs.discTxt}>-{o.discount_percent}%</Text></View>
                   )}

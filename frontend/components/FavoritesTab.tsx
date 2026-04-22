@@ -26,8 +26,21 @@ function calcDist(la1: number, lo1: number, la2: number, lo2: number) {
   return Math.round(R * 2 * Math.asin(Math.sqrt(a)));
 }
 
-function imgUri(img?: string) {
-  return !img ? undefined : img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+const CAT_IMAGES_FB: Record<string, string> = {
+  restaurant:   'https://images.pexels.com/photos/33158981/pexels-photo-33158981.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+  cafe:         'https://images.pexels.com/photos/15259599/pexels-photo-15259599.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+  market:       'https://images.pexels.com/photos/5951182/pexels-photo-5951182.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+  auto_service: 'https://images.pexels.com/photos/4489761/pexels-photo-4489761.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+  pharmacy:     'https://images.unsplash.com/photo-1765031092161-a9ebe556117e?w=400&q=80',
+  gas_station:  'https://images.unsplash.com/photo-1717988241438-408ebc1a04c0?w=400&q=80',
+  parking:      'https://images.unsplash.com/photo-1740479231174-43522f4eab3f?w=400&q=80',
+  prenociste:   'https://images.pexels.com/photos/7821341/pexels-photo-7821341.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
+};
+
+function favImgUri(img?: string) {
+  if (!img) return undefined;
+  if (img.startsWith('data:') || img.startsWith('http')) return img;
+  return `data:image/jpeg;base64,${img}`;
 }
 
 export default function FavoritesTab({ userLoc }: {
@@ -107,11 +120,11 @@ export default function FavoritesTab({ userLoc }: {
           {locs.map(loc => (
             <TouchableOpacity key={loc.id} style={fv.card} onPress={() => router.push(`/location/${loc.id}`)}>
               <View style={fv.imgWrap}>
-                {loc.images?.[0]
-                  ? <Image source={{ uri: imgUri(loc.images[0]) }} style={fv.img} resizeMode="cover" />
-                  : <View style={[fv.img, fv.imgPlaceholder]}>
-                    <Ionicons name="storefront-outline" size={26} color="#9CA3AF" />
-                  </View>}
+                <Image
+                  source={{ uri: favImgUri(loc.images?.[0]) || CAT_IMAGES_FB[loc.category] || CAT_IMAGES_FB.restaurant }}
+                  style={fv.img}
+                  resizeMode="cover"
+                />
                 <View style={[fv.openBadge, { backgroundColor: loc.is_open !== false ? '#10B981' : '#EF4444' }]}>
                   <Text style={fv.openTxt}>{loc.is_open !== false ? 'Otv' : 'Zat'}</Text>
                 </View>
