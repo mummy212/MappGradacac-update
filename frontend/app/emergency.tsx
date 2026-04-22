@@ -44,18 +44,18 @@ const SECTIONS: Section[] = [
     title: 'Zdravstvo – Gradačac',
     emoji: '🏥',
     contacts: [
-      { name: 'Dom zdravlja Gradačac', number: '035 817 440', icon: 'medical', color: GREEN, bg: '#ECFDF5' },
-      { name: 'Apoteka "Ljekarna"', number: '035 817 200', icon: 'flask', color: BLUE, bg: '#EFF6FF' },
-      { name: 'Dežurna apoteka', number: '035 817 300', icon: 'moon', color: PURPLE, bg: '#EDE9FE', note: 'Noćna dežurstva' },
+      { name: 'Dom zdravlja Gradačac', number: '035 367 000', icon: 'medical', color: GREEN, bg: '#ECFDF5', note: 'Josipa Šibera bb' },
+      { name: 'Apoteka Adonis (non-stop)', number: '035 369 874', icon: 'flask', color: BLUE, bg: '#EFF6FF', note: '0-24h, Josipa Šibera bb' },
+      { name: 'Apoteka Ibn Sina (non-stop)', number: '035 816 056', icon: 'moon', color: PURPLE, bg: '#EDE9FE', note: '0-24h, Josipa Šibera 3' },
     ],
   },
   {
     title: 'Gradska uprava',
     emoji: '🏛️',
     contacts: [
-      { name: 'Grad Gradačac – centrala', number: '035 817 630', icon: 'business', color: PURPLE, bg: '#EDE9FE' },
-      { name: 'Komunalno preduzeće', number: '035 817 555', icon: 'construct', color: YELLOW, bg: '#FFFBEB' },
-      { name: 'Vodovod Gradačac', number: '035 817 600', icon: 'water', color: BLUE, bg: '#EFF6FF' },
+      { name: 'Grad Gradačac – centrala', number: '035 369 751', icon: 'business', color: PURPLE, bg: '#EDE9FE', note: 'H. K. Gradaščevića 4' },
+      { name: 'JP Komunalac – centrala', number: '035 817 219', icon: 'construct', color: YELLOW, bg: '#FFFBEB', note: 'H. K. Gradaščevića 114' },
+      { name: 'JP Komunalac – dispečer', number: '035 817 266', icon: 'water', color: BLUE, bg: '#EFF6FF', note: 'Kvarovi, vodovod, odvoz' },
     ],
   },
   {
@@ -63,9 +63,8 @@ const SECTIONS: Section[] = [
     emoji: '📞',
     contacts: [
       { name: 'BIHAMK – cestovna pomoć', number: '1282', icon: 'car', color: ORANGE, bg: '#FFF7ED', note: 'Pomoć na cesti' },
-      { name: 'BH Pošta – info', number: '1414', icon: 'mail', color: BLUE, bg: '#EFF6FF' },
-      { name: 'Struja – kvar', number: '0800 20 405', icon: 'flash', color: YELLOW, bg: '#FFFBEB', note: 'Besplatan poziv' },
-      { name: 'Taksi Gradačac', number: '035 817 777', icon: 'car-sport', color: GREEN, bg: '#ECFDF5' },
+      { name: 'Struja – kvar (ED BiH)', number: '0800 20 405', icon: 'flash', color: YELLOW, bg: '#FFFBEB', note: 'Besplatan poziv' },
+      { name: 'Taksi Gradačac', number: '061 663 910', icon: 'car-sport', color: GREEN, bg: '#ECFDF5' },
     ],
   },
 ];
