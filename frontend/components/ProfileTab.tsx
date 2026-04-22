@@ -51,6 +51,13 @@ export default function ProfileTab() {
       action: () => router.push('/emergency'),
     },
     {
+      icon: 'star-outline' as const,
+      label: 'Loyalty Kartica',
+      desc: 'Skupljaj pečate, osvoji nagradu',
+      color: '#F59E0B',
+      action: () => router.push('/loyalty'),
+    },
+    {
       icon: 'heart-outline' as const,
       label: 'Omiljene lokacije',
       desc: `${favCount} sačuvano`,

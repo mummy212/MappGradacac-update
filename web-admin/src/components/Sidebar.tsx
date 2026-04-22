@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, MapPin, Tag, Calendar,
-  Bell, Users, Star, Settings, LogOut, Map
+  Bell, Users, Star, Settings, LogOut, Map, Phone, Newspaper
 } from 'lucide-react'
 
 const navItems = [
@@ -11,6 +11,8 @@ const navItems = [
   { to: '/categories', label: 'Kategorije', icon: Tag, end: false },
   { to: '/events', label: 'Događaji', icon: Calendar, end: false },
   { to: '/attractions', label: 'Atrakcije', icon: Star, end: false },
+  { to: '/news', label: 'Vijesti', icon: Newspaper, end: false },
+  { to: '/emergency-contacts', label: 'Hitni Brojevi', icon: Phone, end: false },
   { to: '/business-accounts', label: 'Biznis Nalozi', icon: Users, end: false },
   { to: '/notifications', label: 'Obavještenja', icon: Bell, end: false },
   { to: '/settings', label: 'Postavke', icon: Settings, end: false },

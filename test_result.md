@@ -37,9 +37,57 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Mobile app - city map of Gradačac, Bosnia. Interactive map with GPS, categories (restaurants, markets, auto services, cafes, pharmacies, gas stations), search bar, location details with call and navigation. Latest task: Complete Home Screen UI Redesign with Bottom Tab Navigation (Početna, Mapa, Rezervacije, Favoriti, Profil), Hero Carousel, Nearby locations, Favorites system using AsyncStorage, Events/Attractions tab, Profile tab with Easter egg."
+user_problem_statement: "Mobile app - city map of Gradačac, Bosnia. Interactive map with GPS, categories (restaurants, markets, auto services, cafes, pharmacies, gas stations), search bar, location details with call and navigation. Latest task: P0 - Emergency Numbers CRUD (backend + web admin + mobile API fetch), P1 - City News (backend + web admin + EventsTab news section), P1 - Loyalty Stamp Card (new screen /loyalty + ProfileTab menu item)."
 
 backend:
+  - task: "GET /api/emergency-contacts - returns emergency contacts seeded from DB"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New endpoint added, 13 contacts seeded in DB. Tested via curl, returns 13 items."
+
+  - task: "POST /api/admin/emergency-contacts - create emergency contact (admin only)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Admin CRUD endpoint added for emergency contacts."
+
+  - task: "GET /api/news - returns published news articles"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New endpoint added, 4 news articles seeded. Tested via curl, returns 4 items."
+
+  - task: "POST /api/admin/news - create news article (admin only)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Admin CRUD endpoint added for news articles."
+
   - task: "GET /api/categories - returns 6 categories"
     implemented: true
     working: "NA"
@@ -113,6 +161,78 @@ backend:
         comment: "Seeds 16 locations on startup if DB empty"
 
 frontend:
+  - task: "Gradske Vijesti section in EventsTab - fetches from /api/news"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/EventsTab.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "EventsTab now shows news articles with category badges and dates. Fetches from API."
+
+  - task: "Emergency screen fetches from API instead of hardcoded"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/emergency.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Emergency screen fetches contacts from /api/emergency-contacts with fallback."
+
+  - task: "Loyalty Kartica screen at /loyalty"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/loyalty.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New loyalty screen with stamp card UI. User enters name, sees stamps, QR CTA."
+
+  - task: "ProfileTab has Loyalty Kartica menu item"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/ProfileTab.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "ProfileTab menu now includes Loyalty Kartica between Hitni Brojevi and Omiljene."
+
+  - task: "Admin Panel - Vijesti page (CRUD for news)"
+    implemented: true
+    working: "NA"
+    file: "/app/web-admin/src/pages/News.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New web admin page for CRUD operations on news articles."
+
+  - task: "Admin Panel - Hitni Brojevi page (CRUD for emergency contacts)"
+    implemented: true
+    working: "NA"
+    file: "/app/web-admin/src/pages/EmergencyContacts.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New web admin page for CRUD on emergency contacts, grouped by section."
+
   - task: "App loads with map and location list"
     implemented: true
     working: "NA"

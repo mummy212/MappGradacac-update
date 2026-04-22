@@ -11,6 +11,8 @@ import Notifications from './pages/Notifications'
 import BusinessAccounts from './pages/BusinessAccounts'
 import Attractions from './pages/Attractions'
 import Settings from './pages/Settings'
+import EmergencyContacts from './pages/EmergencyContacts'
+import News from './pages/News'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
@@ -40,6 +42,8 @@ function AppRoutes() {
         <Route path="attractions" element={<Attractions />} />
         <Route path="business-accounts" element={<BusinessAccounts />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="news" element={<News />} />
+        <Route path="emergency-contacts" element={<EmergencyContacts />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

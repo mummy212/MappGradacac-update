@@ -151,6 +151,63 @@ class NotificationCreate(BaseModel):
 class AppSettingsUpdate(BaseModel):
     paypal_link: Optional[str] = None; contact_email: Optional[str] = None
 
+class EmergencyContact(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    section: str; section_emoji: str = "📞"
+    name: str; number: str; icon: str = "call"
+    color: str = "#3B82F6"; bg: str = "#EFF6FF"
+    note: Optional[str] = None; order: int = 0
+
+class EmergencyContactCreate(BaseModel):
+    section: str; section_emoji: str = "📞"
+    name: str; number: str; icon: str = "call"
+    color: str = "#3B82F6"; bg: str = "#EFF6FF"
+    note: Optional[str] = None; order: int = 0
+
+class EmergencyContactUpdate(BaseModel):
+    section: Optional[str] = None; section_emoji: Optional[str] = None
+    name: Optional[str] = None; number: Optional[str] = None
+    icon: Optional[str] = None; color: Optional[str] = None
+    bg: Optional[str] = None; note: Optional[str] = None; order: Optional[int] = None
+
+class NewsArticle(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str; content: str; category: str = "Vijesti"
+    image: Optional[str] = None; is_published: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class NewsCreate(BaseModel):
+    title: str; content: str; category: str = "Vijesti"
+    image: Optional[str] = None; is_published: bool = True
+
+class NewsUpdate(BaseModel):
+    title: Optional[str] = None; content: Optional[str] = None
+    category: Optional[str] = None; image: Optional[str] = None
+    is_published: Optional[bool] = None
+
+DEFAULT_EMERGENCY_CONTACTS = [
+    {"section": "Hitni Servisi", "section_emoji": "🚨", "name": "Opći hitni broj", "number": "112", "icon": "alert-circle", "color": "#fff", "bg": "#EF4444", "note": "EU standard — uvijek dostupan", "order": 0},
+    {"section": "Hitni Servisi", "section_emoji": "🚨", "name": "Policija", "number": "122", "icon": "shield-checkmark", "color": "#EF4444", "bg": "#FEE2E2", "order": 1},
+    {"section": "Hitni Servisi", "section_emoji": "🚨", "name": "Vatrogasci", "number": "123", "icon": "flame", "color": "#F97316", "bg": "#FFF7ED", "order": 2},
+    {"section": "Hitni Servisi", "section_emoji": "🚨", "name": "Hitna pomoć", "number": "124", "icon": "medkit", "color": "#10B981", "bg": "#ECFDF5", "order": 3},
+    {"section": "Zdravstvo – Gradačac", "section_emoji": "🏥", "name": "Dom zdravlja Gradačac", "number": "035 367 000", "icon": "medical", "color": "#10B981", "bg": "#ECFDF5", "note": "Josipa Šibera bb", "order": 0},
+    {"section": "Zdravstvo – Gradačac", "section_emoji": "🏥", "name": "Apoteka Adonis (non-stop)", "number": "035 369 874", "icon": "flask", "color": "#3B82F6", "bg": "#EFF6FF", "note": "0-24h, Josipa Šibera bb", "order": 1},
+    {"section": "Zdravstvo – Gradačac", "section_emoji": "🏥", "name": "Apoteka Ibn Sina (non-stop)", "number": "035 816 056", "icon": "moon", "color": "#7C3AED", "bg": "#EDE9FE", "note": "0-24h, Josipa Šibera 3", "order": 2},
+    {"section": "Gradska uprava", "section_emoji": "🏛️", "name": "Grad Gradačac – centrala", "number": "035 369 751", "icon": "business", "color": "#7C3AED", "bg": "#EDE9FE", "note": "H. K. Gradaščevića 4", "order": 0},
+    {"section": "Gradska uprava", "section_emoji": "🏛️", "name": "JP Komunalac – centrala", "number": "035 817 219", "icon": "construct", "color": "#F59E0B", "bg": "#FFFBEB", "note": "H. K. Gradaščevića 114", "order": 1},
+    {"section": "Gradska uprava", "section_emoji": "🏛️", "name": "JP Komunalac – dispečer", "number": "035 817 266", "icon": "water", "color": "#3B82F6", "bg": "#EFF6FF", "note": "Kvarovi, vodovod, odvoz", "order": 2},
+    {"section": "Ostale Usluge", "section_emoji": "📞", "name": "BIHAMK – cestovna pomoć", "number": "1282", "icon": "car", "color": "#F97316", "bg": "#FFF7ED", "note": "Pomoć na cesti", "order": 0},
+    {"section": "Ostale Usluge", "section_emoji": "📞", "name": "Struja – kvar (ED BiH)", "number": "0800 20 405", "icon": "flash", "color": "#F59E0B", "bg": "#FFFBEB", "note": "Besplatan poziv", "order": 1},
+    {"section": "Ostale Usluge", "section_emoji": "📞", "name": "Taksi Gradačac", "number": "061 663 910", "icon": "car-sport", "color": "#10B981", "bg": "#ECFDF5", "order": 2},
+]
+
+DEFAULT_NEWS = [
+    {"title": "Gradačac Mapa – dobrodošlica!", "content": "Sa ponosom vam predstavljamo mobilnu aplikaciju Gradačac Mapa – vaš digitalni vodič kroz grad. Pronađite restorane, kafiće, markete, apoteke i sve gradske servise na jednom mjestu. Aplikacija je besplatna i stalno se unapređuje.", "category": "Obavještenje"},
+    {"title": "Gradačačka tvrđava – otvorena za posjetioce", "content": "Gradačačka tvrđava, simbol i ponos grada, otvorena je za posjetioce svaki dan. Tvrđava iz 15. vijeka nudi predivan pogled na grad i okolinu. Ulaz je besplatan. Preporučujemo posjet u večernjim satima.", "category": "Turizam"},
+    {"title": "Festival kulture 'Dani Husejn-kapetana'", "content": "Ovog ljeta Gradačac će biti domaćin tradicionalnog festivala koji slavi kulturno naslijeđe grada. Očekuju se koncerti, izložbe i prezentacije tradicije. Pratite aplikaciju za ažurirane informacije.", "category": "Kultura"},
+    {"title": "Novi parking u centru – besplatan!", "content": "Otvorena je nova parking zona u blizini gradskog trga sa 45 mjesta. Parking je besplatan prvih 2 sata, a lokacija je dostupna u aplikaciji pod kategorijom Parkinzi.", "category": "Vijesti"},
+]
+
 DEFAULT_CATEGORIES = [
     {"id": "restaurant", "name": "Restorani", "icon": "restaurant", "color": "#FF6B6B"},
     {"id": "market", "name": "Marketi", "icon": "cart", "color": "#4ECDC4"},
@@ -246,6 +303,16 @@ async def startup():
     if await db.locations.count_documents({"category": "prenociste"}) == 0:
         for loc in SAMPLE_PRENOCISTA:
             await db.locations.insert_one(Location(**loc).dict())
+    # Seed emergency contacts
+    if await db.emergency_contacts.count_documents({}) == 0:
+        for ec in DEFAULT_EMERGENCY_CONTACTS:
+            ec_obj = {"id": str(uuid.uuid4()), **ec}
+            await db.emergency_contacts.insert_one(ec_obj)
+    # Seed news
+    if await db.news.count_documents({}) == 0:
+        for n in DEFAULT_NEWS:
+            n_obj = NewsArticle(**n).dict()
+            await db.news.insert_one(n_obj)
 
 async def recalc_rating(lid: str):
     r = await db.reviews.aggregate([{"$match": {"location_id": lid}}, {"$group": {"_id": None, "avg": {"$avg": "$stars"}, "cnt": {"$sum": 1}}}]).to_list(1)
@@ -895,6 +962,57 @@ async def get_nearby_parkings(lat: float = Query(...), lng: float = Query(...)):
         result.append({**p, "distance": int(dist)})
     result.sort(key=lambda x: x["distance"])
     return result
+
+# ===== Emergency Contacts =====
+@api_router.get("/emergency-contacts")
+async def get_emergency_contacts():
+    return await db.emergency_contacts.find({}, {"_id": 0}).sort([("section", 1), ("order", 1)]).to_list(100)
+
+@api_router.post("/admin/emergency-contacts")
+async def create_emergency_contact(inp: EmergencyContactCreate, user: dict = Depends(require_admin)):
+    ec = {"id": str(uuid.uuid4()), **inp.dict()}
+    await db.emergency_contacts.insert_one(dict(ec))
+    return {k: v for k, v in ec.items() if k != '_id'}
+
+@api_router.put("/admin/emergency-contacts/{cid}")
+async def update_emergency_contact(cid: str, inp: EmergencyContactUpdate, user: dict = Depends(require_admin)):
+    u = {k: v for k, v in inp.dict().items() if v is not None}
+    if not u: raise HTTPException(400)
+    r = await db.emergency_contacts.update_one({"id": cid}, {"$set": u})
+    if r.matched_count == 0: raise HTTPException(404)
+    return await db.emergency_contacts.find_one({"id": cid}, {"_id": 0})
+
+@api_router.delete("/admin/emergency-contacts/{cid}")
+async def delete_emergency_contact(cid: str, user: dict = Depends(require_admin)):
+    r = await db.emergency_contacts.delete_one({"id": cid})
+    if r.deleted_count == 0: raise HTTPException(404)
+    return {"message": "OK"}
+
+# ===== News =====
+@api_router.get("/news")
+async def get_news(published_only: bool = Query(True)):
+    q = {"is_published": True} if published_only else {}
+    return await db.news.find(q, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+@api_router.post("/admin/news")
+async def create_news_article(inp: NewsCreate, user: dict = Depends(require_admin)):
+    article = NewsArticle(**inp.dict()).dict()
+    await db.news.insert_one(dict(article))
+    return {k: v for k, v in article.items() if k != '_id'}
+
+@api_router.put("/admin/news/{nid}")
+async def update_news_article(nid: str, inp: NewsUpdate, user: dict = Depends(require_admin)):
+    u = {k: v for k, v in inp.dict().items() if v is not None}
+    if not u: raise HTTPException(400)
+    r = await db.news.update_one({"id": nid}, {"$set": u})
+    if r.matched_count == 0: raise HTTPException(404)
+    return await db.news.find_one({"id": nid}, {"_id": 0})
+
+@api_router.delete("/admin/news/{nid}")
+async def delete_news_article(nid: str, user: dict = Depends(require_admin)):
+    r = await db.news.delete_one({"id": nid})
+    if r.deleted_count == 0: raise HTTPException(404)
+    return {"message": "OK"}
 
 # ===== Leaderboard =====
 @api_router.get("/leaderboard")
