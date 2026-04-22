@@ -38,12 +38,12 @@ interface HeroItem {
 }
 
 const QUICK = [
-  { label: 'Restorani', icon: 'restaurant',  color: '#EF4444', bg: '#FEE2E2', cat: 'restaurant' },
-  { label: 'Događaji',  icon: 'calendar',    color: '#7C3AED', bg: '#EDE9FE', cat: '' },
-  { label: 'Akcije',    icon: 'pricetag',    color: '#F59E0B', bg: '#FEF3C7', cat: '' },
-  { label: 'Smještaj',  icon: 'bed',         color: '#3B82F6', bg: '#DBEAFE', cat: 'prenociste' },
-  { label: 'Apoteke',   icon: 'medkit',      color: '#10B981', bg: '#D1FAE5', cat: 'pharmacy' },
-  { label: 'Parkinzi',  icon: 'car-sport',   color: '#4A90D9', bg: '#DBEAFE', cat: 'parking' },
+  { label: 'Restorani', icon: 'restaurant',  color: '#EF4444', bg: '#FEE2E2', cat: 'restaurant', tab: 'mapa' },
+  { label: 'Događaji',  icon: 'calendar',    color: '#7C3AED', bg: '#EDE9FE', cat: '', tab: 'rezervacije' },
+  { label: 'Akcije',    icon: 'pricetag',    color: '#F59E0B', bg: '#FEF3C7', cat: '', tab: 'mapa' },
+  { label: 'Smještaj',  icon: 'bed',         color: '#3B82F6', bg: '#DBEAFE', cat: 'prenociste', tab: 'mapa' },
+  { label: 'Apoteke',   icon: 'medkit',      color: '#10B981', bg: '#D1FAE5', cat: 'pharmacy', tab: 'mapa' },
+  { label: 'Parkinzi',  icon: 'car-sport',   color: '#4A90D9', bg: '#DBEAFE', cat: 'parking', tab: 'mapa' },
 ];
 
 function calcDist(la1: number, lo1: number, la2: number, lo2: number) {
@@ -306,7 +306,7 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
           {QUICK.map(q => (
             <TouchableOpacity
               key={q.label} style={hs.quickItem}
-              onPress={() => { setActiveTab('mapa'); if (q.cat) setMapCategory(q.cat); }}
+              onPress={() => { setActiveTab(q.tab || 'mapa'); if (q.cat) setMapCategory(q.cat); }}
             >
               <View style={[hs.quickIcon, { backgroundColor: q.bg }]}>
                 <Ionicons name={q.icon as any} size={24} color={q.color} />
