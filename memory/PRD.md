@@ -127,10 +127,18 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
   - ProfileTab.tsx updated with Loyalty Kartica menu item
 - All features tested: 100% pass rate (28 backend + 11 frontend tests)
 
-### Remaining P1/P2 Items
-- Custom App Icon
-- Multi-language support (BS/EN)
-- Offline Map Tile Downloads
+### Session 2026-04-22 (Part 3 - Bug Fix + Icon)
+- **Bug Fix**: Home screen "Brzi pristup" (Quick Access) icons navigation repaired
+  - Root fix: `index.tsx` now passes `handleTabChange` instead of raw `setActiveTab` to `HomeTab`
+  - All 6 quick access icons verified: Događaji→Rezervacije, Restorani→Mapa+filter, Hitni br.→Emergency, Smještaj/Apoteke/Parkinzi→Mapa+filter
+  - 9/9 frontend tests passed
+- **Custom App Icon**: Generated icon with Gradačac fortress tower + location pin on purple gradient
+  - Placed in: icon.png, adaptive-icon.png, favicon.png, splash-icon.png
+
+## Next Tasks
+- [ ] Multi-language Support (BS/EN) (P2)
+- [ ] Stripe subscription integration (P1)
+- [ ] Possibly a nicer/AI-generated app icon via external service
 
 ### Session 2026-04-22 (Part 2 - Offline Map)
 - Automatic tile caching via IndexedDB (auto-cache as user browses)
