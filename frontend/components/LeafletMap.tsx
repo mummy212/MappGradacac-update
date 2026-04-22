@@ -74,15 +74,154 @@ function generateHTML(
   #map{width:100%;height:100%}
   .leaflet-control-attribution{display:none!important}
   .leaflet-control-zoom{display:none!important}
+  #offline-badge{
+    display:none;position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+    z-index:1000;color:#fff;padding:5px 14px;border-radius:20px;
+    font-size:12px;font-family:sans-serif;font-weight:600;
+    box-shadow:0 2px 10px rgba(0,0,0,0.25);white-space:nowrap;
+    transition:opacity 0.3s;
+  }
 </style>
 </head><body>
 <div id="map"></div>
+<div id="offline-badge"></div>
 <script>
+// ===== Tile Cache (IndexedDB) =====
+var IDB_NAME='gmcache',IDB_STORE='tiles',IDB_TTL=7*24*3600*1000;
+var _idb=null;
+function openIDB(){
+  return new Promise(function(res,rej){
+    if(_idb)return res(_idb);
+    var r=indexedDB.open(IDB_NAME,1);
+    r.onupgradeneeded=function(e){e.target.result.createObjectStore(IDB_STORE,{keyPath:'u'});};
+    r.onsuccess=function(e){_idb=e.target.result;res(_idb);};
+    r.onerror=function(){rej('idb error');};
+  });
+}
+function putTile(url,data){
+  openIDB().then(function(db){
+    var tx=db.transaction(IDB_STORE,'readwrite');
+    try{tx.objectStore(IDB_STORE).put({u:url,d:data,t:Date.now()});}catch(e){}
+  }).catch(function(){});
+}
+function getTile(url){
+  return openIDB().then(function(db){
+    return new Promise(function(res){
+      var tx=db.transaction(IDB_STORE,'readonly');
+      var req=tx.objectStore(IDB_STORE).get(url);
+      req.onsuccess=function(){
+        var r=req.result;
+        if(r&&(Date.now()-r.t)<IDB_TTL)res(r.d);else res(null);
+      };
+      req.onerror=function(){res(null);};
+    });
+  }).catch(function(){return null;});
+}
+function countTiles(){
+  return openIDB().then(function(db){
+    return new Promise(function(res){
+      var tx=db.transaction(IDB_STORE,'readonly');
+      var req=tx.objectStore(IDB_STORE).count();
+      req.onsuccess=function(){res(req.result||0);};
+      req.onerror=function(){res(0);};
+    });
+  }).catch(function(){return 0;});
+}
+function pruneOldTiles(){
+  openIDB().then(function(db){
+    var cutoff=Date.now()-IDB_TTL;
+    var tx=db.transaction(IDB_STORE,'readwrite');
+    var store=tx.objectStore(IDB_STORE);
+    var req=store.openCursor();
+    req.onsuccess=function(e){
+      var c=e.target.result;
+      if(!c)return;
+      if(c.value.t<cutoff)c.delete();
+      c.continue();
+    };
+  }).catch(function(){});
+}
+
+// ===== Offline Badge =====
+var _badgeTimer=null;
+function showBadge(msg,color,persist){
+  var b=document.getElementById('offline-badge');
+  if(!b)return;
+  b.textContent=msg;
+  b.style.backgroundColor=color;
+  b.style.display='block';
+  b.style.opacity='1';
+  if(_badgeTimer)clearTimeout(_badgeTimer);
+  if(!persist){
+    _badgeTimer=setTimeout(function(){
+      b.style.opacity='0';
+      setTimeout(function(){b.style.display='none';},300);
+    },2500);
+  }
+}
+
+// ===== Custom Cached Tile Layer =====
+var CachedTileLayer=L.TileLayer.extend({
+  createTile:function(coords,done){
+    var tile=document.createElement('img');
+    tile.alt='';
+    var url=this.getTileUrl(coords);
+    getTile(url).then(function(cached){
+      if(cached){
+        tile.src=cached;
+        done(null,tile);
+      } else {
+        var xhr=new XMLHttpRequest();
+        xhr.open('GET',url);
+        xhr.responseType='blob';
+        xhr.onload=function(){
+          if(xhr.status>=200&&xhr.status<300){
+            var reader=new FileReader();
+            reader.onloadend=function(){
+              putTile(url,reader.result);
+              tile.src=reader.result;
+              done(null,tile);
+            };
+            reader.readAsDataURL(xhr.response);
+          } else {
+            tile.src=url;done(null,tile);
+          }
+        };
+        xhr.onerror=function(){
+          showBadge('📴 Offline način rada','#EF4444',true);
+          done(new Error('offline'),tile);
+        };
+        xhr.send();
+      }
+    }).catch(function(){
+      tile.src=url;done(null,tile);
+    });
+    return tile;
+  }
+});
+
+// ===== Init Map =====
 var map=L.map('map',{center:[${centerLat},${centerLng}],zoom:14,zoomControl:false,attributionControl:false});
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+new CachedTileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 ${markers}
 ${userMarker}
 window.flyTo=function(lat,lng,z){map.flyTo([lat,lng],z||16)};
+
+// Show cache size on load
+countTiles().then(function(n){
+  if(n>100)showBadge('💾 '+n+' tile-a u offline cache-u','#7C3AED',false);
+});
+
+// Prune old tiles on init
+pruneOldTiles();
+
+// Network status listeners
+window.addEventListener('online',function(){
+  showBadge('✅ Internet vraćen','#10B981',false);
+});
+window.addEventListener('offline',function(){
+  showBadge('📴 Offline način – koristim cache','#EF4444',true);
+});
 </script>
 </body></html>`;
 }
