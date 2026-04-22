@@ -70,7 +70,7 @@ export default function Index() {
         {activeTab === 'home' && (
           <HomeTab
             userLoc={userLoc}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabChange}
             setMapCategory={setMapCategory}
           />
         )}

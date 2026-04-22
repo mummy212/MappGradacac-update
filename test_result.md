@@ -395,6 +395,32 @@ test_plan:
         agent: "main"
         comment: "Reviews page with aggregate rating bar chart and full review list. Screenshot verified."
 
+  - task: "Home screen Quick Access icons navigate correctly"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Fixed: HomeTab now receives handleTabChange instead of raw setActiveTab. This ensures proper navigation from Quick Access icons. Restorani->Mapa, Dogadjaji->Rezervacije, Hitni br->emergency route, Smjestaj/Apoteke/Parkinzi->Mapa with category filter."
+
+  - task: "Custom app icon (Gradacac castle + map pin on purple gradient)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/assets/images/icon.png"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Generated custom icon with Gradacac fortress tower + location pin on purple gradient. Copied to icon.png, adaptive-icon.png, favicon.png, splash-icon.png."
+
 agent_communication:
   - agent: "main"
     message: "Web Business Panel (Faza 2) implemented as React+Vite app. Accessible at /api/business-panel/ URL. Features: Login, Dashboard (stats+reviews), Moja Lokacija (edit info+images), Meni/Ponuda/Usluge (dynamic by category, add/delete), Recenzije (rating distribution + full list). Built from /app/web-business/, dist copied to /app/backend/business-panel-dist/. Backend serves static files at /api/business-panel/{path:path}. Test credentials: starigrad@test.ba / Test1234!"
+  - agent: "main"
+    message: "Fixed Quick Access navigation bug: HomeTab now receives handleTabChange (not raw setActiveTab), ensuring correct tab switching. Custom app icon generated (castle + location pin on purple gradient). Both need frontend testing."
