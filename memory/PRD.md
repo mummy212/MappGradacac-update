@@ -131,3 +131,13 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
 - Custom App Icon
 - Multi-language support (BS/EN)
 - Offline Map Tile Downloads
+
+### Session 2026-04-22 (Part 2 - Offline Map)
+- Automatic tile caching via IndexedDB (auto-cache as user browses)
+- "Preuzmi offline" button (cloud icon next to search bar)
+  - Downloads 748 tiles for Gradačac area (zoom 13-16)
+  - Progress modal with real-time % counter and animated bar
+  - Completion state with stats (748 tiles, Offline, 7 days cache)
+  - Cancel functionality
+  - Auto-pruning tiles older than 7 days
+- Offline badge in map: shows "📴 Offline način" when no internet, "✅ Internet vraćen" on reconnect
