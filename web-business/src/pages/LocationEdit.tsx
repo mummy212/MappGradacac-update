@@ -23,7 +23,9 @@ export default function LocationEdit() {
 
   const [form, setForm] = useState({
     name: '', phone: '', description: '', working_hours: '',
-    service_tags: '', price_level: 0
+    service_tags: '', price_level: 0,
+    total_spots: '' as number | '',
+    is_free_parking: false,
   })
 
   useEffect(() => {
@@ -35,11 +37,13 @@ export default function LocationEdit() {
         working_hours: location.working_hours || '',
         service_tags: location.service_tags?.join(', ') || '',
         price_level: location.price_level || 0,
+        total_spots: location.total_spots ?? '',
+        is_free_parking: location.is_free_parking ?? false,
       })
     }
   }, [location])
 
-  const set = (k: string, v: string | number) => setForm(f => ({ ...f, [k]: v }))
+  const set = (k: string, v: string | number | boolean) => setForm(f => ({ ...f, [k]: v }))
 
   const saveMutation = useMutation({
     mutationFn: () => api.put('/business/profile', {
@@ -49,6 +53,8 @@ export default function LocationEdit() {
       working_hours: form.working_hours || undefined,
       service_tags: form.service_tags.split(',').map(t => t.trim()).filter(Boolean),
       price_level: Number(form.price_level),
+      total_spots: form.total_spots !== '' ? Number(form.total_spots) : null,
+      is_free_parking: form.is_free_parking,
     }),
     onSuccess: () => {
       setSaved(true)
@@ -143,6 +149,38 @@ export default function LocationEdit() {
                 <p className="text-xs mt-0.5 text-slate-400">Kategoriju može mijenjati samo admin</p>
               </div>
             </div>
+
+            {/* Parking-specific fields - shown conditionally */}
+            {location.category === 'parking' && (
+              <div className="col-span-2 p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-4">
+                <p className="text-sm font-semibold text-blue-800">🅿️ Postavke parkinga</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Ukupno mjesta</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className={inputCls}
+                      value={form.total_spots}
+                      onChange={e => set('total_spots', e.target.value)}
+                      placeholder="Npr. 80"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 mt-6">
+                    <input
+                      type="checkbox"
+                      id="bizIsFreePark"
+                      checked={form.is_free_parking}
+                      onChange={e => set('is_free_parking', e.target.checked)}
+                      className="w-4 h-4 accent-blue-600"
+                    />
+                    <label htmlFor="bizIsFreePark" className="text-sm text-slate-700 font-medium">
+                      Besplatan parking
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {error && <div className="mt-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">{error}</div>}

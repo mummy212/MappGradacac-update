@@ -200,6 +200,8 @@ interface LocationFormData {
   is_premium: boolean
   service_tags: string
   price_level: number
+  total_spots: number | ''
+  is_free_parking: boolean
 }
 
 function LocationModal({
@@ -233,6 +235,8 @@ function LocationModal({
     is_premium: location?.is_premium || false,
     service_tags: location?.service_tags?.join(', ') || '',
     price_level: location?.price_level || 0,
+    total_spots: location?.total_spots ?? '',
+    is_free_parking: location?.is_free_parking ?? false,
   })
 
   const set = (k: keyof LocationFormData, v: string | number | boolean) =>
@@ -252,6 +256,8 @@ function LocationModal({
         latitude: Number(form.latitude),
         longitude: Number(form.longitude),
         price_level: Number(form.price_level),
+        total_spots: form.total_spots !== '' ? Number(form.total_spots) : null,
+        is_free_parking: form.is_free_parking,
       }
       if (isEdit) {
         await api.put(`/admin/locations/${location!.id}`, payload)
@@ -371,6 +377,7 @@ function LocationModal({
               <div>
                 <label className={labelCls}>Radno vrijeme</label>
                 <input className={inputCls} value={form.working_hours} onChange={e => set('working_hours', e.target.value)} placeholder="08:00 - 22:00" />
+                <p className="text-xs text-slate-400 mt-1">💡 Status "Otvoreno/Zatvoreno" u aplikaciji se automatski računa iz radnog vremena</p>
               </div>
               <div>
                 <label className={labelCls}>Opis</label>
@@ -402,6 +409,38 @@ function LocationModal({
                   Premium lokacija
                 </label>
               </div>
+
+              {/* Parking-specific fields */}
+              {form.category === 'parking' && (
+                <div className="mt-2 p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-4">
+                  <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+                    🅿️ Postavke parkinga
+                  </p>
+                  <div>
+                    <label className={labelCls}>Ukupno mjesta</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className={inputCls}
+                      value={form.total_spots}
+                      onChange={e => set('total_spots', e.target.value)}
+                      placeholder="Npr. 80"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="isFreePark"
+                      checked={form.is_free_parking}
+                      onChange={e => set('is_free_parking', e.target.checked)}
+                      className="w-4 h-4 accent-blue-600"
+                    />
+                    <label htmlFor="isFreePark" className="text-sm text-slate-700">
+                      Besplatan parking
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -588,7 +627,14 @@ export default function Locations() {
                         <span className="text-xs text-slate-400">{loc.category}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 max-w-[180px] truncate">{loc.address}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600 max-w-[180px]">
+                      <p className="truncate">{loc.address}</p>
+                      {loc.category === 'parking' && loc.total_spots != null && (
+                        <p className="text-xs text-blue-600 mt-0.5">
+                          🅿️ {loc.total_spots} mjesta · {loc.is_free_parking ? 'Besplatno' : 'Plaćeno'}
+                        </p>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 text-sm">
                         <Star size={12} className="text-yellow-400 fill-yellow-400" />

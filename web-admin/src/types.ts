@@ -18,6 +18,8 @@ export interface Location {
   nav_clicks: number
   call_clicks: number
   is_open?: boolean
+  total_spots?: number
+  is_free_parking?: boolean
 }
 
 export interface Category {

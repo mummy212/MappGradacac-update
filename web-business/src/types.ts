@@ -9,6 +9,7 @@ export interface Location {
   service_tags: string[]; price_level: number
   avg_rating: number; review_count: number; views: number
   nav_clicks: number; call_clicks: number
+  total_spots?: number; is_free_parking?: boolean
 }
 
 export interface Offer {
