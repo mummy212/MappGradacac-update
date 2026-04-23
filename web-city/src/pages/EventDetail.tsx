@@ -70,7 +70,7 @@ export default function EventDetail() {
         canonical={`/dogadjaji/${event.id}`}
         ogImage={imgs[0] || undefined}
         ogType="event"
-        keywords={`${event.title}, događaji, Gradačac, ${locationLabel || ''}`}
+        breadcrumbs={[{ name: 'Događaji', url: '/dogadjaji' }, { name: event.title, url: `/dogadjaji/${event.id}` }]}
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'Event',

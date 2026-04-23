@@ -37,7 +37,7 @@ export default function LocationDetail() {
         description={loc.description || `${meta.label} ${loc.name} u Gradačcu. ${loc.address || ''}`}
         canonical={`/lokacije/${loc.id}`}
         ogImage={images[0] || undefined}
-        keywords={`${loc.name}, ${meta.label}, Gradačac, ${(loc.service_tags || []).join(', ')}`}
+        breadcrumbs={[{ name: 'Lokacije', url: '/lokacije' }, { name: loc.name, url: `/lokacije/${loc.id}` }]}
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'LocalBusiness',

@@ -62,7 +62,7 @@ export default function NewsDetail() {
         ogType="article"
         author={n.author}
         publishedAt={item.created_at}
-        keywords={`${item.title}, vijesti, Gradačac, ${item.category}`}
+        breadcrumbs={[{ name: 'Vijesti', url: '/vijesti' }, { name: item.title, url: `/vijesti/${item.id}` }]}
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'NewsArticle',

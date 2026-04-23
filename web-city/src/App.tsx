@@ -14,6 +14,7 @@ import Emergency from './pages/Emergency';
 import DownloadApp from './pages/DownloadApp';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import NotFound from './pages/NotFound';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="preuzmi-app" element={<DownloadApp />} />
           <Route path="o-aplikaciji" element={<About />} />
           <Route path="kontakt" element={<Contact />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </BrowserRouter>

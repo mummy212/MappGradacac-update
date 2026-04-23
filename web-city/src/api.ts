@@ -17,6 +17,10 @@ export const api = {
   settings: () => axios.get(`${BASE}/settings`).then(r => r.data),
 };
 
+// Simple contact submit using axios directly
+export const submitContact = (data: { name: string; email: string; subject: string; message: string }) =>
+  axios.post('/api/contact', data).then(r => r.data);
+
 export const getImgSrc = (img?: string): string => {
   if (!img) return '';
   if (img.startsWith('data:') || img.startsWith('http') || img.startsWith('/')) return img;
@@ -38,17 +42,20 @@ export const CAT_META: Record<string, { icon: string; color: string; bg: string;
 
 export const getCatMeta = (cat?: string) => CAT_META[cat || ''] || CAT_META.default;
 
-export const formatDate = (dt: string, locale = 'bs-BA') => {
+const BS_MONTHS_LONG = ['januara','februara','marta','aprila','maja','juna','jula','augusta','septembra','oktobra','novembra','decembra'];
+const BS_MONTHS_SHORT = ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
+
+export const formatDate = (dt: string) => {
   try {
-    return new Date(dt).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+    const d = new Date(dt);
+    return `${d.getDate()}. ${BS_MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}.`;
   } catch { return dt; }
 };
 
 export const formatDateShort = (dt: string) => {
   try {
     const d = new Date(dt);
-    const MONTHS = ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
-    return { day: d.getDate().toString().padStart(2,'0'), month: MONTHS[d.getMonth()] };
+    return { day: d.getDate().toString().padStart(2,'0'), month: BS_MONTHS_SHORT[d.getMonth()] };
   } catch { return { day: '?', month: '?' }; }
 };
 

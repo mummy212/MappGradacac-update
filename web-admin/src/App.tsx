@@ -15,6 +15,7 @@ import SiteSettings from './pages/SiteSettings'
 import Widgets from './pages/Widgets'
 import EmergencyContacts from './pages/EmergencyContacts'
 import News from './pages/News'
+import ContactMessages from './pages/ContactMessages'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30000 } }
@@ -49,6 +50,7 @@ function AppRoutes() {
         <Route path="widgets" element={<Widgets />} />
         <Route path="site-settings" element={<SiteSettings />} />
         <Route path="admins" element={<Admins />} />
+        <Route path="contact-messages" element={<ContactMessages />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

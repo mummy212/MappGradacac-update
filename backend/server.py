@@ -1397,6 +1397,42 @@ async def get_leaderboard(limit: int = Query(10)):
     locs = await db.locations.find({"review_count": {"$gt": 0}}, {"_id": 0}).sort([("avg_rating", -1), ("review_count", -1)]).to_list(limit)
     return [{"id": l["id"], "name": l["name"], "category": l["category"], "avg_rating": l.get("avg_rating", 0), "review_count": l.get("review_count", 0), "images": l.get("images", [])[:1]} for l in locs]
 
+# ===== CONTACT FORM =====
+class ContactMessage(BaseModel):
+    name: str
+    email: str
+    subject: Optional[str] = ""
+    message: str
+
+@api_router.post("/contact")
+async def submit_contact(inp: ContactMessage):
+    msg = {
+        "id": str(uuid.uuid4()),
+        "name": inp.name,
+        "email": inp.email,
+        "subject": inp.subject or "",
+        "message": inp.message,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "read": False,
+    }
+    await db.contact_messages.insert_one(msg)
+    return {"success": True, "message": "Poruka uspješno primljena."}
+
+@api_router.get("/admin/contact-messages")
+async def list_contact_messages(user: dict = Depends(require_admin)):
+    msgs = await db.contact_messages.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return msgs
+
+@api_router.put("/admin/contact-messages/{mid}/read")
+async def mark_message_read(mid: str, user: dict = Depends(require_admin)):
+    await db.contact_messages.update_one({"id": mid}, {"$set": {"read": True}})
+    return {"success": True}
+
+@api_router.delete("/admin/contact-messages/{mid}")
+async def delete_contact_message(mid: str, user: dict = Depends(require_admin)):
+    await db.contact_messages.delete_one({"id": mid})
+    return {"success": True}
+
 # ===== SEO: Sitemap.xml =====
 @api_router.get("/sitemap.xml", response_class=Response)
 async def sitemap(request: Request):

@@ -38,7 +38,7 @@ export default function AttractionDetail() {
         description={attrDesc}
         canonical={`/znamenitosti/${item.id}`}
         ogImage={imgs[0] || undefined}
-        keywords={`${item.name}, znamenitosti, turizam, Gradačac, ${item.category || ''}`}
+        breadcrumbs={[{ name: 'Znamenitosti', url: '/znamenitosti' }, { name: item.name, url: `/znamenitosti/${item.id}` }]}
         jsonLd={{
           '@context': 'https://schema.org',
           '@type': 'TouristAttraction',

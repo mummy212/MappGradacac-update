@@ -1,21 +1,36 @@
 import { useState } from 'react';
-import { Mail, MapPin, Phone, Send, CheckCircle } from 'lucide-react';
+import { Mail, MapPin, Phone, Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { submitContact } from '../api';
+import SEOHead from '../components/SEOHead';
 
 export default function Contact() {
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Open mailto
-    const subject = encodeURIComponent(form.subject || 'Upit - Gradacac Mapa');
-    const body = encodeURIComponent(`Ime: ${form.name}\nEmail: ${form.email}\n\n${form.message}`);
-    window.open(`mailto:info@gradacac-mapa.ba?subject=${subject}&body=${body}`);
-    setSent(true);
+    setLoading(true);
+    setError('');
+    try {
+      await submitContact(form);
+      setSent(true);
+      setForm({ name: '', email: '', subject: '', message: '' });
+    } catch {
+      setError('Greška pri slanju poruke. Molimo pokušajte ponovo.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="py-10">
+      <SEOHead
+        title="Kontakt — Gradačac Mapa"
+        description="Kontaktirajte nas sa pitanjima, prijedlozima ili sugestijama o Gradačac Mapa platformi."
+        canonical="/kontakt"
+      />
       <div className="container-city">
         <div className="mb-10">
           <h1 className="section-title">Kontakt</h1>
@@ -29,11 +44,16 @@ export default function Contact() {
               <div className="card p-10 text-center">
                 <CheckCircle size={52} className="text-emerald-500 mx-auto mb-4" />
                 <h2 className="font-heading font-700 text-xl mb-2">Hvala na poruci!</h2>
-                <p className="text-gray-500">Vaš email klijent bi trebao otvoriti poruku. Možete je poslati direktno.</p>
+                <p className="text-gray-500">Vaša poruka je uspješno primljena. Odgovorit ćemo u najkraćem roku.</p>
                 <button onClick={() => setSent(false)} className="btn-outline mt-6">Pošalji još jednu</button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="card p-8 space-y-5">
+                {error && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                    <AlertCircle size={16} /> {error}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-600 text-gray-700 mb-1.5">Ime i prezime *</label>
@@ -60,8 +80,8 @@ export default function Contact() {
                     rows={5} placeholder="Vaša poruka..."
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 resize-none" />
                 </div>
-                <button type="submit" className="btn-primary w-full justify-center py-4">
-                  <Send size={18} /> Pošalji poruku
+                <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-4 disabled:opacity-60">
+                  <Send size={18} /> {loading ? 'Slanje...' : 'Pošalji poruku'}
                 </button>
               </form>
             )}

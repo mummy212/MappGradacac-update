@@ -1,0 +1,48 @@
+{
+  "summary": "Testing 5 fixes for Gradačac Mapa: (1) 404 page ✅, (2) Kontakt forma ✅, (3) Backend /api/contact ✅, (4) Datum format ✅, (5) JSON-LD BreadcrumbList ✅. CRITICAL BUG: Admin panel Sidebar does NOT have 'Kontakt Poruke' link — the route and page exist and work, but admin cannot navigate to it from the sidebar. 10/10 backend tests pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "web-admin Sidebar.tsx",
+        "issue": "MISSING: 'Kontakt Poruke' navigation link in sidebar navItems array. The route /contact-messages exists in App.tsx and the ContactMessages.tsx page loads correctly when accessed directly, but there is no sidebar link for admin to discover/access it. Admin must manually type the URL.",
+        "testID": "N/A - web app sidebar nav",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_contact_and_fixes.py",
+    "/app/test_reports/pytest/test_contact_fixes.xml"
+  ],
+  "action_items": [
+    "CRITICAL FIX: Add 'Kontakt Poruke' entry to navItems array in /app/web-admin/src/components/Sidebar.tsx. Add: { to: '/contact-messages', label: 'Kontakt Poruke', icon: Mail, end: false }. The Mail icon is already imported in the file. This is the only outstanding bug from the 5 fixes being tested.",
+    "After adding sidebar link, rebuild admin panel: cd /app/web-admin && yarn build (or trigger redeploy so it serves the updated dist)"
+  ],
+  "critical_code_review_comments": [
+    "Sidebar.tsx: navItems array is missing { to: '/contact-messages', label: 'Kontakt Poruke', icon: Mail, end: false }. The route is properly defined in App.tsx and the ContactMessages.tsx component fully works (loads from /api/admin/contact-messages, supports mark-read and delete). Only the sidebar navigation link is absent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_contact_and_fixes.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests pass: POST /api/contact, GET/PUT/DELETE /api/admin/contact-messages)",
+    "frontend": "83% — 404 page (PASS), Contact form + success message (PASS), Date format 23. aprila 2026. (PASS), JSON-LD BreadcrumbList on news detail (PASS), Admin contact messages page (PASS), Admin sidebar link (FAIL - missing)"
+  },
+  "seed_data_creation": "Contact messages created during testing: 'TEST Tester Playwright' from playwright@test.com was submitted via form. These may still be in the database under /api/admin/contact-messages.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "5 fixes tested. 4 pass completely. 1 bug remains: Sidebar.tsx missing 'Kontakt Poruke' link. The fix is: add { to: '/contact-messages', label: 'Kontakt Poruke', icon: Mail, end: false } to navItems array in Sidebar.tsx. Mail icon already imported. After fix, admin panel must be rebuilt (yarn build in /app/web-admin).",
+  "rca_of_issue": {
+    "bug": "Admin sidebar missing 'Kontakt Poruke' navigation link",
+    "reproduction": "1. Login to /api/admin-panel/ as admin@gradacac.ba. 2. Inspect the sidebar nav items. 3. 'Kontakt Poruke' is not listed. Admin has no way to navigate to contact-messages from the UI.",
+    "root_cause": "The ContactMessages.tsx page component was created and the route /contact-messages was added to App.tsx, but Sidebar.tsx navItems array was not updated to include the navigation link.",
+    "fix": "In /app/web-admin/src/components/Sidebar.tsx, add to navItems array: { to: '/contact-messages', label: 'Kontakt Poruke', icon: Mail, end: false }. The Mail icon is already imported at line 6. Then rebuild the admin panel."
+  }
+}

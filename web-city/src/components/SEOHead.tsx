@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 export interface SEOProps {
   title?: string;
   description?: string;
-  canonical?: string;       // path, e.g. '/vijesti/abc'
+  canonical?: string;
   ogImage?: string;
   ogType?: 'website' | 'article' | 'event';
   keywords?: string;
@@ -12,6 +12,7 @@ export interface SEOProps {
   modifiedAt?: string;
   noindex?: boolean;
   jsonLd?: object | object[];
+  breadcrumbs?: { name: string; url: string }[];
 }
 
 const SITE_NAME = 'Gradačac Mapa';
@@ -33,6 +34,7 @@ export default function SEOHead({
   publishedAt,
   noindex = false,
   jsonLd,
+  breadcrumbs,
 }: SEOProps) {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} - Digitalni vodič kroz grad`;
   const canonicalUrl = buildCanonical(canonical);
@@ -70,9 +72,19 @@ export default function SEOHead({
       {ogImage && <meta name="twitter:image" content={ogImage} />}
 
       {/* JSON-LD */}
-      {jsonLd && (
+      {(jsonLd || breadcrumbs) && (
         <script type="application/ld+json">
-          {JSON.stringify(Array.isArray(jsonLd) ? jsonLd : [jsonLd])}
+          {JSON.stringify([
+            ...(Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : []),
+            ...(breadcrumbs && breadcrumbs.length > 0 ? [{
+              '@context': 'https://schema.org',
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                { '@type': 'ListItem', position: 1, name: 'Početna', item: buildCanonical('/') },
+                ...breadcrumbs.map((b, i) => ({ '@type': 'ListItem', position: i + 2, name: b.name, item: buildCanonical(b.url) })),
+              ],
+            }] : []),
+          ])}
         </script>
       )}
     </Helmet>
