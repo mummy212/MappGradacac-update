@@ -205,16 +205,27 @@ class EmergencyContactUpdate(BaseModel):
 class NewsArticle(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str; content: str; category: str = "Vijesti"
-    image: Optional[str] = None; is_published: bool = True
+    image: Optional[str] = None
+    images: list = []
+    short_description: str = ""
+    author: str = ""
+    is_published: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class NewsCreate(BaseModel):
     title: str; content: str; category: str = "Vijesti"
-    image: Optional[str] = None; is_published: bool = True
+    image: Optional[str] = None
+    images: list = []
+    short_description: str = ""
+    author: str = ""
+    is_published: bool = True
 
 class NewsUpdate(BaseModel):
     title: Optional[str] = None; content: Optional[str] = None
     category: Optional[str] = None; image: Optional[str] = None
+    images: Optional[list] = None
+    short_description: Optional[str] = None
+    author: Optional[str] = None
     is_published: Optional[bool] = None
 
 DEFAULT_EMERGENCY_CONTACTS = [
@@ -1218,6 +1229,12 @@ async def delete_emergency_contact(cid: str, user: dict = Depends(require_admin)
 async def get_news(published_only: bool = Query(True)):
     q = {"is_published": True} if published_only else {}
     return await db.news.find(q, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+@api_router.get("/news/{nid}")
+async def get_news_article(nid: str):
+    item = await db.news.find_one({"id": nid}, {"_id": 0})
+    if not item: raise HTTPException(404, "Not found")
+    return item
 
 @api_router.post("/admin/news")
 async def create_news_article(inp: NewsCreate, user: dict = Depends(require_admin)):

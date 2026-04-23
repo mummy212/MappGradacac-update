@@ -48,9 +48,13 @@ export interface NewsItem {
   id: string;
   title: string;
   content: string;
+  short_description?: string;
+  author?: string;
   category: string;
   created_at: string;
   image?: string;
+  images?: string[];
+  is_published?: boolean;
 }
 
 export interface Attraction {
