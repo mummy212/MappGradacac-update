@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import { Plus, Trash2, X, Globe, EyeOff, Edit2 } from 'lucide-react'
 import RichTextEditor from '../components/RichTextEditor'
+import ImageUpload from '../components/ImageUpload'
 
 interface NewsArticle {
   id: string
@@ -29,6 +30,7 @@ function NewsModal({ article, onClose, onSuccess }: {
     title: article?.title || '',
     content: article?.content || '',
     category: article?.category || 'Vijesti',
+    image: article?.image || '',
     is_published: article?.is_published ?? true,
   })
   const [error, setError] = useState('')
@@ -70,6 +72,14 @@ function NewsModal({ article, onClose, onSuccess }: {
               value={form.content}
               onChange={val => set('content', val)}
               placeholder="Tekst vijesti..."
+            />
+          </div>
+          <div>
+            <ImageUpload
+              label="Naslovna Slika (opciono)"
+              aspectHint="Preporučeno: 1200×630px"
+              value={form.image}
+              onChange={v => set('image', v)}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">

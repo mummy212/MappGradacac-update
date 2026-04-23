@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 import { Plus, Edit2, Trash2, Eye, EyeOff, ChevronUp, ChevronDown, Layout, Image, Type, MapPin, Calendar, Tag, Code } from 'lucide-react'
+import ImageUpload from '../components/ImageUpload'
 
 const POSITIONS = [
   { key: 'home_hero', label: '🏠 Hero Sekcija', desc: 'Vrh naslovne stranice (zamjenjuje defaultni hero)' },
@@ -265,8 +266,12 @@ export default function Widgets() {
 
               {form.widget_type === 'banner' && (
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">URL Slike (ili base64)</label>
-                  <input className="input" value={form.image || ''} onChange={e => f('image', e.target.value)} placeholder="https://... ili base64" />
+                  <ImageUpload
+                    label="Slika Banera"
+                    aspectHint="Preporučeno: 1200×400px (panorama format)"
+                    value={form.image || ''}
+                    onChange={v => f('image', v)}
+                  />
                 </div>
               )}
 

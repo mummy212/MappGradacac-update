@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 import { Plus, Trash2, X, Calendar } from 'lucide-react'
 import type { Event, Location } from '../types'
+import ImageUpload from '../components/ImageUpload'
 
 function EventModal({
   locations,
@@ -20,6 +21,7 @@ function EventModal({
     date: '',
     time: '',
     location_id: '',
+    image: '',
   })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -88,6 +90,14 @@ function EventModal({
               <option value="">— Bez veze —</option>
               {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
+          </div>
+          <div>
+            <ImageUpload
+              label="Slika Događaja (opciono)"
+              aspectHint="Preporučeno: 1200×630px"
+              value={form.image}
+              onChange={v => set('image', v)}
+            />
           </div>
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
         </div>

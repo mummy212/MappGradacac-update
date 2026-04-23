@@ -31,6 +31,11 @@ EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# ===== Uploads static files =====
+UPLOADS_DIR = ROOT_DIR / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+
 # ===== Auth Helpers =====
 def hash_pw(pw: str) -> str: return bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
 def verify_pw(plain: str, hashed: str) -> bool: return bcrypt.checkpw(plain.encode(), hashed.encode())
@@ -778,6 +783,23 @@ async def bulk_import_locations(file: UploadFile = File(...), user: dict = Depen
         "failed": failed,
         "errors": errors[:20]  # max 20 errors returned
     }
+
+@api_router.post("/admin/upload-image")
+async def admin_upload_image(file: UploadFile = File(...), user: dict = Depends(require_admin)):
+    """Generic image upload — saves to /uploads/ and returns a public URL."""
+    allowed = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/jpg"}
+    ct = (file.content_type or "").lower()
+    if ct not in allowed:
+        raise HTTPException(400, "Dozvoljene su samo slike (JPG, PNG, WebP, GIF)")
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(400, "Maksimalna veličina slike je 10 MB")
+    ext = (file.filename or "img").rsplit(".", 1)[-1].lower()
+    if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+        ext = "jpg"
+    filename = f"{uuid.uuid4()}.{ext}"
+    (UPLOADS_DIR / filename).write_bytes(content)
+    return {"url": f"/api/uploads/{filename}", "filename": filename}
 
 @api_router.post("/admin/locations/{lid}/images")
 async def upload_image(lid: str, file: UploadFile = File(...), user: dict = Depends(require_business_or_admin)):
