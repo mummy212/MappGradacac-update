@@ -65,6 +65,13 @@ export default function ProfileTab() {
       action: () => {},
     },
     {
+      icon: 'notifications-outline' as const,
+      label: 'Podešavanja obavještenja',
+      desc: 'Vijesti, događaji, ponude · max 2/dan',
+      color: PURPLE,
+      action: () => router.push('/notification-settings'),
+    },
+    {
       icon: 'qr-code-outline' as const,
       label: 'QR Skener',
       desc: 'Skeniraj kod i ostvari popust',

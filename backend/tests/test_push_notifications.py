@@ -372,7 +372,7 @@ class TestAdminNotifications:
             raise
     
     def test_send_notification_with_empty_title(self):
-        """Test sending notification with empty title (backend accepts it)"""
+        """Test sending notification with empty title returns 422 (min_length=1 validation)"""
         try:
             notification_data = {
                 "title": "",
@@ -383,15 +383,12 @@ class TestAdminNotifications:
                 f"{BASE_URL}/api/admin/notifications/send",
                 json=notification_data,
                 headers=self.headers,
-                timeout=30
+                timeout=10
             )
             print(f"✓ POST /api/admin/notifications/send (empty title) status: {response.status_code}")
-            # Backend accepts empty title (no strict validation)
-            assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-            
-            data = response.json()
-            assert data["title"] == ""
-            print(f"✓ Empty title accepted (no strict validation)")
+            # NotificationCreate has min_length=1 on title - empty string is rejected
+            assert response.status_code == 422, f"Expected 422 (Pydantic min_length validation), got {response.status_code}"
+            print(f"✓ Empty title correctly rejected with 422 (min_length=1)")
             
         except Exception as e:
             print(f"✗ Empty title test failed: {str(e)}")

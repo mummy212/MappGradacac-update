@@ -395,9 +395,41 @@ test_plan:
         agent: "main"
         comment: "Reviews page with aggregate rating bar chart and full review list. Screenshot verified."
 
-  - task: "Notifications feed endpoint GET /api/notifications-feed"
+  - task: "Targeted push notifications: /api/admin/notifications/send with target_category and smart_limit"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated send endpoint with category filtering, smart rate limiting (max 2/day per device using bulk aggregation pipeline update), quiet hours detection. New PushPreferencesUpdate model and PUT /push/preferences endpoint added."
+
+  - task: "Push stats with category targeting: /api/admin/push-stats?category=X"
     implemented: true
     working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Tested manually. Returns active_devices, targeted_devices, quiet_hours, current_hour_local."
+
+  - task: "PUT /api/push/preferences - update push token preferences"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New endpoint to update categories and enabled flag for a push token."
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"

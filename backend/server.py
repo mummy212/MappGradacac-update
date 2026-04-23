@@ -146,8 +146,18 @@ class BusinessCreate(BaseModel):
 
 class PushTokenRegister(BaseModel):
     token: str; platform: str = "unknown"
+    categories: List[str] = []   # e.g. ["news","events","offers"] or [] means "all"
+    enabled: bool = True
+
+class PushPreferencesUpdate(BaseModel):
+    token: str
+    categories: List[str] = []
+    enabled: bool = True
+
 class NotificationCreate(BaseModel):
     title: str = Field(min_length=1); body: str = Field(min_length=1)
+    target_category: Optional[str] = None   # None=all, or "news","events","offers"
+    smart_limit: bool = True                # Respect 2-per-day rate limit
 class AppSettingsUpdate(BaseModel):
     paypal_link: Optional[str] = None; contact_email: Optional[str] = None
 
@@ -843,8 +853,23 @@ async def admin_del_event(eid: str, user: dict = Depends(require_admin)):
 # ===== Push =====
 @api_router.post("/push/register")
 async def reg_push(inp: PushTokenRegister):
-    await db.push_tokens.update_one({"token": inp.token}, {"$set": {"token": inp.token, "platform": inp.platform, "active": True, "registered_at": datetime.now(timezone.utc)}}, upsert=True)
+    cats = inp.categories if inp.categories else ["all"]
+    await db.push_tokens.update_one(
+        {"token": inp.token},
+        {"$set": {"token": inp.token, "platform": inp.platform, "active": inp.enabled,
+                  "categories": cats, "registered_at": datetime.now(timezone.utc)}},
+        upsert=True
+    )
     return {"message": "OK"}
+
+@api_router.put("/push/preferences")
+async def update_push_prefs(inp: PushPreferencesUpdate):
+    cats = inp.categories if inp.categories else ["all"]
+    await db.push_tokens.update_one(
+        {"token": inp.token},
+        {"$set": {"active": inp.enabled, "categories": cats}}
+    )
+    return {"status": "ok"}
 
 @api_router.post("/push/unregister")
 async def unreg_push(inp: PushTokenRegister):
@@ -857,9 +882,27 @@ async def get_notifs(user: dict = Depends(require_admin)):
 
 @api_router.post("/admin/notifications/send")
 async def send_notif(inp: NotificationCreate, user: dict = Depends(require_admin)):
-    tokens = await db.push_tokens.find({"active": True}, {"_id": 0}).to_list(10000)
-    valid = [t["token"] for t in tokens if t.get("token")]
+    # Build query: active tokens + optional category filter
+    query: dict = {"active": True}
+    if inp.target_category:
+        query["$or"] = [{"categories": inp.target_category}, {"categories": "all"}]
+    tokens_docs = await db.push_tokens.find(query, {"_id": 0}).to_list(10000)
+
+    # Smart rate limiting: max 2 push notifications per device per day
+    if inp.smart_limit:
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        tokens_docs = [
+            t for t in tokens_docs
+            if t.get("daily_date") != today or t.get("daily_count", 0) < 2
+        ]
+
+    valid = [t["token"] for t in tokens_docs if t.get("token")]
     total, ok, fail = len(valid), 0, 0
+
+    # Check quiet hours (Bosnia UTC+1, approx UTC+1)
+    local_hour = (datetime.now(timezone.utc).hour + 1) % 24
+    is_quiet = local_hour >= 22 or local_hour < 8
+
     if valid:
         chunks = [valid[i:i+100] for i in range(0, len(valid), 100)]
         async with httpx.AsyncClient() as hc:
@@ -873,14 +916,45 @@ async def send_notif(inp: NotificationCreate, user: dict = Depends(require_admin
                             else: fail += 1
                     else: fail += len(chunk)
                 except: fail += len(chunk)
-    rec = {"id": str(uuid.uuid4()), "title": inp.title, "body": inp.body, "total_devices": total, "successful": ok, "failed": fail, "created_at": datetime.now(timezone.utc).isoformat()}
-    to_ins = dict(rec)
-    await db.notifications.insert_one(to_ins)
+        # Update daily rate limit counts (efficient bulk update with aggregation pipeline)
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        await db.push_tokens.update_many(
+            {"token": {"$in": valid}},
+            [{"$set": {
+                "daily_count": {"$cond": [
+                    {"$eq": ["$daily_date", today]},
+                    {"$add": [{"$ifNull": ["$daily_count", 0]}, 1]},
+                    1
+                ]},
+                "daily_date": today
+            }}]
+        )
+
+    rec = {"id": str(uuid.uuid4()), "title": inp.title, "body": inp.body,
+           "target_category": inp.target_category, "total_devices": total,
+           "successful": ok, "failed": fail, "quiet_hours": is_quiet,
+           "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.notifications.insert_one(dict(rec))
     return rec
 
 @api_router.get("/admin/push-stats")
-async def push_stats(user: dict = Depends(require_admin)):
-    return {"active_devices": await db.push_tokens.count_documents({"active": True})}
+async def push_stats(category: Optional[str] = None, user: dict = Depends(require_admin)):
+    total = await db.push_tokens.count_documents({"active": True})
+    if category:
+        targeted = await db.push_tokens.count_documents({
+            "active": True,
+            "$or": [{"categories": category}, {"categories": "all"}]
+        })
+    else:
+        targeted = total
+    local_hour = (datetime.now(timezone.utc).hour + 1) % 24
+    return {
+        "active_devices": total,
+        "targeted_devices": targeted,
+        "quiet_hours": local_hour >= 22 or local_hour < 8,
+        "quiet_hours_range": "22:00 – 08:00",
+        "current_hour_local": local_hour,
+    }
 
 # ===== Settings =====
 @api_router.get("/settings")
