@@ -10,7 +10,8 @@ import Events from './pages/Events'
 import Notifications from './pages/Notifications'
 import BusinessAccounts from './pages/BusinessAccounts'
 import Attractions from './pages/Attractions'
-import Settings from './pages/Settings'
+import SiteSettings from './pages/SiteSettings'
+import Widgets from './pages/Widgets'
 import EmergencyContacts from './pages/EmergencyContacts'
 import News from './pages/News'
 
@@ -44,7 +45,8 @@ function AppRoutes() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="news" element={<News />} />
         <Route path="emergency-contacts" element={<EmergencyContacts />} />
-        <Route path="settings" element={<Settings />} />
+        <Route path="widgets" element={<Widgets />} />
+        <Route path="site-settings" element={<SiteSettings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

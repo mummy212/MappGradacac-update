@@ -1137,6 +1137,137 @@ async def delete_news_article(nid: str, user: dict = Depends(require_admin)):
     return {"message": "OK"}
 
 # ===== Leaderboard =====
+# ===== CMS Widgets =====
+class WidgetCreate(BaseModel):
+    position: str
+    widget_type: str  # banner|text_block|featured_locations|featured_events|promo_card|news_highlight|html_block
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    content: Optional[str] = None
+    image: Optional[str] = None
+    button_text: Optional[str] = None
+    button_url: Optional[str] = None
+    bg_color: Optional[str] = None
+    text_color: Optional[str] = None
+    location_ids: List[str] = []
+    event_ids: List[str] = []
+    is_active: bool = True
+    order: int = 0
+
+class WidgetUpdate(BaseModel):
+    position: Optional[str] = None
+    widget_type: Optional[str] = None
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    content: Optional[str] = None
+    image: Optional[str] = None
+    button_text: Optional[str] = None
+    button_url: Optional[str] = None
+    bg_color: Optional[str] = None
+    text_color: Optional[str] = None
+    location_ids: Optional[List[str]] = None
+    event_ids: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+    order: Optional[int] = None
+
+def _w(w): w["id"] = str(w.pop("_id", "")); return w
+
+@api_router.get("/cms/widgets")
+async def get_widgets_public(position: Optional[str] = None):
+    q = {"is_active": True}
+    if position: q["position"] = position
+    items = await db.cms_widgets.find(q).sort("order", 1).to_list(100)
+    return [_w(i) for i in items]
+
+@api_router.get("/admin/widgets")
+async def get_widgets_admin(position: Optional[str] = None, user: dict = Depends(require_admin)):
+    q = {}
+    if position: q["position"] = position
+    items = await db.cms_widgets.find(q).sort([("position", 1), ("order", 1)]).to_list(200)
+    return [_w(i) for i in items]
+
+@api_router.post("/admin/widgets")
+async def create_widget(inp: WidgetCreate, user: dict = Depends(require_admin)):
+    doc = inp.dict()
+    doc["_id"] = str(uuid.uuid4())
+    doc["created_at"] = datetime.now(timezone.utc)
+    await db.cms_widgets.insert_one(doc)
+    return _w(doc)
+
+@api_router.put("/admin/widgets/{wid}")
+async def update_widget(wid: str, inp: WidgetUpdate, user: dict = Depends(require_admin)):
+    upd = {k: v for k, v in inp.dict().items() if v is not None}
+    if not upd: raise HTTPException(400, "Nothing to update")
+    await db.cms_widgets.update_one({"_id": wid}, {"$set": upd})
+    updated = await db.cms_widgets.find_one({"_id": wid})
+    if not updated: raise HTTPException(404, "Widget not found")
+    return _w(updated)
+
+@api_router.delete("/admin/widgets/{wid}")
+async def delete_widget(wid: str, user: dict = Depends(require_admin)):
+    await db.cms_widgets.delete_one({"_id": wid})
+    return {"ok": True}
+
+@api_router.put("/admin/widgets-reorder")
+async def reorder_widgets(items: List[dict], user: dict = Depends(require_admin)):
+    for item in items:
+        await db.cms_widgets.update_one({"_id": item["id"]}, {"$set": {"order": item["order"]}})
+    return {"ok": True}
+
+# ===== Site Settings =====
+DEFAULT_SITE_SETTINGS = {
+    "primary_color": "#7C3AED",
+    "accent_color": "#F59E0B",
+    "site_title": "Gradačac Mapa",
+    "site_subtitle": "Digitalni vodič kroz grad",
+    "hero_title": "Otkrij Gradačac",
+    "hero_subtitle": "Restorani, eventi, znamenitosti, hitni brojevi\ni sve korisne informacije na jednom mjestu.",
+    "show_offers_section": "true",
+    "show_events_section": "true",
+    "show_news_section": "true",
+    "show_attractions_section": "true",
+    "cards_per_row": "4",
+    "footer_text": "Sve što trebate znati o Gradačacu na jednom mjestu.",
+    "footer_phone": "112",
+    "footer_email": "info@gradacac-mapa.ba",
+    "facebook_url": "https://facebook.com/gradacacmapa",
+    "instagram_url": "https://instagram.com/gradacacmapa",
+    "meta_title": "Gradačac Mapa - Digitalni Vodič",
+    "meta_description": "Pronađite restorane, markete, servise, znamenitosti i sve informacije o Gradačacu na jednom mjestu.",
+    "og_image": "",
+}
+
+@api_router.get("/site-settings")
+async def get_site_settings_public():
+    settings = {}
+    async for doc in db.site_settings.find({}):
+        settings[doc["key"]] = doc["value"]
+    # Fill defaults for missing keys
+    for k, v in DEFAULT_SITE_SETTINGS.items():
+        if k not in settings:
+            settings[k] = v
+    return settings
+
+@api_router.get("/admin/site-settings")
+async def get_site_settings_admin(user: dict = Depends(require_admin)):
+    settings = {}
+    async for doc in db.site_settings.find({}):
+        settings[doc["key"]] = doc["value"]
+    for k, v in DEFAULT_SITE_SETTINGS.items():
+        if k not in settings:
+            settings[k] = v
+    return settings
+
+@api_router.put("/admin/site-settings")
+async def update_site_settings(updates: dict, user: dict = Depends(require_admin)):
+    for key, value in updates.items():
+        await db.site_settings.update_one(
+            {"key": key},
+            {"$set": {"key": key, "value": str(value)}},
+            upsert=True
+        )
+    return {"ok": True, "updated": list(updates.keys())}
+
 @api_router.get("/leaderboard")
 async def get_leaderboard(limit: int = Query(10)):
     """Top locations by rating and review count"""

@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, MapPin, Tag, Calendar,
-  Bell, Users, Star, Settings, LogOut, Map, Phone, Newspaper
+  Bell, Users, Star, Settings, LogOut, Map, Phone, Newspaper, Layout, Globe
 } from 'lucide-react'
 
 const navItems = [
@@ -15,7 +15,11 @@ const navItems = [
   { to: '/emergency-contacts', label: 'Hitni Brojevi', icon: Phone, end: false },
   { to: '/business-accounts', label: 'Biznis Nalozi', icon: Users, end: false },
   { to: '/notifications', label: 'Obavještenja', icon: Bell, end: false },
-  { to: '/settings', label: 'Postavke', icon: Settings, end: false },
+]
+
+const cmsItems = [
+  { to: '/widgets', label: 'Moduli / Pozicije', icon: Layout, end: false },
+  { to: '/site-settings', label: 'Podešavanja Sajta', icon: Globe, end: false },
 ]
 
 export default function Sidebar() {
@@ -41,8 +45,29 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-0.5">
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {navItems.map(({ to, label, icon: Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                isActive
+                  ? 'bg-blue-600 text-white font-medium'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`
+            }
+          >
+            <Icon size={17} />
+            {label}
+          </NavLink>
+        ))}
+
+        <div className="pt-3 pb-1 px-3">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Web CMS</p>
+        </div>
+        {cmsItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}

@@ -153,8 +153,27 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
 ## Next Tasks
 - [x] Multi-language Support (BS/EN) (P0) - COMPLETED 2026-04-23
 - [x] Web City Guide (P0) - COMPLETED 2026-04-23 — dostupno na /api/city/
+- [x] CMS Sistem za Web (P0) - COMPLETED 2026-04-23 — Moduli/Pozicije + Podešavanja Sajta u Admin panelu
 - [ ] Stripe subscription integration (P1)
 - [ ] Loyalty card push reminders (P2)
+
+### Session 2026-04-23 - CMS Sistem (Faza 4)
+**Backend:**
+- Nove kolekcije: `cms_widgets`, `site_settings`
+- 8 novih API endpoints: `GET/POST/PUT/DELETE /api/admin/widgets`, `PUT /api/admin/widgets-reorder`, `GET /api/cms/widgets` (public), `GET/PUT /api/admin/site-settings`, `GET /api/site-settings` (public)
+
+**Admin Panel (web-admin):**
+- WEB CMS sekcija u sidebaru (Moduli/Pozicije + Podešavanja Sajta)
+- **Moduli/Pozicije**: 6 pozicija (Hero, Ispod Heroa, Nakon Kategorija, Nakon Ponuda, Prije Footera, Vrh Lokacija), 6 tipova widgeta (Baner, Tekst Blok, Istaknute Lokacije, Promo Kartica, Istaknuti Eventi, HTML Blok)
+- **Podešavanja Sajta**: 4 taba (Dizajn - boje, sekcije, raspored; Sadrzaj - hero/footer/naziv; SEO - title, description, og:image; Drustvene Mreze - FB/IG/YT/TT)
+- **Rich Text Editor** (TipTap) u vijesti modal (bold, italic, underline, linkovi, naslovi, liste, poravnanje)
+- `.input`, `.btn-primary`, `.btn-outline` CSS klase dodane
+
+**Web City Guide (web-city):**
+- `useSiteSettings` hook - dinamičke boje (CSS vars), meta tagovi, section show/hide
+- `useWidgets(position)` hook - učitava widgete po poziciji
+- `WidgetRenderer` komponenta (banner, text_block, promo_card, featured_locations, html_block)
+- Home.tsx ažuriran: 4 widget zone, uvjetno prikazivanje sekcija, dinamički hero tekst
 
 ### Session 2026-04-23 - Web City Guide (Faza 3)
 - Deployed React+Vite+Tailwind public web app at `/api/city/`

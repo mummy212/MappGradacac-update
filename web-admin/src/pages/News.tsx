@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
-import { Plus, Trash2, X, Globe, EyeOff } from 'lucide-react'
+import { Plus, Trash2, X, Globe, EyeOff, Edit2 } from 'lucide-react'
+import RichTextEditor from '../components/RichTextEditor'
 
 interface NewsArticle {
   id: string
@@ -65,7 +66,11 @@ function NewsModal({ article, onClose, onSuccess }: {
           </div>
           <div>
             <label className={labelCls}>Sadržaj *</label>
-            <textarea className={inputCls} rows={5} value={form.content} onChange={e => set('content', e.target.value)} placeholder="Tekst vijesti..." />
+            <RichTextEditor
+              value={form.content}
+              onChange={val => set('content', val)}
+              placeholder="Tekst vijesti..."
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

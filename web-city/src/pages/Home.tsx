@@ -8,6 +8,9 @@ import EventCard from '../components/EventCard';
 import NewsCard from '../components/NewsCard';
 import DownloadBanner from '../components/DownloadBanner';
 import LoadingSpinner from '../components/LoadingSpinner';
+import WidgetRenderer from '../components/WidgetRenderer';
+import { useSiteSettings } from '../hooks/useSiteSettings';
+import { useWidgets } from '../hooks/useWidgets';
 
 const CATS = [
   { cat: 'restaurant',   icon: '🍽️', label: 'Restorani',    color: 'bg-red-50   text-red-600   border-red-100' },
@@ -22,6 +25,11 @@ const CATS = [
 
 export default function Home() {
   const navigate = useNavigate();
+  const { settings } = useSiteSettings();
+  const widgetsTop = useWidgets('home_top');
+  const widgetsAfterCats = useWidgets('home_after_categories');
+  const widgetsAfterOffers = useWidgets('home_after_offers');
+  const widgetsBeforeFooter = useWidgets('home_before_footer');
   const [search, setSearch] = useState('');
   const [locs, setLocs] = useState<Location[]>([]);
   const [events, setEvents] = useState<CityEvent[]>([]);
@@ -75,10 +83,13 @@ export default function Home() {
             </div>
 
             <h1 className="font-heading font-800 text-white text-4xl md:text-6xl leading-tight mb-4">
-              Otkrij <span className="text-yellow-300">Gradačac</span>
+              {settings.hero_title?.split(' ').map((word, i) => i === 1
+                ? <span key={i} className="text-yellow-300"> {word}</span>
+                : <span key={i}>{i > 0 ? ' ' : ''}{word}</span>
+              ) || <>Otkrij <span className="text-yellow-300">Gradačac</span></>}
             </h1>
-            <p className="text-primary-100 text-lg md:text-xl mb-10 leading-relaxed">
-              Restorani, eventi, znamenitosti, hitni brojevi<br className="hidden md:block" /> i sve korisne informacije na jednom mjestu.
+            <p className="text-primary-100 text-lg md:text-xl mb-10 leading-relaxed whitespace-pre-line">
+              {settings.hero_subtitle || 'Restorani, eventi, znamenitosti, hitni brojevi\ni sve korisne informacije na jednom mjestu.'}
             </p>
 
             {/* Search */}
@@ -120,6 +131,13 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ===== WIDGET ZONE: ispod heroa ===== */}
+      {widgetsTop.length > 0 && (
+        <div className="container-city pt-8">
+          {widgetsTop.map(w => <WidgetRenderer key={w.id} widget={w} />)}
+        </div>
+      )}
+
       {/* ===== CATEGORIES ===== */}
       <section className="py-14">
         <div className="container-city">
@@ -138,6 +156,13 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ===== WIDGET ZONE: nakon kategorija ===== */}
+      {widgetsAfterCats.length > 0 && (
+        <div className="container-city py-4">
+          {widgetsAfterCats.map(w => <WidgetRenderer key={w.id} widget={w} />)}
+        </div>
+      )}
 
       {/* ===== FEATURED LOCATIONS ===== */}
       {featured.length > 0 && (
@@ -160,7 +185,7 @@ export default function Home() {
       )}
 
       {/* ===== OFFERS STRIP ===== */}
-      {activeOffers.length > 0 && (
+      {settings.show_offers_section !== 'false' && activeOffers.length > 0 && (
         <section className="py-12">
           <div className="container-city">
             <div className="flex items-center gap-2 mb-6">
@@ -190,8 +215,15 @@ export default function Home() {
         </section>
       )}
 
+      {/* ===== WIDGET ZONE: nakon ponuda ===== */}
+      {widgetsAfterOffers.length > 0 && (
+        <div className="container-city py-4">
+          {widgetsAfterOffers.map(w => <WidgetRenderer key={w.id} widget={w} />)}
+        </div>
+      )}
+
       {/* ===== EVENTS ===== */}
-      {upcomingEvents.length > 0 && (
+      {settings.show_events_section !== 'false' && upcomingEvents.length > 0 && (
         <section className="py-14 bg-gray-50">
           <div className="container-city">
             <div className="flex items-end justify-between mb-8">
@@ -211,7 +243,7 @@ export default function Home() {
       )}
 
       {/* ===== NEWS ===== */}
-      {latestNews.length > 0 && (
+      {settings.show_news_section !== 'false' && latestNews.length > 0 && (
         <section className="py-14">
           <div className="container-city">
             <div className="flex items-end justify-between mb-8">
@@ -231,7 +263,7 @@ export default function Home() {
       )}
 
       {/* ===== ATTRACTIONS TEASER ===== */}
-      {attractions.length > 0 && (
+      {settings.show_attractions_section !== 'false' && attractions.length > 0 && (
         <section className="py-14 bg-gray-50">
           <div className="container-city">
             <div className="flex items-end justify-between mb-8">
@@ -283,6 +315,13 @@ export default function Home() {
           </p>
         </div>
       </section>
+
+      {/* ===== WIDGET ZONE: ispred footera ===== */}
+      {widgetsBeforeFooter.length > 0 && (
+        <div className="container-city pb-8">
+          {widgetsBeforeFooter.map(w => <WidgetRenderer key={w.id} widget={w} />)}
+        </div>
+      )}
 
       {/* ===== DOWNLOAD BANNER ===== */}
       <DownloadBanner />
