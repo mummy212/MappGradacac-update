@@ -37,7 +37,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Mobile app - city map of Gradačac, Bosnia. Interactive map with GPS, categories (restaurants, markets, auto services, cafes, pharmacies, gas stations), search bar, location details with call and navigation. Latest task: P0 - Multi-language Support (BS/EN) - Implemented LanguageContext, translations.ts dictionary, and updated all components (HomeTab, EventsTab, ProfileTab, FavoritesTab, notifications, notification-settings, loyalty, about) to use t() translation hook. Language toggle (BS/EN buttons) added to ProfileTab. Language saved in AsyncStorage."
+user_problem_statement: "Mobile app - city map of Gradačac, Bosnia. Interactive map with GPS, categories (restaurants, markets, auto services, cafes, pharmacies, gas stations), search bar, location details with call and navigation. Latest task: Fix mobile app news/event detail screens - clicking on news/events in EventsTab should navigate to detail pages with rich content."
 
 backend:
   - task: "GET /api/emergency-contacts - returns emergency contacts seeded from DB"

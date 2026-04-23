@@ -19,8 +19,14 @@ const CAT_COLORS: Record<string, { bg: string; text: string }> = {
   'Ostalo': { bg: '#F3F4F6', text: '#6B7280' },
 };
 
+const MONTHS_LONG = ['januara', 'februara', 'marta', 'aprila', 'maja', 'juna', 'jula', 'augusta', 'septembra', 'oktobra', 'novembra', 'decembra'];
+
 const stripHtml = (html: string) =>
-  html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').trim();
+  html
+    .replace(/<\/?(p|h[1-6]|li|br|div)[^>]*>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ').trim();
 
 function buildHtml(content: string) {
   return `<!DOCTYPE html>
@@ -88,8 +94,6 @@ export default function NewsDetail() {
   const insets = useSafeAreaInsets();
   const [item, setItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [webViewHeight, setWebViewHeight] = useState(300);
-
   useEffect(() => {
     if (!id) return;
     fetch(`${BACKEND}/api/news/${id}`)
@@ -106,13 +110,12 @@ export default function NewsDetail() {
   const formatDate = (dt: string) => {
     try {
       const d = new Date(dt);
-      return d.toLocaleDateString('bs-BA', { day: 'numeric', month: 'long', year: 'numeric' });
+      return `${d.getDate()}. ${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}.`;
     } catch { return dt; }
   };
 
   const catStyle = item ? (CAT_COLORS[item.category] || CAT_COLORS['Ostalo']) : CAT_COLORS['Vijesti'];
-  const isHtml = item?.content?.trim().startsWith('<');
-  const htmlContent = isHtml ? buildHtml(item.content, item?.title || '') : buildHtml(`<p>${(item?.content || '').replace(/\n/g, '</p><p>')}</p>`, item?.title || '');
+  const isHtml = !!(item?.content?.trim().startsWith('<'));
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -163,23 +166,8 @@ export default function NewsDetail() {
             {/* Divider */}
             <View style={s.divider} />
 
-            {/* Content (WebView) */}
-            <WebView
-              style={{ height: webViewHeight, backgroundColor: 'transparent' }}
-              source={{ html: htmlContent }}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-              injectedJavaScript={`
-                window.ReactNativeWebView.postMessage(
-                  document.body.scrollHeight.toString()
-                );
-                true;
-              `}
-              onMessage={e => {
-                const h = parseInt(e.nativeEvent.data, 10);
-                if (!isNaN(h) && h > 0) setWebViewHeight(h + 24);
-              }}
-            />
+            {/* Content */}
+            {item.content ? <ContentRenderer content={item.content} isHtml={isHtml} /> : null}
           </View>
         </ScrollView>
       )}

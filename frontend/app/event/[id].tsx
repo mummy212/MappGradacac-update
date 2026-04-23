@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, StatusBar, Share, Linking,
+  ActivityIndicator, StatusBar, Share, Linking, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { WebView } from 'react-native-webview';
+
+let WebViewNative: React.ComponentType<any> | null = null;
+if (Platform.OS !== 'web') {
+  try { WebViewNative = require('react-native-webview').WebView; } catch {}
+}
 
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL;
 const PURPLE = '#7C3AED';
@@ -63,14 +67,23 @@ export default function EventDetail() {
     } catch { return dt; }
   };
 
-  const isPast = event ? new Date(event.date) < new Date() : false;
-  const isHtml = event?.content_html && event.content_html.trim().startsWith('<');
-  const hasDescription = event?.description && event.description.trim().length > 3;
+  const isHtml = !!(event?.content_html && event.content_html.trim().startsWith('<'));
+  const hasDescription = !!(event?.description && event.description.trim().length > 3);
   const contentHtml = isHtml
-    ? buildHtml(event.content_html)
+    ? buildHtml(event!.content_html)
     : hasDescription
-      ? buildHtml(`<p>${(event.description || '').replace(/\n/g, '</p><p>')}</p>`)
+      ? buildHtml(`<p>${(event?.description || '').replace(/\n/g, '</p><p>')}</p>`)
       : null;
+  const contentText = isHtml
+    ? (event?.content_html || '')
+        .replace(/<\/?(p|h[1-6]|li|br|div)[^>]*>/gi, ' ')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&[^;]+;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    : event?.description || '';
+
+  const isPast = event ? new Date(event.date) < new Date() : false;
 
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
@@ -158,9 +171,9 @@ export default function EventDetail() {
             {/* Divider before content */}
             {contentHtml && <View style={s.divider} />}
 
-            {/* Rich content (WebView) */}
-            {contentHtml && (
-              <WebView
+            {/* Rich content */}
+            {contentHtml && (WebViewNative ? (
+              <WebViewNative
                 style={{ height: webViewHeight, backgroundColor: 'transparent' }}
                 source={{ html: contentHtml }}
                 scrollEnabled={false}
@@ -171,12 +184,14 @@ export default function EventDetail() {
                   );
                   true;
                 `}
-                onMessage={e => {
+                onMessage={(e: any) => {
                   const h = parseInt(e.nativeEvent.data, 10);
                   if (!isNaN(h) && h > 0) setWebViewHeight(h + 24);
                 }}
               />
-            )}
+            ) : (
+              <Text style={{ fontSize: 15, color: '#374151', lineHeight: 24, marginTop: 8 }}>{contentText}</Text>
+            ))}
 
             {/* Ticket URL */}
             {event.ticket_url && (
