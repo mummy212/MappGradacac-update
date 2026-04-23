@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator, StatusBar,
+  RefreshControl, ActivityIndicator, StatusBar, Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,12 +20,13 @@ const CAT_COLORS: Record<string, { bg: string; text: string }> = {
   'Ostalo': { bg: '#F3F4F6', text: '#6B7280' },
 };
 
-interface NewsItem { id: string; title: string; content: string; category: string; created_at: string; }
+interface NewsItem { id: string; title: string; content: string; category: string; created_at: string; short_description?: string; author?: string; }
 interface EventItem {
   id: string; title: string; description: string;
   location_name?: string; location?: string; date: string; time?: string;
+  ticket_price?: string; organizer?: string; short_description?: string;
 }
-interface Attraction { id: string; name: string; description?: string; category?: string; }
+interface Attraction { id: string; name: string; description?: string; short_description?: string; category?: string; }
 
 export default function EventsTab() {
   const insets = useSafeAreaInsets();
@@ -66,6 +67,8 @@ export default function EventsTab() {
     } catch { return dt; }
   };
 
+  const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ').trim();
+
   return (
     <View style={[et.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
@@ -96,8 +99,14 @@ export default function EventsTab() {
               </View>
             ) : news.slice(0, 5).map(item => {
               const catStyle = CAT_COLORS[item.category] || CAT_COLORS['Ostalo'];
+              const preview = item.short_description || stripHtml(item.content).slice(0, 100);
               return (
-                <View key={item.id} style={et.newsCard}>
+                <TouchableOpacity
+                  key={item.id}
+                  style={et.newsCard}
+                  onPress={() => router.push(`/news/${item.id}`)}
+                  activeOpacity={0.75}
+                >
                   <View style={et.newsTop}>
                     <View style={[et.newsCatBadge, { backgroundColor: catStyle.bg }]}>
                       <Text style={[et.newsCatTxt, { color: catStyle.text }]}>{item.category}</Text>
@@ -105,8 +114,12 @@ export default function EventsTab() {
                     <Text style={et.newsDate}>{formatDate(item.created_at)}</Text>
                   </View>
                   <Text style={et.newsTitle} numberOfLines={2}>{item.title}</Text>
-                  <Text style={et.newsContent} numberOfLines={3}>{item.content}</Text>
-                </View>
+                  <Text style={et.newsContent} numberOfLines={2}>{preview}</Text>
+                  <View style={et.readMore}>
+                    <Text style={et.readMoreTxt}>Pročitaj više</Text>
+                    <Ionicons name="chevron-forward" size={13} color={PURPLE} />
+                  </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -129,15 +142,21 @@ export default function EventsTab() {
               const day = d.getDate().toString().padStart(2, '0');
               const month = MONTHS[d.getMonth()] || '';
               const isToday = d.toDateString() === new Date().toDateString();
+              const preview = ev.short_description || ev.description;
               return (
-                <View key={ev.id} style={et.eventCard}>
+                <TouchableOpacity
+                  key={ev.id}
+                  style={et.eventCard}
+                  onPress={() => router.push(`/event/${ev.id}`)}
+                  activeOpacity={0.75}
+                >
                   <View style={[et.dateBox, isToday && { backgroundColor: PURPLE }]}>
                     <Text style={[et.dateDay, isToday && { color: '#fff' }]}>{day}</Text>
                     <Text style={[et.dateMon, isToday && { color: 'rgba(255,255,255,0.85)' }]}>{month}</Text>
                   </View>
                   <View style={et.eventBody}>
                     <Text style={et.eventTitle} numberOfLines={1}>{ev.title}</Text>
-                    <Text style={et.eventDesc} numberOfLines={2}>{ev.description}</Text>
+                    <Text style={et.eventDesc} numberOfLines={2}>{preview}</Text>
                     <View style={et.eventMeta}>
                       {(ev.location_name || ev.location) && (
                         <View style={et.metaItem}>
@@ -151,10 +170,19 @@ export default function EventsTab() {
                           <Text style={et.metaTxt}>{ev.time}</Text>
                         </View>
                       )}
+                      {ev.ticket_price && (
+                        <View style={et.metaItem}>
+                          <Ionicons name="ticket-outline" size={12} color="#059669" />
+                          <Text style={[et.metaTxt, { color: '#059669' }]}>{ev.ticket_price}</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
-                  {isToday && <View style={et.todayBadge}><Text style={et.todayTxt}>{t('events', 'today')}</Text></View>}
-                </View>
+                  <View style={et.chevronWrap}>
+                    {isToday && <View style={et.todayBadge}><Text style={et.todayTxt}>{t('events', 'today')}</Text></View>}
+                    <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                  </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -173,7 +201,9 @@ export default function EventsTab() {
                   </View>
                   <View style={et.attrBody}>
                     <Text style={et.attrName} numberOfLines={1}>{a.name}</Text>
-                    {a.description && <Text style={et.attrDesc} numberOfLines={2}>{a.description}</Text>}
+                    {(a.short_description || a.description) && (
+                      <Text style={et.attrDesc} numberOfLines={2}>{a.short_description || a.description}</Text>
+                    )}
                     {a.category && <View style={et.attrCat}><Text style={et.attrCatTxt}>{a.category}</Text></View>}
                   </View>
                   <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
@@ -207,6 +237,8 @@ const et = StyleSheet.create({
   newsDate: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: '#9CA3AF' },
   newsTitle: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: '#111827', marginBottom: 4 },
   newsContent: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: '#6B7280', lineHeight: 18 },
+  readMore: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 8 },
+  readMoreTxt: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: PURPLE },
   // Events
   eventCard: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 10, backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' },
   dateBox: { width: 52, height: 52, borderRadius: 14, backgroundColor: PURPLE + '15', justifyContent: 'center', alignItems: 'center', marginRight: 14 },
@@ -215,10 +247,11 @@ const et = StyleSheet.create({
   eventBody: { flex: 1 },
   eventTitle: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: '#111827' },
   eventDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: '#6B7280', marginTop: 3, lineHeight: 18 },
-  eventMeta: { flexDirection: 'row', gap: 12, marginTop: 6 },
+  eventMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   metaTxt: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: '#6B7280' },
-  todayBadge: { backgroundColor: '#10B981', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
+  chevronWrap: { alignItems: 'flex-end', justifyContent: 'center', gap: 6 },
+  todayBadge: { backgroundColor: '#10B981', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
   todayTxt: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: '#fff' },
   // Attractions
   attrCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' },
