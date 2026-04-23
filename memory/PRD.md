@@ -16,7 +16,7 @@ Prošireno na: Detaljna, moderna, SEO-friendly web stranica i admin paneli za up
 - **Backend**: FastAPI, Python, Motor (Async MongoDB)
 - **Web Admin Panel**: React + Vite, Tailwind CSS (at /api/admin-panel/)
 - **Web Business Panel**: React + Vite, Tailwind CSS (at /api/business-panel/)
-- **Public City Website**: React + Vite, Tailwind CSS (at /api/city/)
+- **Public City Website**: React + Vite, Tailwind CSS, react-helmet-async (at /api/city/)
 
 ## Core Requirements
 1. Interaktivna mapa (Leaflet) sa svim lokacijama
@@ -32,35 +32,48 @@ Prošireno na: Detaljna, moderna, SEO-friendly web stranica i admin paneli za up
 
 ## What's Been Implemented
 
-### Faza 1: Osnovna Mobilna Aplikacija
+### Faza 1: Osnovna Mobilna Aplikacija (DONE)
 - Interaktivna mapa (Leaflet WebView)
 - 6 kategorija sa filterima
 - Pretraga lokacija
 - Detalji lokacije (tel, navigacija, radno vrijeme)
 - Hidden admin/business panel (5-tap na About)
 
-### Faza 2: Web Paneli
+### Faza 2: Web Paneli (DONE)
 - Web Admin Panel (/api/admin-panel/)
 - Web Business Panel (/api/business-panel/)
 
-### Faza 3: Public Web City Guide
+### Faza 3: Public Web City Guide (DONE)
 - Public website (/api/city/)
 - Pages: Home, Lokacije, Detalji, Dogadjaji, Vijesti, Znamenitosti, Hitni Brojevi
 
-### Faza 4: CMS Sistem
+### Faza 4: CMS Sistem (DONE)
 - cms_widgets i site_settings kolekcije
 - Widgeti sa pozicijama na web stranici
 - TipTap rich text editor u admin panelu
 
-### Faza 5: Admin Upravljanje
+### Faza 5: Admin Upravljanje (DONE)
 - GET/POST/PUT/DELETE /api/admin/admins
 - Admins.tsx stranica u admin panelu
 
-### Faza 6: Rich Content za Atrakcije, Događaje, Vijesti
+### Faza 6: Rich Content + Mobile Detail Screens (DONE)
 - content_html polje (TipTap)
 - Multi-image galerije
-- Detaljne stranice na web i mobilnoj aplikaciji
-- /news/[id].tsx i /event/[id].tsx u mobilnoj aplikaciji (TESTOVANO - 100%)
+- /news/[id].tsx i /event/[id].tsx - TESTIRANO
+
+### Faza 7: SEO Optimizacija (DONE - Apr 2026)
+- `react-helmet-async` instaliran
+- `SEOHead.tsx` komponenta - title, description, OG, Twitter Card, canonical, JSON-LD
+- JSON-LD Structured Data po tipu stranice:
+  - LocalBusiness (lokacije)
+  - NewsArticle (vijesti)
+  - Event (događaji)
+  - TouristAttraction (znamenitosti)
+  - WebSite + Organization (homepage)
+- `GET /api/sitemap.xml` - dinamicki generisan sa svim URL-ovima
+- `GET /api/robots.txt` - ispravno konfiguriran
+- Admin panel SEO tab: Google Search Console verifikacijski kod, Google Analytics 4 ID, Kanonski URL, OG Slika, Google pretraga preview
+- Nema duplicate meta tagova (staticki tagovi uklonjeni iz index.html)
 
 ## Test Credentials
 - Admin: admin@gradacac.ba / Gradacac2024!
@@ -69,9 +82,8 @@ Prošireno na: Detaljna, moderna, SEO-friendly web stranica i admin paneli za up
 ## P0/P1/P2 Features Remaining
 
 ### P1 (Visoki prioritet)
-- SEO meta tags za /city/ detalj stranice
+- Stripe/PayPal integracija za premium pretplate
 
 ### P2 (Srednji prioritet)
-- Stripe/PayPal integracija za premium pretplate
 - Offline map tile preuzimanje
 - Loyalty card push podsjetnici
