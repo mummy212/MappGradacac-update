@@ -138,12 +138,14 @@ export default function ProfileTab() {
           </View>
           <View style={pt.langToggle}>
             <TouchableOpacity
+              testID="lang-btn-bs"
               style={[pt.langBtn, language === 'bs' && pt.langBtnActive]}
               onPress={() => setLanguage('bs')}
             >
               <Text style={[pt.langBtnTxt, language === 'bs' && pt.langBtnTxtActive]}>BS</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              testID="lang-btn-en"
               style={[pt.langBtn, language === 'en' && pt.langBtnActive]}
               onPress={() => setLanguage('en')}
             >
