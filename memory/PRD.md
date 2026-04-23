@@ -150,9 +150,18 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
   - Placed in: icon.png, adaptive-icon.png, favicon.png, splash-icon.png
 
 ## Next Tasks
-- [ ] Multi-language Support (BS/EN) (P2)
+- [x] Multi-language Support (BS/EN) (P0) - COMPLETED 2026-04-23
 - [ ] Stripe subscription integration (P1)
-- [ ] Possibly a nicer/AI-generated app icon via external service
+- [ ] Loyalty card push reminders (P2)
+
+### Session 2026-04-23 - Multi-language Support
+- Created `/app/frontend/i18n/translations.ts` - Full BS/EN dictionary (11 sections, 100+ keys)
+- Created `/app/frontend/context/LanguageContext.tsx` - React context with `useLanguage()` hook, AsyncStorage persistence
+- Wrapped app in `LanguageProvider` via `_layout.tsx`
+- Updated all UI components: HomeTab, EventsTab, ProfileTab, FavoritesTab, notifications, notification-settings, loyalty, about
+- Added BS/EN toggle button in ProfileTab under "Jezik / Language" row
+- Language defaults to Bosnian (BS), persists across sessions via AsyncStorage
+- 32/32 tests passed via expo_testing_agent_v4_fork
 
 ### Session 2026-04-22 (Part 2 - Offline Map)
 - Automatic tile caching via IndexedDB (auto-cache as user browses)
