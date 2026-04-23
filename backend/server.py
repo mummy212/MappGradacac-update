@@ -1098,19 +1098,39 @@ async def get_attractions():
     for a in ATTRACTIONS: await db.attractions.insert_one(dict(a))
     return ATTRACTIONS
 
+@api_router.get("/tourism/attractions/{aid}")
+async def get_attraction(aid: str):
+    attr = await db.attractions.find_one({"id": aid}, {"_id": 0})
+    if not attr: raise HTTPException(404, "Not Found")
+    return attr
+
 class AttractionCreate(BaseModel):
     name: str
-    description: str
+    description: str = ""
+    content_html: str = ""
+    short_description: str = ""
     latitude: float = 44.8797
     longitude: float = 18.4275
     category: str = "Ostalo"
+    images: list = []
+    website: str = ""
+    working_hours: str = ""
+    admission_price: str = ""
+    phone: str = ""
 
 class AttractionUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    content_html: Optional[str] = None
+    short_description: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     category: Optional[str] = None
+    images: Optional[list] = None
+    website: Optional[str] = None
+    working_hours: Optional[str] = None
+    admission_price: Optional[str] = None
+    phone: Optional[str] = None
 
 @api_router.post("/admin/tourism/attractions")
 async def create_attraction(inp: AttractionCreate, user: dict = Depends(require_admin)):

@@ -50,10 +50,16 @@ export interface Attraction {
   id: string;
   name: string;
   description?: string;
+  content_html?: string;
+  short_description?: string;
   latitude?: number;
   longitude?: number;
   category?: string;
   images?: string[];
+  website?: string;
+  working_hours?: string;
+  admission_price?: string;
+  phone?: string;
 }
 
 export interface Emergency {

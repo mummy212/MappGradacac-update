@@ -25,3 +25,10 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+export const getImgSrc = (img?: string): string => {
+  if (!img) return ''
+  if (img.startsWith('data:') || img.startsWith('http')) return img
+  if (img.startsWith('/api/')) return img
+  return img
+}
