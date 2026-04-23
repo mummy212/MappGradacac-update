@@ -88,6 +88,27 @@ export default function Sidebar() {
             {label}
           </NavLink>
         ))}
+
+        <div className="pt-3 pb-1 px-3">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sistem</p>
+        </div>
+        {systemItems.map(({ to, label, icon: Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                isActive
+                  ? 'bg-purple-600 text-white font-medium'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`
+            }
+          >
+            <Icon size={17} />
+            {label}
+          </NavLink>
+        ))}
       </nav>
 
       <div className="p-3 border-t border-slate-700">

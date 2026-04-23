@@ -24,7 +24,8 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
 - Backend API: /api/* (port 8001)
 - Admin Panel: /api/admin-panel
 - Business Panel: /api/business-panel
-- **Web City Guide (novo): /api/city/**
+- **Web City Guide**: /api/city/
+- **Admin Panel**: /api/admin-panel (sa upravljanjem adminima)
 
 ### Key Files
 - `/app/backend/server.py` - FastAPI main (~1000 lines)
