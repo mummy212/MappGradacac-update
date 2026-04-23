@@ -122,12 +122,15 @@ class Event(BaseModel):
     title: str; description: str; location_name: str
     date: str; time: Optional[str] = None
     location_id: Optional[str] = None
+    image: Optional[str] = None
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class EventCreate(BaseModel):
     title: str; description: str; location_name: str
-    date: str; time: Optional[str] = None; location_id: Optional[str] = None
+    date: str; time: Optional[str] = None
+    location_id: Optional[str] = None
+    image: Optional[str] = None
 
 class MenuItem(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -866,6 +869,19 @@ async def admin_create_event(inp: EventCreate, user: dict = Depends(require_busi
     to_ins = dict(e.dict())
     await db.events.insert_one(to_ins)
     return e.dict()
+
+@api_router.put("/admin/events/{eid}")
+async def admin_update_event(eid: str, inp: dict, user: dict = Depends(require_business_or_admin)):
+    allowed = {"title", "description", "location_name", "date", "time", "location_id", "image"}
+    upd = {k: v for k, v in inp.items() if k in allowed}
+    if not upd:
+        raise HTTPException(400, "Nothing to update")
+    await db.events.update_one({"id": eid}, {"$set": upd})
+    updated = await db.events.find_one({"id": eid})
+    if not updated:
+        raise HTTPException(404, "Event not found")
+    updated.pop("_id", None)
+    return updated
 
 @api_router.delete("/admin/events/{eid}")
 async def admin_del_event(eid: str, user: dict = Depends(require_admin)):

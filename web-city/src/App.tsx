@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import Home from './pages/Home';
 import Locations from './pages/Locations';
 import LocationDetail from './pages/LocationDetail';
+import EventDetail from './pages/EventDetail';
 import Events from './pages/Events';
 import News from './pages/News';
 import NewsDetail from './pages/NewsDetail';
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="lokacije" element={<Locations />} />
           <Route path="lokacije/:id" element={<LocationDetail />} />
           <Route path="dogadjaji" element={<Events />} />
+          <Route path="dogadjaji/:id" element={<EventDetail />} />
           <Route path="vijesti" element={<News />} />
           <Route path="vijesti/:id" element={<NewsDetail />} />
           <Route path="znamenitosti" element={<Attractions />} />
