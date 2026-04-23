@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', system-ui, sans-serif; color: #111827; background: #ffffff; }
+  h1,h2,h3,h4,h5,h6 { font-family: 'Outfit', system-ui, sans-serif; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 text-white px-6 py-3 rounded-xl font-heading font-600 hover:bg-primary-700
+    transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 inline-flex items-center gap-2;
+  }
+  .btn-outline {
+    @apply border-2 border-primary-600 text-primary-600 px-6 py-3 rounded-xl font-heading font-600
+    hover:bg-primary-50 transition-all duration-200 inline-flex items-center gap-2;
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-card hover:shadow-hover transition-all duration-200 overflow-hidden;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  .section-title {
+    @apply text-2xl md:text-3xl font-heading font-700 text-gray-900;
+  }
+  .section-sub {
+    @apply text-gray-500 mt-2 text-base;
+  }
+  .container-city {
+    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #0ea5e9 100%);
+}
+
+.hero-overlay {
+  background: linear-gradient(to bottom, rgba(124,58,237,0.85) 0%, rgba(79,70,229,0.7) 100%);
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f3f4f6; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
