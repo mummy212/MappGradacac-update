@@ -863,6 +863,28 @@ async def create_business_account(inp: BusinessCreate, user: dict = Depends(requ
     await db.users.insert_one({"email": inp.email.lower(), "password_hash": hash_pw(inp.password), "name": inp.name, "role": "business", "location_id": inp.location_id, "created_at": datetime.now(timezone.utc)})
     return {"message": f"Biznis nalog kreiran za {inp.email}"}
 
+@api_router.put("/admin/business-accounts/{uid}")
+async def update_business_account(uid: str, inp: dict, user: dict = Depends(require_admin)):
+    upd: dict = {}
+    if "name" in inp: upd["name"] = inp["name"]
+    if "email" in inp:
+        existing = await db.users.find_one({"email": inp["email"].lower()})
+        if existing and str(existing.get("_id", "")) != uid:
+            raise HTTPException(400, "Email već postoji")
+        upd["email"] = inp["email"].lower()
+    if "location_id" in inp:
+        loc = await db.locations.find_one({"id": inp["location_id"]})
+        if not loc: raise HTTPException(404, "Lokacija ne postoji")
+        upd["location_id"] = inp["location_id"]
+    if inp.get("password"):
+        upd["password_hash"] = hash_pw(inp["password"])
+    if not upd: raise HTTPException(400, "Ništa za ažurirati")
+    await db.users.update_one({"id": uid}, {"$set": upd})
+    updated = await db.users.find_one({"id": uid})
+    if not updated: raise HTTPException(404, "Nalog nije pronađen")
+    updated.pop("_id", None); updated.pop("password_hash", None)
+    return updated
+
 @api_router.post("/admin/events")
 async def admin_create_event(inp: EventCreate, user: dict = Depends(require_business_or_admin)):
     e = Event(created_by=user["id"], **inp.dict())

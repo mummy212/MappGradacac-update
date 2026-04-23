@@ -1,27 +1,27 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
-import { Plus, Trash2, X, Calendar } from 'lucide-react'
+import { Plus, Trash2, X, Calendar, Edit2 } from 'lucide-react'
 import type { Event, Location } from '../types'
 import ImageUpload from '../components/ImageUpload'
 
 function EventModal({
-  locations,
-  onClose,
-  onSuccess,
+  event, locations, onClose, onSuccess,
 }: {
+  event?: Event | null
   locations: Location[]
   onClose: () => void
   onSuccess: () => void
 }) {
+  const isEdit = !!event
   const [form, setForm] = useState({
-    title: '',
-    description: '',
-    location_name: '',
-    date: '',
-    time: '',
-    location_id: '',
-    image: '',
+    title: event?.title || '',
+    description: event?.description || '',
+    location_name: event?.location_name || '',
+    date: event?.date ? event.date.slice(0, 10) : '',
+    time: event?.time || '',
+    location_id: event?.location_id || '',
+    image: event?.image || '',
   })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -41,7 +41,11 @@ function EventModal({
         time: form.time || undefined,
         location_id: form.location_id || undefined,
       }
-      await api.post('/admin/events', payload)
+      if (isEdit) {
+        await api.put(`/admin/events/${event!.id}`, payload)
+      } else {
+        await api.post('/admin/events', payload)
+      }
       onSuccess()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } }
@@ -58,7 +62,7 @@ function EventModal({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
-          <h2 className="font-semibold text-slate-800">Novi događaj</h2>
+          <h2 className="font-semibold text-slate-800">{isEdit ? `Uredi: ${event!.title}` : 'Novi događaj'}</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
         </div>
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
@@ -108,7 +112,7 @@ function EventModal({
             disabled={saving}
             className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            {saving ? 'Čuvanje...' : 'Sačuvaj'}
+            {saving ? 'Čuvanje...' : isEdit ? 'Sačuvaj izmjene' : 'Sačuvaj'}
           </button>
         </div>
       </div>
@@ -119,6 +123,7 @@ function EventModal({
 export default function Events() {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
+  const [editEvent, setEditEvent] = useState<Event | null>(null)
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['events'],
@@ -137,6 +142,7 @@ export default function Events() {
   const handleSuccess = () => {
     qc.invalidateQueries({ queryKey: ['events'] })
     setShowCreate(false)
+    setEditEvent(null)
   }
 
   return (
@@ -164,9 +170,16 @@ export default function Events() {
               <div className="divide-y divide-slate-50">
                 {(events as Event[]).map(ev => (
                   <div key={ev.id} className="px-5 py-4 flex items-start gap-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Calendar size={18} className="text-blue-600" />
-                    </div>
+                    {/* Thumbnail */}
+                    {ev.image ? (
+                      <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+                        <img src={ev.image} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Calendar size={18} className="text-blue-600" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm text-slate-800">{ev.title}</p>
                       <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{ev.description}</p>
@@ -177,12 +190,22 @@ export default function Events() {
                         <span className="text-xs text-slate-400">📍 {ev.location_name}</span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => { if (confirm(`Obrisati "${ev.title}"?`)) deleteMutation.mutate(ev.id) }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setEditEvent(ev)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Uredi"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Obrisati "${ev.title}"?`)) deleteMutation.mutate(ev.id) }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Obriši"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -200,6 +223,14 @@ export default function Events() {
         <EventModal
           locations={locations as Location[]}
           onClose={() => setShowCreate(false)}
+          onSuccess={handleSuccess}
+        />
+      )}
+      {editEvent && (
+        <EventModal
+          event={editEvent}
+          locations={locations as Location[]}
+          onClose={() => setEditEvent(null)}
           onSuccess={handleSuccess}
         />
       )}

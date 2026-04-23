@@ -1,37 +1,56 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
-import { Plus, Trash2, X, Users } from 'lucide-react'
+import { Plus, Trash2, X, Users, Edit2, KeyRound } from 'lucide-react'
 import type { BusinessAccount, Location } from '../types'
 
 function BusinessModal({
-  locations,
-  onClose,
-  onSuccess,
+  account, locations, onClose, onSuccess,
 }: {
+  account?: BusinessAccount | null
   locations: Location[]
   onClose: () => void
   onSuccess: () => void
 }) {
-  const [form, setForm] = useState({ email: '', password: '', name: '', location_id: '' })
+  const isEdit = !!account
+  const [form, setForm] = useState({
+    name: account?.name || '',
+    email: account?.email || '',
+    password: '',
+    location_id: account?.location_id || '',
+  })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
   const handleSave = async () => {
-    if (!form.email || !form.password || !form.name || !form.location_id) {
-      setError('Sva polja su obavezna')
+    if (!form.name || !form.email || !form.location_id) {
+      setError('Naziv, email i lokacija su obavezni')
+      return
+    }
+    if (!isEdit && !form.password) {
+      setError('Lozinka je obavezna za novi nalog')
       return
     }
     setSaving(true)
     setError('')
     try {
-      await api.post('/admin/business-accounts', form)
+      const payload: Record<string, string> = {
+        name: form.name,
+        email: form.email,
+        location_id: form.location_id,
+      }
+      if (form.password) payload.password = form.password
+      if (isEdit) {
+        await api.put(`/admin/business-accounts/${account!.id}`, payload)
+      } else {
+        await api.post('/admin/business-accounts', payload)
+      }
       onSuccess()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } }
-      setError(e.response?.data?.detail || 'Greška pri kreaciji naloga')
+      setError(e.response?.data?.detail || 'Greška pri čuvanju')
     } finally {
       setSaving(false)
     }
@@ -44,7 +63,7 @@ function BusinessModal({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
-          <h2 className="font-semibold text-slate-800">Novi biznis nalog</h2>
+          <h2 className="font-semibold text-slate-800">{isEdit ? `Uredi: ${account!.name}` : 'Novi biznis nalog'}</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg"><X size={18} /></button>
         </div>
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
@@ -57,8 +76,13 @@ function BusinessModal({
             <input type="email" className={inputCls} value={form.email} onChange={e => set('email', e.target.value)} placeholder="biznis@email.com" />
           </div>
           <div>
-            <label className={labelCls}>Lozinka *</label>
-            <input type="password" className={inputCls} value={form.password} onChange={e => set('password', e.target.value)} placeholder="Min. 6 znakova" />
+            <label className={labelCls}>{isEdit ? 'Nova lozinka (ostavite prazno za bez izmjene)' : 'Lozinka *'}</label>
+            <div className="relative">
+              <KeyRound size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="password" className={`${inputCls} pl-9`} value={form.password}
+                onChange={e => set('password', e.target.value)}
+                placeholder={isEdit ? 'Ostavite prazno za bez promjene' : 'Min. 6 znakova'} />
+            </div>
           </div>
           <div>
             <label className={labelCls}>Poveži s lokacijom *</label>
@@ -69,7 +93,7 @@ function BusinessModal({
           </div>
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
           <div className="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg">
-            💡 Biznis vlasnik će se moći prijaviti s ovim kredencijalima i upravljati samo svojom lokacijom.
+            💡 {isEdit ? 'Izmjene se odmah primjenjuju na nalog.' : 'Biznis vlasnik će se moći prijaviti s ovim kredencijalima i upravljati samo svojom lokacijom.'}
           </div>
         </div>
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
@@ -79,7 +103,7 @@ function BusinessModal({
             disabled={saving}
             className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            {saving ? 'Kreacija...' : 'Kreiraj nalog'}
+            {saving ? 'Čuvanje...' : isEdit ? 'Sačuvaj izmjene' : 'Kreiraj nalog'}
           </button>
         </div>
       </div>
@@ -90,6 +114,7 @@ function BusinessModal({
 export default function BusinessAccounts() {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
+  const [editAccount, setEditAccount] = useState<BusinessAccount | null>(null)
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['business-accounts'],
@@ -108,6 +133,7 @@ export default function BusinessAccounts() {
   const handleSuccess = () => {
     qc.invalidateQueries({ queryKey: ['business-accounts'] })
     setShowCreate(false)
+    setEditAccount(null)
   }
 
   return (
@@ -145,17 +171,27 @@ export default function BusinessAccounts() {
                         <p className="text-xs text-blue-600 mt-0.5">📍 {acc.location_name}</p>
                       )}
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="text-right flex-shrink-0 mr-1">
                       <p className="text-xs text-slate-400">
                         {acc.created_at ? new Date(acc.created_at).toLocaleDateString('bs-BA') : '—'}
                       </p>
                     </div>
-                    <button
-                      onClick={() => { if (confirm(`Obrisati nalog "${acc.email}"?`)) deleteMutation.mutate(acc.id) }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setEditAccount(acc)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Uredi nalog"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Obrisati nalog "${acc.email}"?`)) deleteMutation.mutate(acc.id) }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Obriši nalog"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -174,6 +210,14 @@ export default function BusinessAccounts() {
         <BusinessModal
           locations={locations as Location[]}
           onClose={() => setShowCreate(false)}
+          onSuccess={handleSuccess}
+        />
+      )}
+      {editAccount && (
+        <BusinessModal
+          account={editAccount}
+          locations={locations as Location[]}
+          onClose={() => setEditAccount(null)}
           onSuccess={handleSuccess}
         />
       )}

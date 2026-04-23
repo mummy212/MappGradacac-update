@@ -37,6 +37,7 @@ export interface Event {
   date: string
   time?: string
   location_id?: string
+  image?: string
 }
 
 export interface Attraction {
