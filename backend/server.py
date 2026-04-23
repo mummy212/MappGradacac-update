@@ -1335,7 +1335,66 @@ async def get_leaderboard(limit: int = Query(10)):
     return [{"id": l["id"], "name": l["name"], "category": l["category"], "avg_rating": l.get("avg_rating", 0), "review_count": l.get("review_count", 0), "images": l.get("images", [])[:1]} for l in locs]
 
 # ===== Admin Business List =====
-@api_router.get("/admin/business-accounts")
+@api_router.get("/admin/admins")
+async def list_admins(user: dict = Depends(require_admin)):
+    admins = []
+    async for u in db.users.find({"role": "admin"}):
+        u.pop("_id", None); u.pop("password_hash", None)
+        admins.append(u)
+    return admins
+
+@api_router.post("/admin/admins")
+async def create_admin(inp: dict, user: dict = Depends(require_admin)):
+    name = (inp.get("name") or "").strip()
+    email = (inp.get("email") or "").strip().lower()
+    password = inp.get("password") or ""
+    if not name or not email or not password:
+        raise HTTPException(400, "Naziv, email i lozinka su obavezni")
+    if len(password) < 6:
+        raise HTTPException(400, "Lozinka mora imati najmanje 6 znakova")
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(400, "Email već postoji")
+    uid = str(uuid.uuid4())
+    await db.users.insert_one({
+        "id": uid, "email": email, "name": name,
+        "password_hash": hash_pw(password), "role": "admin",
+        "created_at": datetime.now(timezone.utc)
+    })
+    return {"id": uid, "name": name, "email": email, "role": "admin"}
+
+@api_router.put("/admin/admins/{uid}")
+async def update_admin(uid: str, inp: dict, user: dict = Depends(require_admin)):
+    upd: dict = {}
+    if inp.get("name"): upd["name"] = inp["name"].strip()
+    if inp.get("email"):
+        email = inp["email"].strip().lower()
+        existing = await db.users.find_one({"email": email})
+        if existing and existing.get("id") != uid:
+            raise HTTPException(400, "Email već postoji")
+        upd["email"] = email
+    if inp.get("password"):
+        if len(inp["password"]) < 6:
+            raise HTTPException(400, "Lozinka mora imati najmanje 6 znakova")
+        upd["password_hash"] = hash_pw(inp["password"])
+    if not upd:
+        raise HTTPException(400, "Ništa za ažurirati")
+    await db.users.update_one({"id": uid, "role": "admin"}, {"$set": upd})
+    updated = await db.users.find_one({"id": uid})
+    if not updated: raise HTTPException(404, "Admin nije pronađen")
+    updated.pop("_id", None); updated.pop("password_hash", None)
+    return updated
+
+@api_router.delete("/admin/admins/{uid}")
+async def delete_admin(uid: str, user: dict = Depends(require_admin)):
+    if user.get("id") == uid:
+        raise HTTPException(400, "Ne možete obrisati vlastiti nalog")
+    target = await db.users.find_one({"id": uid, "role": "admin"})
+    if not target:
+        raise HTTPException(404, "Admin nije pronađen")
+    await db.users.delete_one({"id": uid})
+    return {"ok": True}
+
+
 async def list_business_accounts(user: dict = Depends(require_admin)):
     users = await db.users.find({"role": "business"}).to_list(100)
     # Batch fetch locations (avoid N+1)
