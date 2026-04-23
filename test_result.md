@@ -395,9 +395,41 @@ test_plan:
         agent: "main"
         comment: "Reviews page with aggregate rating bar chart and full review list. Screenshot verified."
 
-  - task: "Home screen Quick Access icons navigate correctly"
+  - task: "Notifications feed endpoint GET /api/notifications-feed"
     implemented: true
-    working: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New endpoint added. Returns unified feed of recent news, upcoming events, and active offers. Sorted by created_at descending. Returns up to 30 items."
+
+  - task: "Notification Center screen (notifications.tsx)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/notifications.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New screen with full notification feed. Features: type badges (Vijest/Dogadjaj/Ponuda), unread dot indicators, relative time, 'Mark all read' button, pull-to-refresh, navigate to offer location on press. Uses AsyncStorage notif_last_seen key."
+
+  - task: "HomeTab bell icon badge shows unread count, navigates to /notifications"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/HomeTab.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Bell icon now shows red badge with unread count. Badge count fetched from /api/notifications-feed compared to AsyncStorage notif_last_seen. Navigates to /notifications on press."
     file: "/app/frontend/app/index.tsx"
     stuck_count: 0
     priority: "high"

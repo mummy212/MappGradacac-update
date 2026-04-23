@@ -6,6 +6,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const NOTIF_LAST_SEEN_KEY = 'notif_last_seen';
 
 const { width: W } = Dimensions.get('window');
 const API = process.env.EXPO_PUBLIC_BACKEND_URL || '';
@@ -124,6 +127,7 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [events, setEvents] = useState<EvItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -151,6 +155,22 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
   useEffect(() => { fetchData(); }, [fetchData]);
   const onRefresh = useCallback(async () => { setRefreshing(true); await fetchData(); setRefreshing(false); }, [fetchData]);
 
+  // Load unread notification count
+  const loadUnreadCount = useCallback(async () => {
+    try {
+      const [feed, lastSeen] = await Promise.all([
+        fetch(`${API}/api/notifications-feed`).then(r => r.json()),
+        AsyncStorage.getItem(NOTIF_LAST_SEEN_KEY),
+      ]);
+      const count = Array.isArray(feed)
+        ? feed.filter((n: any) => !lastSeen || String(n.created_at) > lastSeen).length
+        : 0;
+      setUnreadCount(count);
+    } catch {}
+  }, []);
+
+  useEffect(() => { loadUnreadCount(); }, [loadUnreadCount]);
+
   const heroItems = buildHero(events, offers);
   const nearbyLocs = locs.filter(l => l.category !== 'parking').slice(0, 8);
   const specials = offers.filter(o => (o.discount_percent || 0) > 0).slice(0, 4);
@@ -173,8 +193,13 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
           <Ionicons name="search-outline" size={15} color={NC.textMute} />
           <Text style={hs.searchPh}>Pretraži lokacije, ponude...</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={hs.bellBtn} onPress={() => router.push('/about')}>
+        <TouchableOpacity style={hs.bellBtn} onPress={() => router.push('/notifications' as any)}>
           <Ionicons name="notifications-outline" size={22} color={NC.text} />
+          {unreadCount > 0 && (
+            <View style={hs.bellBadge}>
+              <Text style={hs.bellBadgeTxt}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -374,6 +399,8 @@ const hs = StyleSheet.create({
   searchBar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: NC.bg, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, borderWidth: 1, borderColor: NC.border },
   searchPh: { fontSize: 13, fontFamily: 'Manrope_400Regular', color: NC.textMute },
   bellBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: NC.bg, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: NC.border },
+  bellBadge: { position: 'absolute', top: 1, right: 1, backgroundColor: '#EF4444', borderRadius: 8, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3 },
+  bellBadgeTxt: { fontSize: 9, fontFamily: 'Manrope_700Bold', color: '#fff' },
   // Section
   sec: { marginBottom: 20, marginTop: 6 },
   secRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12, gap: 6 },

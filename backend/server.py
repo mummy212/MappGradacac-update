@@ -518,6 +518,54 @@ async def get_events():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return await db.events.find({"date": {"$gte": today}}, {"_id": 0}).sort("date", 1).to_list(50)
 
+@api_router.get("/notifications-feed")
+async def get_notifications_feed(limit: int = Query(30)):
+    """Unified notifications feed: news + events + active offers, sorted by date."""
+    items = []
+    # News (latest 8)
+    news = await db.news.find({}, {"_id": 0}).sort("created_at", -1).to_list(8)
+    for n in news:
+        items.append({
+            "id": n["id"], "type": "news",
+            "title": n["title"],
+            "body": (n.get("content") or "")[:120],
+            "category": n.get("category", "Vijesti"),
+            "created_at": n.get("created_at", ""),
+            "icon": "newspaper-outline", "color": "#3B82F6",
+        })
+    # Upcoming events (next 8)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    events = await db.events.find({"date": {"$gte": today}}, {"_id": 0}).sort("date", 1).to_list(8)
+    for e in events:
+        loc_label = e.get("location_name") or e.get("location") or "Gradačac"
+        items.append({
+            "id": e["id"], "type": "event",
+            "title": e["title"],
+            "body": f"{e.get('date', '')} · {loc_label}",
+            "category": "Događaj",
+            "created_at": e.get("date", e.get("created_at", "")),
+            "icon": "calendar-outline", "color": "#7C3AED",
+        })
+    # Active offers (latest 8)
+    offers = await db.offers.find({"is_active": True}, {"_id": 0}).sort("created_at", -1).to_list(8)
+    if offers:
+        loc_ids = list({o["location_id"] for o in offers if o.get("location_id")})
+        locs = await db.locations.find({"id": {"$in": loc_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(100)
+        loc_map = {l["id"]: l["name"] for l in locs}
+        for o in offers:
+            loc_name = loc_map.get(o.get("location_id", ""), "Lokacija")
+            items.append({
+                "id": o["id"], "type": "offer",
+                "title": o["title"],
+                "body": f"{loc_name} · -{o.get('discount_percent', 0)}% popust",
+                "category": "Ponuda",
+                "created_at": o.get("created_at", ""),
+                "icon": "pricetag-outline", "color": "#F59E0B",
+                "location_id": o.get("location_id", ""),
+            })
+    items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
+    return items[:limit]
+
 # ===== Menu (Public read) =====
 @api_router.get("/locations/{lid}/menu")
 async def get_menu(lid: str):
