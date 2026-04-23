@@ -17,7 +17,7 @@ export const api = {
 
 export const getImgSrc = (img?: string): string => {
   if (!img) return '';
-  if (img.startsWith('data:') || img.startsWith('http')) return img;
+  if (img.startsWith('data:') || img.startsWith('http') || img.startsWith('/')) return img;
   return `data:image/jpeg;base64,${img}`;
 };
 
