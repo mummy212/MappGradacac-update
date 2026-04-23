@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, MapPin, Tag, Calendar,
-  Bell, Users, Star, LogOut, Map, Phone, Newspaper, Layout, Globe, Shield
+  Bell, Users, Star, LogOut, Map, Phone, Newspaper, Layout, Globe, Shield, Mail
 } from 'lucide-react'
 
 const navItems = [
@@ -24,6 +24,7 @@ const cmsItems = [
 
 const systemItems = [
   { to: '/admins', label: 'Administratori', icon: Shield, end: false },
+  { to: '/contact-messages', label: 'Kontakt Poruke', icon: Mail, end: false },
 ]
 
 export default function Sidebar() {
