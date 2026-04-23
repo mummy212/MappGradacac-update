@@ -127,7 +127,16 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
   - ProfileTab.tsx updated with Loyalty Kartica menu item
 - All features tested: 100% pass rate (28 backend + 11 frontend tests)
 
-### Session 2026-04-22 (Part 4 - Notification Center)
+### Session 2026-04-22 (Part 5 - Targeted Push Notifications)
+- **Targeted Notifications System**: Complete anti-spam notification infrastructure
+  - Backend: `POST /send` now filters by `target_category` + enforces 2/day rate limit (bulk MongoDB pipeline update)
+  - Backend: `GET /push-stats?category=X` returns `targeted_devices`, `quiet_hours`, `current_hour_local`
+  - Backend: New `PUT /push/preferences` endpoint for mobile preference sync
+  - Mobile: New `/notification-settings` screen with master toggle + 3 category toggles (Vijesti/Dogadjaji/Ponude)
+  - Mobile: ProfileTab has "Podešavanja obavještenja" menu item
+  - Mobile: `_layout.tsx` auto-registers push token on startup with preferences
+  - Admin Panel: Notifications page fully rewritten with targeting UI, quiet hours indicator (22:00-08:00), anti-spam toggle, live estimated reach
+  - All 20 backend + all mobile + admin tests PASS (100%)
 - **Notification Center feature**: Complete bell notification system implemented
   - `GET /api/notifications-feed` — unified feed (news + events + active offers), sorted by date
   - New screen `/app/frontend/app/notifications.tsx` — full notification center with type badges, unread dot, relative time, "Mark all read", pull-to-refresh
