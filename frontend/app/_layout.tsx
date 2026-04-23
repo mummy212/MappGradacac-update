@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LanguageProvider } from '../context/LanguageContext';
 
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const PREFS_KEY = 'notif_prefs_v2';
@@ -46,6 +47,7 @@ export default function Layout() {
   }, []);
 
   return (
+    <LanguageProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="admin" />
@@ -57,5 +59,6 @@ export default function Layout() {
       <Stack.Screen name="location/[id]" />
       <Stack.Screen name="attraction/[id]" />
     </Stack>
+    </LanguageProvider>
   );
 }

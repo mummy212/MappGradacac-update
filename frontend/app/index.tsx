@@ -12,20 +12,14 @@ import MapTab from '../components/MapTab';
 import EventsTab from '../components/EventsTab';
 import FavoritesTab from '../components/FavoritesTab';
 import ProfileTab from '../components/ProfileTab';
+import { useLanguage } from '../context/LanguageContext';
 
 const PURPLE = '#7C3AED';
 const GRAY = '#9CA3AF';
 
-const TABS = [
-  { key: 'home', label: 'Početna', icon: 'home-outline', iconActive: 'home' },
-  { key: 'mapa', label: 'Mapa', icon: 'map-outline', iconActive: 'map' },
-  { key: 'rezervacije', label: 'Rezervacije', icon: 'calendar-outline', iconActive: 'calendar' },
-  { key: 'favoriti', label: 'Favoriti', icon: 'heart-outline', iconActive: 'heart' },
-  { key: 'profil', label: 'Profil', icon: 'person-outline', iconActive: 'person' },
-] as const;
-
 export default function Index() {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('home');
   const [mapCategory, setMapCategory] = useState('');
   const [userLoc, setUserLoc] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -58,10 +52,18 @@ export default function Index() {
         <StatusBar barStyle="dark-content" />
         <Ionicons name="map" size={48} color={PURPLE} />
         <ActivityIndicator size="large" color={PURPLE} style={{ marginTop: 20 }} />
-        <Text style={s.loadText}>Gradačac Mapa</Text>
+        <Text style={s.loadText}>{t('common', 'loading')}</Text>
       </View>
     );
   }
+
+  const TABS = [
+    { key: 'home',        label: t('tabs', 'home'),      icon: 'home-outline',     iconActive: 'home' },
+    { key: 'mapa',        label: t('tabs', 'map'),       icon: 'map-outline',      iconActive: 'map' },
+    { key: 'rezervacije', label: t('tabs', 'events'),    icon: 'calendar-outline', iconActive: 'calendar' },
+    { key: 'favoriti',    label: t('tabs', 'favorites'), icon: 'heart-outline',    iconActive: 'heart' },
+    { key: 'profil',      label: t('tabs', 'profile'),   icon: 'person-outline',   iconActive: 'person' },
+  ] as const;
 
   return (
     <View style={s.root}>

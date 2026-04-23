@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../context/LanguageContext';
 
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const PURPLE = '#7C3AED';
@@ -24,10 +25,10 @@ interface NotifItem {
   location_id?: string;
 }
 
-const TYPE_META = {
-  news:  { label: 'Vijest',   bg: '#DBEAFE', text: '#1D4ED8' },
-  event: { label: 'Događaj',  bg: '#EDE9FE', text: PURPLE },
-  offer: { label: 'Ponuda',   bg: '#FEF3C7', text: '#D97706' },
+const TYPE_COLORS = {
+  news:  { bg: '#DBEAFE', text: '#1D4ED8' },
+  event: { bg: '#EDE9FE', text: PURPLE },
+  offer: { bg: '#FEF3C7', text: '#D97706' },
 };
 
 function relTime(dt: string) {
@@ -44,6 +45,7 @@ function relTime(dt: string) {
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useLanguage();
   const [items, setItems] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -95,7 +97,7 @@ export default function NotificationsScreen() {
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </TouchableOpacity>
         <View style={ns.titleWrap}>
-          <Text style={ns.title}>Obavještenja</Text>
+          <Text style={ns.title}>{t('notifications', 'title')}</Text>
           {unreadCount > 0 && (
             <View style={ns.headerBadge}>
               <Text style={ns.headerBadgeTxt}>{unreadCount}</Text>
@@ -105,7 +107,7 @@ export default function NotificationsScreen() {
         {unreadCount > 0 ? (
           <TouchableOpacity style={ns.readAllBtn} onPress={markAllRead}>
             <Ionicons name="checkmark-done" size={15} color={PURPLE} />
-            <Text style={ns.readAllTxt}>Pročitano</Text>
+            <Text style={ns.readAllTxt}>{t('notifications', 'markRead')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={{ width: 88 }} />
@@ -127,12 +129,13 @@ export default function NotificationsScreen() {
               <View style={ns.emptyIcon}>
                 <Ionicons name="notifications-off-outline" size={44} color="#9CA3AF" />
               </View>
-              <Text style={ns.emptyTxt}>Nema obavještenja</Text>
-              <Text style={ns.emptySub}>Vijesti, događaji i ponude pojavit će se ovdje</Text>
+              <Text style={ns.emptyTxt}>{t('notifications', 'empty')}</Text>
+              <Text style={ns.emptySub}>{t('notifications', 'emptySub')}</Text>
             </View>
           ) : (
             items.map(item => {
-              const meta = TYPE_META[item.type] || TYPE_META.news;
+              const meta = TYPE_COLORS[item.type] || TYPE_COLORS.news;
+              const typeLabel = t('notifications', `type${item.type.charAt(0).toUpperCase() + item.type.slice(1)}` as any);
               const fresh = isNew(item);
               return (
                 <TouchableOpacity
@@ -153,7 +156,7 @@ export default function NotificationsScreen() {
                   <View style={ns.content}>
                     <View style={ns.topRow}>
                       <View style={[ns.typeBadge, { backgroundColor: meta.bg }]}>
-                        <Text style={[ns.typeTxt, { color: meta.text }]}>{meta.label}</Text>
+                        <Text style={[ns.typeTxt, { color: meta.text }]}>{typeLabel}</Text>
                       </View>
                       {fresh && <View style={ns.newDot} />}
                       <Text style={ns.timeAgo}>{relTime(item.created_at)}</Text>
@@ -162,7 +165,7 @@ export default function NotificationsScreen() {
                     <Text style={ns.cardBody} numberOfLines={2}>{item.body}</Text>
                     {item.type === 'offer' && item.location_id && (
                       <View style={ns.ctaRow}>
-                        <Text style={ns.ctaTxt}>Pogledaj ponudu</Text>
+                        <Text style={ns.ctaTxt}>{t('notifications', 'viewOffer')}</Text>
                         <Ionicons name="arrow-forward" size={13} color={PURPLE} />
                       </View>
                     )}

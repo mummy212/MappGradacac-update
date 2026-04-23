@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../context/LanguageContext';
 
 const PURPLE = '#7C3AED';
 const FAV_KEY = 'gradacac_favorites';
@@ -13,6 +14,7 @@ const FAV_KEY = 'gradacac_favorites';
 export default function ProfileTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t, language, setLanguage } = useLanguage();
   const [favCount, setFavCount] = useState(0);
   const [tapCount, setTapCount] = useState(0);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,10 +36,10 @@ export default function ProfileTab() {
     tapTimer.current = setTimeout(() => setTapCount(0), 2000);
     if (next >= 5) {
       setTapCount(0);
-      Alert.alert('Panel pristup', 'Odaberite panel:', [
-        { text: 'Admin Panel', onPress: () => router.push('/admin') },
-        { text: 'Biznis Panel', onPress: () => router.push('/business') },
-        { text: 'Zatvori', style: 'cancel' },
+      Alert.alert(t('profile', 'panelTitle'), t('profile', 'panelPrompt'), [
+        { text: t('profile', 'adminPanel'), onPress: () => router.push('/admin') },
+        { text: t('profile', 'businessPanel'), onPress: () => router.push('/business') },
+        { text: t('common', 'close'), style: 'cancel' },
       ]);
     }
   };
@@ -45,43 +47,43 @@ export default function ProfileTab() {
   const menuItems = [
     {
       icon: 'call' as const,
-      label: 'Hitni Brojevi',
-      desc: '112 · Policija · Vatrogasci · Hitna',
+      label: t('profile', 'menuEmergencyLabel'),
+      desc: t('profile', 'menuEmergencyDesc'),
       color: '#EF4444',
       action: () => router.push('/emergency'),
     },
     {
       icon: 'star-outline' as const,
-      label: 'Loyalty Kartica',
-      desc: 'Skupljaj pečate, osvoji nagradu',
+      label: t('profile', 'menuLoyaltyLabel'),
+      desc: t('profile', 'menuLoyaltyDesc'),
       color: '#F59E0B',
       action: () => router.push('/loyalty'),
     },
     {
       icon: 'heart-outline' as const,
-      label: 'Omiljene lokacije',
-      desc: `${favCount} sačuvano`,
+      label: t('profile', 'menuFavoritesLabel'),
+      desc: `${favCount} ${language === 'bs' ? 'sačuvano' : 'saved'}`,
       color: '#EF4444',
       action: () => {},
     },
     {
       icon: 'notifications-outline' as const,
-      label: 'Podešavanja obavještenja',
-      desc: 'Vijesti, događaji, ponude · max 2/dan',
+      label: t('profile', 'menuNotifLabel'),
+      desc: t('profile', 'menuNotifDesc'),
       color: PURPLE,
       action: () => router.push('/notification-settings'),
     },
     {
       icon: 'qr-code-outline' as const,
-      label: 'QR Skener',
-      desc: 'Skeniraj kod i ostvari popust',
+      label: t('profile', 'menuQrLabel'),
+      desc: t('profile', 'menuQrDesc'),
       color: PURPLE,
       action: () => router.push('/qr'),
     },
     {
       icon: 'information-circle-outline' as const,
-      label: 'O aplikaciji',
-      desc: 'Informacije, donacije i kontakt',
+      label: t('profile', 'menuAboutLabel'),
+      desc: t('profile', 'menuAboutDesc'),
       color: '#10B981',
       action: () => router.push('/about'),
     },
@@ -91,7 +93,7 @@ export default function ProfileTab() {
     <View style={[pt.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
       <View style={pt.header}>
-        <Text style={pt.headerTitle}>Profil</Text>
+        <Text style={pt.headerTitle}>{t('profile', 'header')}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -100,8 +102,8 @@ export default function ProfileTab() {
           <View style={pt.logoCircle}>
             <Ionicons name="map" size={42} color={PURPLE} />
           </View>
-          <Text style={pt.brandName}>Gradačac Mapa</Text>
-          <Text style={pt.brandSub}>Vaš vodič kroz grad</Text>
+          <Text style={pt.brandName}>{t('profile', 'brandName')}</Text>
+          <Text style={pt.brandSub}>{t('profile', 'brandSub')}</Text>
         </TouchableOpacity>
 
         {/* Stats row */}
@@ -109,17 +111,44 @@ export default function ProfileTab() {
           <View style={pt.statCard}>
             <Ionicons name="heart" size={22} color="#EF4444" />
             <Text style={pt.statNum}>{favCount}</Text>
-            <Text style={pt.statLbl}>Omiljeno</Text>
+            <Text style={pt.statLbl}>{t('profile', 'statFavorites')}</Text>
           </View>
           <View style={[pt.statCard, pt.statBorder]}>
             <Ionicons name="qr-code" size={22} color={PURPLE} />
             <Text style={pt.statNum}>QR</Text>
-            <Text style={pt.statLbl}>Skener</Text>
+            <Text style={pt.statLbl}>{t('profile', 'statScanner')}</Text>
           </View>
           <View style={pt.statCard}>
             <Ionicons name="location" size={22} color="#10B981" />
             <Text style={pt.statNum}>GPS</Text>
-            <Text style={pt.statLbl}>Navigacija</Text>
+            <Text style={pt.statLbl}>{t('profile', 'statNavigation')}</Text>
+          </View>
+        </View>
+
+        {/* Language Toggle */}
+        <View style={pt.langCard}>
+          <View style={pt.langLeft}>
+            <View style={[pt.menuIcon, { backgroundColor: '#4A90D915' }]}>
+              <Ionicons name="language-outline" size={22} color="#4A90D9" />
+            </View>
+            <View style={pt.menuBody}>
+              <Text style={pt.menuLabel}>{t('profile', 'menuLanguageLabel')}</Text>
+              <Text style={pt.menuDesc}>{t('profile', 'menuLanguageDesc')}</Text>
+            </View>
+          </View>
+          <View style={pt.langToggle}>
+            <TouchableOpacity
+              style={[pt.langBtn, language === 'bs' && pt.langBtnActive]}
+              onPress={() => setLanguage('bs')}
+            >
+              <Text style={[pt.langBtnTxt, language === 'bs' && pt.langBtnTxtActive]}>BS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[pt.langBtn, language === 'en' && pt.langBtnActive]}
+              onPress={() => setLanguage('en')}
+            >
+              <Text style={[pt.langBtnTxt, language === 'en' && pt.langBtnTxtActive]}>EN</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -144,8 +173,8 @@ export default function ProfileTab() {
           ))}
         </View>
 
-        <Text style={pt.version}>Gradačac Mapa v1.0.0</Text>
-        <Text style={pt.versionSub}>© 2026 Sva prava zadržana</Text>
+        <Text style={pt.version}>{t('profile', 'version')}</Text>
+        <Text style={pt.versionSub}>{t('profile', 'copyright')}</Text>
       </ScrollView>
     </View>
   );
@@ -168,11 +197,26 @@ const pt = StyleSheet.create({
   },
   brandName: { fontSize: 24, fontFamily: 'Outfit_700Bold', color: '#111827' },
   brandSub: { fontSize: 14, fontFamily: 'Manrope_400Regular', color: '#6B7280', marginTop: 4 },
-  statsRow: { flexDirection: 'row', backgroundColor: '#fff', marginBottom: 16 },
+  statsRow: { flexDirection: 'row', backgroundColor: '#fff', marginBottom: 12 },
   statCard: { flex: 1, alignItems: 'center', paddingVertical: 20, gap: 5 },
   statBorder: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#F3F4F6' },
   statNum: { fontSize: 18, fontFamily: 'Outfit_700Bold', color: '#111827' },
   statLbl: { fontSize: 11, fontFamily: 'Manrope_500Medium', color: '#9CA3AF' },
+  langCard: {
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 16, marginBottom: 12, padding: 14,
+    backgroundColor: '#fff', borderRadius: 16,
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  langLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  langToggle: { flexDirection: 'row', gap: 6 },
+  langBtn: {
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E7EB',
+  },
+  langBtnActive: { backgroundColor: PURPLE, borderColor: PURPLE },
+  langBtnTxt: { fontSize: 13, fontFamily: 'Outfit_600SemiBold', color: '#9CA3AF' },
+  langBtnTxtActive: { color: '#fff' },
   menuSection: {
     marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 16,
     borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden',
@@ -186,3 +230,4 @@ const pt = StyleSheet.create({
   version: { fontSize: 12, fontFamily: 'Manrope_500Medium', color: '#9CA3AF', textAlign: 'center', marginTop: 28 },
   versionSub: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: '#D1D5DB', textAlign: 'center', marginTop: 4 },
 });
+

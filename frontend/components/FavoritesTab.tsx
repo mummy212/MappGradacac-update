@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../context/LanguageContext';
 
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL;
 const PURPLE = '#7C3AED';
@@ -48,6 +49,7 @@ export default function FavoritesTab({ userLoc }: {
 }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useLanguage();
   const [favIds, setFavIds] = useState<string[]>([]);
   const [locs, setLocs] = useState<Loc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +93,7 @@ export default function FavoritesTab({ userLoc }: {
     <View style={[fv.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
       <View style={fv.header}>
-        <Text style={fv.headerTitle}>Omiljene lokacije</Text>
+        <Text style={fv.headerTitle}>{t('favorites', 'header')}</Text>
         <View style={fv.countBadge}>
           <Text style={fv.countTxt}>{locs.length}</Text>
         </View>
@@ -106,10 +108,8 @@ export default function FavoritesTab({ userLoc }: {
           <View style={fv.emptyIcon}>
             <Ionicons name="heart-outline" size={52} color="#D1D5DB" />
           </View>
-          <Text style={fv.emptyTitle}>Nema omiljenih</Text>
-          <Text style={fv.emptyDesc}>
-            Tapnite srce na detalju lokacije da biste je sačuvali ovdje
-          </Text>
+          <Text style={fv.emptyTitle}>{t('favorites', 'empty')}</Text>
+          <Text style={fv.emptyDesc}>{t('favorites', 'emptyDesc')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -126,7 +126,7 @@ export default function FavoritesTab({ userLoc }: {
                   resizeMode="cover"
                 />
                 <View style={[fv.openBadge, { backgroundColor: loc.is_open !== false ? '#10B981' : '#EF4444' }]}>
-                  <Text style={fv.openTxt}>{loc.is_open !== false ? 'Otv' : 'Zat'}</Text>
+                  <Text style={fv.openTxt}>{loc.is_open !== false ? t('favorites', 'open') : t('favorites', 'closed')}</Text>
                 </View>
               </View>
               <View style={fv.body}>

@@ -6,10 +6,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useLanguage } from '../context/LanguageContext';
 
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL;
 const PURPLE = '#7C3AED';
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
 
 const CAT_COLORS: Record<string, { bg: string; text: string }> = {
   'Vijesti': { bg: '#DBEAFE', text: '#1D4ED8' },
@@ -30,6 +30,7 @@ interface Attraction { id: string; name: string; description?: string; category?
 export default function EventsTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t, tArr } = useLanguage();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [attractions, setAttractions] = useState<Attraction[]>([]);
@@ -59,8 +60,9 @@ export default function EventsTab() {
 
   const formatDate = (dt: string) => {
     try {
+      const MONTHS = tArr('events', 'months');
       const d = new Date(dt);
-      return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+      return `${d.getDate()} ${MONTHS[d.getMonth()] || ''}`;
     } catch { return dt; }
   };
 
@@ -68,7 +70,7 @@ export default function EventsTab() {
     <View style={[et.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
       <View style={et.header}>
-        <Text style={et.headerTitle}>Vijesti i Događaji</Text>
+        <Text style={et.headerTitle}>{t('events', 'headerTitle')}</Text>
       </View>
 
       {loading ? (
@@ -85,12 +87,12 @@ export default function EventsTab() {
           <View style={et.sec}>
             <View style={et.secRow}>
               <Text style={et.secEmoji}>📰</Text>
-              <Text style={et.secTitle}>Gradske Vijesti</Text>
+              <Text style={et.secTitle}>{t('events', 'newsSection')}</Text>
             </View>
             {news.length === 0 ? (
               <View style={et.emptyCard}>
                 <Ionicons name="newspaper-outline" size={44} color="#D1D5DB" />
-                <Text style={et.emptyTxt}>Nema objavljenih vijesti</Text>
+                <Text style={et.emptyTxt}>{t('events', 'noNews')}</Text>
               </View>
             ) : news.slice(0, 5).map(item => {
               const catStyle = CAT_COLORS[item.category] || CAT_COLORS['Ostalo'];
@@ -113,18 +115,19 @@ export default function EventsTab() {
           <View style={et.sec}>
             <View style={et.secRow}>
               <Text style={et.secEmoji}>🎭</Text>
-              <Text style={et.secTitle}>Nadolazeći Događaji</Text>
+              <Text style={et.secTitle}>{t('events', 'eventsSection')}</Text>
             </View>
             {events.length === 0 ? (
               <View style={et.emptyCard}>
                 <Ionicons name="calendar-outline" size={44} color="#D1D5DB" />
-                <Text style={et.emptyTxt}>Nema zakazanih događaja</Text>
-                <Text style={et.emptyDesc}>Pratite ovu sekciju za nadolazeće događaje u Gradačcu</Text>
+                <Text style={et.emptyTxt}>{t('events', 'noEvents')}</Text>
+                <Text style={et.emptyDesc}>{t('events', 'noEventsDesc')}</Text>
               </View>
             ) : events.map(ev => {
+              const MONTHS = tArr('events', 'months');
               const d = new Date(ev.date);
               const day = d.getDate().toString().padStart(2, '0');
-              const month = MONTHS[d.getMonth()];
+              const month = MONTHS[d.getMonth()] || '';
               const isToday = d.toDateString() === new Date().toDateString();
               return (
                 <View key={ev.id} style={et.eventCard}>
@@ -150,7 +153,7 @@ export default function EventsTab() {
                       )}
                     </View>
                   </View>
-                  {isToday && <View style={et.todayBadge}><Text style={et.todayTxt}>DANAS</Text></View>}
+                  {isToday && <View style={et.todayBadge}><Text style={et.todayTxt}>{t('events', 'today')}</Text></View>}
                 </View>
               );
             })}
@@ -161,7 +164,7 @@ export default function EventsTab() {
             <View style={et.sec}>
               <View style={et.secRow}>
                 <Text style={et.secEmoji}>🏛️</Text>
-                <Text style={et.secTitle}>Znamenitosti</Text>
+                <Text style={et.secTitle}>{t('events', 'attractionsSection')}</Text>
               </View>
               {attractions.map(a => (
                 <TouchableOpacity key={a.id} style={et.attrCard} onPress={() => router.push(`/attraction/${a.id}`)}>

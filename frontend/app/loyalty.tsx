@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../context/LanguageContext';
 
 const PURPLE = '#7C3AED';
 const GREEN = '#10B981';
@@ -25,6 +26,7 @@ interface LoyaltyData {
 export default function LoyaltyScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t, language } = useLanguage();
   const [userName, setUserName] = useState('');
   const [inputName, setInputName] = useState('');
   const [showNameModal, setShowNameModal] = useState(false);
@@ -75,7 +77,7 @@ export default function LoyaltyScreen() {
 
   const saveName = async () => {
     const trimmed = inputName.trim();
-    if (!trimmed || trimmed.length < 2) { Alert.alert('Greška', 'Unesite svoje ime (min 2 slova)'); return; }
+    if (!trimmed || trimmed.length < 2) { Alert.alert(t('common','error'), t('loyalty','nameErrorMsg')); return; }
     await AsyncStorage.setItem(LOYALTY_NAME_KEY, trimmed);
     setUserName(trimmed);
     setShowNameModal(false);
@@ -104,8 +106,8 @@ export default function LoyaltyScreen() {
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={s.headerCenter}>
-          <Text style={s.headerTitle}>Loyalty Kartica</Text>
-          <Text style={s.headerSub}>Skupljaj posjete, osvoji nagradu</Text>
+          <Text style={s.headerTitle}>{t('loyalty', 'header')}</Text>
+          <Text style={s.headerSub}>{t('loyalty', 'headerSub')}</Text>
         </View>
         <TouchableOpacity style={s.changeBtn} onPress={() => { setInputName(userName); setShowNameModal(true); }}>
           <Ionicons name="person-outline" size={20} color="#fff" />
@@ -127,11 +129,13 @@ export default function LoyaltyScreen() {
             </View>
             <View style={s.userInfo}>
               <Text style={s.userName}>{userName}</Text>
-              <Text style={s.userSub}>{loyalty?.total_visits || 0} posjeta · {loyalty?.points || 0} bodova</Text>
+              <Text style={s.userSub}>
+                {loyalty?.total_visits || 0} {language === 'bs' ? 'posjeta' : 'visits'} · {loyalty?.points || 0} {language === 'bs' ? 'bodova' : 'points'}
+              </Text>
             </View>
             {isComplete && (
               <View style={s.completeBadge}>
-                <Text style={s.completeTxt}>🏆 NAGRADA</Text>
+                <Text style={s.completeTxt}>{t('loyalty', 'reward')}</Text>
               </View>
             )}
           </View>
@@ -139,8 +143,8 @@ export default function LoyaltyScreen() {
           {/* Stamp Card */}
           <View style={s.cardWrap}>
             <View style={s.cardHeader}>
-              <Text style={s.cardTitle}>🏷️ Kartica vjernosti</Text>
-              <Text style={s.cardSub}>{stamps}/{TOTAL_STAMPS} pečata</Text>
+              <Text style={s.cardTitle}>{t('loyalty', 'cardTitle')}</Text>
+              <Text style={s.cardSub}>{stamps}/{TOTAL_STAMPS} {language === 'bs' ? 'pečata' : 'stamps'}</Text>
             </View>
 
             {/* Stamp Grid */}
@@ -167,33 +171,33 @@ export default function LoyaltyScreen() {
             </View>
             <Text style={s.progressTxt}>
               {isComplete
-                ? '🎉 Čestitamo! Pokaži karticu u lokalu za nagradu!'
-                : `Još ${TOTAL_STAMPS - stamps} posjeta do nagrade`}
+                ? t('loyalty', 'progressComplete')
+                : `${language === 'bs' ? 'Još' : 'Only'} ${TOTAL_STAMPS - stamps} ${language === 'bs' ? 'posjeta do nagrade' : 'more visits to reward'}`}
             </Text>
           </View>
 
           {/* How It Works */}
           <View style={s.howCard}>
-            <Text style={s.howTitle}>Kako funkcionira?</Text>
+            <Text style={s.howTitle}>{t('loyalty', 'howTitle')}</Text>
             <View style={s.howRow}>
               <View style={s.howIcon}><Ionicons name="qr-code-outline" size={22} color={PURPLE} /></View>
               <View style={s.howBody}>
-                <Text style={s.howStep}>1. Skeniraj QR kod</Text>
-                <Text style={s.howDesc}>Skeniraj QR kod na ulazu lokala</Text>
+                <Text style={s.howStep}>{t('loyalty', 'step1Title')}</Text>
+                <Text style={s.howDesc}>{t('loyalty', 'step1Desc')}</Text>
               </View>
             </View>
             <View style={s.howRow}>
               <View style={s.howIcon}><Ionicons name="star-outline" size={22} color={GOLD} /></View>
               <View style={s.howBody}>
-                <Text style={s.howStep}>2. Osvoji pečat</Text>
-                <Text style={s.howDesc}>Svaka posjeta donosi +10 bodova</Text>
+                <Text style={s.howStep}>{t('loyalty', 'step2Title')}</Text>
+                <Text style={s.howDesc}>{t('loyalty', 'step2Desc')}</Text>
               </View>
             </View>
             <View style={s.howRow}>
               <View style={s.howIcon}><Ionicons name="gift-outline" size={22} color={GREEN} /></View>
               <View style={s.howBody}>
-                <Text style={s.howStep}>3. 10 pečata = nagrada</Text>
-                <Text style={s.howDesc}>Pokaži popunjenu karticu za besplatnu nagradu!</Text>
+                <Text style={s.howStep}>{t('loyalty', 'step3Title')}</Text>
+                <Text style={s.howDesc}>{t('loyalty', 'step3Desc')}</Text>
               </View>
             </View>
           </View>
@@ -201,7 +205,7 @@ export default function LoyaltyScreen() {
           {/* Recent Visits */}
           {loyalty && loyalty.visits && loyalty.visits.length > 0 && (
             <View style={s.visitsWrap}>
-              <Text style={s.visitTitle}>Zadnje posjete</Text>
+              <Text style={s.visitTitle}>{t('loyalty', 'visitsTitle')}</Text>
               {loyalty.visits.slice(-5).reverse().map((v, i) => (
                 <View key={i} style={s.visitRow}>
                   <View style={s.visitIcon}>
@@ -221,8 +225,8 @@ export default function LoyaltyScreen() {
           <TouchableOpacity style={s.qrCta} onPress={() => router.push('/qr')}>
             <Ionicons name="qr-code" size={28} color={PURPLE} />
             <View style={s.qrCtaText}>
-              <Text style={s.qrCtaTitle}>Skeniraj QR kod</Text>
-              <Text style={s.qrCtaSub}>Zasluži novi pečat sada!</Text>
+              <Text style={s.qrCtaTitle}>{t('loyalty', 'qrTitle')}</Text>
+              <Text style={s.qrCtaSub}>{t('loyalty', 'qrSub')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color={PURPLE} />
           </TouchableOpacity>
@@ -236,18 +240,18 @@ export default function LoyaltyScreen() {
             <View style={s.modalIcon}>
               <Ionicons name="person-add-outline" size={36} color={PURPLE} />
             </View>
-            <Text style={s.modalTitle}>Vaše ime</Text>
-            <Text style={s.modalDesc}>Unesite ime za vašu loyalty karticu. Ovo se koristi za praćenje vaših posjeta.</Text>
+            <Text style={s.modalTitle}>{t('loyalty', 'modalTitle')}</Text>
+            <Text style={s.modalDesc}>{t('loyalty', 'modalDesc')}</Text>
             <TextInput
               style={s.modalInput}
               value={inputName}
               onChangeText={setInputName}
-              placeholder="Npr. Amer, Amira..."
+              placeholder={t('loyalty', 'modalPlaceholder')}
               placeholderTextColor="#9CA3AF"
               autoFocus
             />
             <TouchableOpacity style={s.modalBtn} onPress={saveName}>
-              <Text style={s.modalBtnTxt}>Potvrdi</Text>
+              <Text style={s.modalBtnTxt}>{t('common', 'confirm')}</Text>
             </TouchableOpacity>
           </View>
         </View>

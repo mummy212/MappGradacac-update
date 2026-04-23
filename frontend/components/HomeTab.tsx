@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../context/LanguageContext';
 
 const NOTIF_LAST_SEEN_KEY = 'notif_last_seen';
 
@@ -65,12 +66,12 @@ interface HeroItem {
 }
 
 const QUICK = [
-  { label: 'Restorani', icon: 'restaurant',  color: '#EF4444', bg: '#FEE2E2', cat: 'restaurant', tab: 'mapa' },
-  { label: 'Događaji',  icon: 'calendar',    color: '#7C3AED', bg: '#EDE9FE', cat: '', tab: 'rezervacije' },
-  { label: 'Hitni br.', icon: 'call',        color: '#EF4444', bg: '#FEF2F2', cat: '', tab: 'emergency' },
-  { label: 'Smještaj',  icon: 'bed',         color: '#3B82F6', bg: '#DBEAFE', cat: 'prenociste', tab: 'mapa' },
-  { label: 'Apoteke',   icon: 'medkit',      color: '#10B981', bg: '#D1FAE5', cat: 'pharmacy', tab: 'mapa' },
-  { label: 'Parkinzi',  icon: 'car-sport',   color: '#4A90D9', bg: '#DBEAFE', cat: 'parking', tab: 'mapa' },
+  { labelKey: 'quickRestaurants', icon: 'restaurant',  color: '#EF4444', bg: '#FEE2E2', cat: 'restaurant', tab: 'mapa' },
+  { labelKey: 'quickEvents',  icon: 'calendar',    color: '#7C3AED', bg: '#EDE9FE', cat: '', tab: 'rezervacije' },
+  { labelKey: 'quickEmergency', icon: 'call',        color: '#EF4444', bg: '#FEF2F2', cat: '', tab: 'emergency' },
+  { labelKey: 'quickAccommodation',  icon: 'bed',         color: '#3B82F6', bg: '#DBEAFE', cat: 'prenociste', tab: 'mapa' },
+  { labelKey: 'quickPharmacies',   icon: 'medkit',      color: '#10B981', bg: '#D1FAE5', cat: 'pharmacy', tab: 'mapa' },
+  { labelKey: 'quickParking',  icon: 'car-sport',   color: '#4A90D9', bg: '#DBEAFE', cat: 'parking', tab: 'mapa' },
 ];
 
 function calcDist(la1: number, lo1: number, la2: number, lo2: number) {
@@ -80,12 +81,13 @@ function calcDist(la1: number, lo1: number, la2: number, lo2: number) {
   return Math.round(R * 2 * Math.asin(Math.sqrt(a)));
 }
 function distStr(m?: number) { return !m ? '' : m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`; }
-function timeLeft(exp?: string) {
+function timeLeft(exp?: string, t?: (s: string, k: string) => string) {
   if (!exp) return '';
   const diff = new Date(exp).getTime() - Date.now();
-  if (diff < 0) return 'Isteklo';
+  if (diff < 0) return t ? t('home', 'expired') : 'Isteklo';
   const h = Math.floor(diff / 3600000);
-  return h < 24 ? `Još ${h}h` : `Još ${Math.floor(h / 24)}d`;
+  if (h < 24) return `${t ? t('home', 'today') : 'JOŠ'} ${h}h`;
+  return `${t ? t('home', 'tomorrow') : 'JOŠ'} ${Math.floor(h / 24)}d`;
 }
 function imgUri(img?: string) {
   if (!img) return undefined;
@@ -93,7 +95,7 @@ function imgUri(img?: string) {
   return `data:image/jpeg;base64,${img}`;
 }
 
-function buildHero(events: EvItem[], offers: Offer[]): HeroItem[] {
+function buildHero(events: EvItem[], offers: Offer[], t: (s: string, k: string) => string): HeroItem[] {
   const now = new Date();
   const tmr = new Date(now.getTime() + 86400000);
   const items: HeroItem[] = [];
@@ -101,17 +103,17 @@ function buildHero(events: EvItem[], offers: Offer[]): HeroItem[] {
     const d = new Date(e.date);
     const time = d.toLocaleTimeString('bs-BA', { hour: '2-digit', minute: '2-digit' });
     let badge = d.toLocaleDateString('bs-BA', { day: 'numeric', month: 'short' }), badgeColor = '#3B82F6';
-    if (d.toDateString() === now.toDateString()) { badge = `DANAS ${time}`; badgeColor = NC.green; }
-    else if (d.toDateString() === tmr.toDateString()) { badge = `SUTRA ${time}`; badgeColor = NC.purple; }
-    items.push({ id: e.id, type: 'event', title: e.title, subtitle: e.location || 'Gradačac', bgColor: HERO_COLORS[i], badge, badgeColor, ctaText: 'Detalji', ctaColor: NC.green });
+    if (d.toDateString() === now.toDateString()) { badge = `${t('home','today')} ${time}`; badgeColor = NC.green; }
+    else if (d.toDateString() === tmr.toDateString()) { badge = `${t('home','tomorrow')} ${time}`; badgeColor = NC.purple; }
+    items.push({ id: e.id, type: 'event', title: e.title, subtitle: e.location || 'Gradačac', bgColor: HERO_COLORS[i], badge, badgeColor, ctaText: t('home','details'), ctaColor: NC.green });
   });
   offers.filter(o => (o.discount_percent || 0) > 0).slice(0, 3).forEach((o, i) => {
     let badge = `-${o.discount_percent}%`, badgeColor = NC.orange;
     if (o.expires_at) {
       const h = Math.floor((new Date(o.expires_at).getTime() - Date.now()) / 3600000);
-      if (h > 0 && h < 24) badge = `JOŠ ${h}H`;
+      if (h > 0 && h < 24) badge = `${t('home','today')} ${h}H`;
     }
-    items.push({ id: o.id, type: 'offer', title: o.title, subtitle: o.location_name || 'Lokacija', bgColor: HERO_COLORS[(i + 3) % HERO_COLORS.length], image: o.location_image, badge, badgeColor, ctaText: 'Iskoristi', ctaColor: NC.orange, locationId: o.location_id, distance: o.distance });
+    items.push({ id: o.id, type: 'offer', title: o.title, subtitle: o.location_name || 'Lokacija', bgColor: HERO_COLORS[(i + 3) % HERO_COLORS.length], image: o.location_image, badge, badgeColor, ctaText: t('home','use'), ctaColor: NC.orange, locationId: o.location_id, distance: o.distance });
   });
   return items.slice(0, 6);
 }
@@ -123,6 +125,7 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const [locs, setLocs] = useState<Loc[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [events, setEvents] = useState<EvItem[]>([]);
@@ -171,7 +174,7 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
 
   useEffect(() => { loadUnreadCount(); }, [loadUnreadCount]);
 
-  const heroItems = buildHero(events, offers);
+  const heroItems = buildHero(events, offers, t);
   const nearbyLocs = locs.filter(l => l.category !== 'parking').slice(0, 8);
   const specials = offers.filter(o => (o.discount_percent || 0) > 0).slice(0, 4);
 
@@ -186,12 +189,12 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
       <View style={hs.header}>
         <TouchableOpacity style={hs.locPill}>
           <Ionicons name="location" size={14} color={NC.purple} />
-          <Text style={hs.locTxt}>Gradačac</Text>
+          <Text style={hs.locTxt}>{t('home', 'locationPill')}</Text>
           <Ionicons name="chevron-down" size={12} color={NC.purple} />
         </TouchableOpacity>
         <TouchableOpacity style={hs.searchBar} onPress={() => setActiveTab('mapa')}>
           <Ionicons name="search-outline" size={15} color={NC.textMute} />
-          <Text style={hs.searchPh}>Pretraži lokacije, ponude...</Text>
+          <Text style={hs.searchPh}>{t('home', 'searchPlaceholder')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={hs.bellBtn} onPress={() => router.push('/notifications' as any)}>
           <Ionicons name="notifications-outline" size={22} color={NC.text} />
@@ -208,9 +211,9 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
         <View style={hs.sec}>
           <View style={hs.secRow}>
             <Text style={hs.secEmoji}>🔥</Text>
-            <Text style={hs.secTitle}>Danas u Gradačcu</Text>
+            <Text style={hs.secTitle}>{t('home', 'todayTitle')}</Text>
             <View style={{ flex: 1 }} />
-            <TouchableOpacity><Text style={hs.secLink}>Sve {'>'}</Text></TouchableOpacity>
+            <TouchableOpacity><Text style={hs.secLink}>{t('common', 'seeAll')}</Text></TouchableOpacity>
           </View>
           <FlatList
             data={heroItems} keyExtractor={i => i.id} horizontal showsHorizontalScrollIndicator={false}
@@ -261,10 +264,10 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
         <View style={hs.sec}>
           <View style={hs.secRow}>
             <Ionicons name="navigate" size={16} color={NC.text} />
-            <Text style={hs.secTitle}>Blizu tebe</Text>
+            <Text style={hs.secTitle}>{t('home', 'nearbyTitle')}</Text>
             <View style={{ flex: 1 }} />
             <TouchableOpacity onPress={() => setActiveTab('mapa')}>
-              <Text style={hs.secLink}>Mapa {'>'}</Text>
+              <Text style={hs.secLink}>{t('home', 'mapLink')}</Text>
             </TouchableOpacity>
           </View>
           <FlatList
@@ -281,7 +284,7 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
                       resizeMode="cover"
                     />
                     <View style={[hs.nearBadge, { backgroundColor: loc.is_open !== false ? NC.green : NC.orange }]}>
-                      <Text style={hs.nearBadgeTxt}>{loc.is_open !== false ? 'OTVORENO' : 'ZATVORENO'}</Text>
+                      <Text style={hs.nearBadgeTxt}>{loc.is_open !== false ? t('home','open') : t('home','closed')}</Text>
                     </View>
                   </View>
                   <View style={hs.nearInfo}>
@@ -308,9 +311,9 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
         <View style={hs.sec}>
           <View style={hs.secRow}>
             <Text style={hs.secEmoji}>🎯</Text>
-            <Text style={hs.secTitle}>Posebne ponude</Text>
+            <Text style={hs.secTitle}>{t('home', 'specialsTitle')}</Text>
             <View style={{ flex: 1 }} />
-            <TouchableOpacity><Text style={hs.secLink}>Sve {'>'}</Text></TouchableOpacity>
+            <TouchableOpacity><Text style={hs.secLink}>{t('common', 'seeAll')}</Text></TouchableOpacity>
           </View>
           <View style={hs.specialsList}>
             {specials.map((o, idx) => (
@@ -353,12 +356,12 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
       <View style={hs.sec}>
         <View style={hs.secRow}>
           <Text style={hs.secEmoji}>⚡</Text>
-          <Text style={hs.secTitle}>Brzi pristup</Text>
+          <Text style={hs.secTitle}>{t('home', 'quickAccessTitle')}</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 18 }}>
           {QUICK.map(q => (
             <TouchableOpacity
-              key={q.label} style={hs.quickItem}
+              key={q.labelKey} style={hs.quickItem}
               onPress={() => {
                 if (q.tab === 'emergency') { router.push('/emergency'); return; }
                 setActiveTab(q.tab || 'mapa');
@@ -368,7 +371,7 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
               <View style={[hs.quickIcon, { backgroundColor: q.bg }]}>
                 <Ionicons name={q.icon as any} size={24} color={q.color} />
               </View>
-              <Text style={hs.quickLabel}>{q.label}</Text>
+              <Text style={hs.quickLabel}>{t('home', q.labelKey)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -378,12 +381,12 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
       <TouchableOpacity style={hs.qrBanner} onPress={() => router.push('/qr')} activeOpacity={0.92}>
         <View style={hs.qrIconBox}><Ionicons name="qr-code" size={32} color={NC.purple} /></View>
         <View style={hs.qrText}>
-          <Text style={hs.qrTitle}>Skeniraj QR i ostvari popuste</Text>
-          <Text style={hs.qrSub}>Otključaj posebne ponude u lokalima!</Text>
+          <Text style={hs.qrTitle}>{t('home', 'qrBannerTitle')}</Text>
+          <Text style={hs.qrSub}>{t('home', 'qrBannerSub')}</Text>
         </View>
         <View style={hs.qrBtn}>
           <Ionicons name="qr-code-outline" size={13} color="#fff" />
-          <Text style={hs.qrBtnTxt}>Skeniraj</Text>
+          <Text style={hs.qrBtnTxt}>{t('home', 'qrScan')}</Text>
         </View>
       </TouchableOpacity>
     </ScrollView>

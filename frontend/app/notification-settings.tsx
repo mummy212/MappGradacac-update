@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { useLanguage } from '../context/LanguageContext';
 
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const PURPLE = '#7C3AED';
@@ -23,13 +24,10 @@ const DEFAULT_PREFS: NotifPrefs = {
   categories: ['news', 'events', 'offers'],
 };
 
-const CAT_OPTIONS = [
-  { id: 'news',   label: 'Vijesti',   icon: 'newspaper-outline',  color: '#3B82F6', bg: '#DBEAFE',
-    desc: 'Gradske vijesti i obavještenja' },
-  { id: 'events', label: 'Događaji',  icon: 'calendar-outline',   color: PURPLE,    bg: '#EDE9FE',
-    desc: 'Predstojeći događaji u gradu' },
-  { id: 'offers', label: 'Ponude',    icon: 'pricetag-outline',   color: '#F59E0B', bg: '#FEF3C7',
-    desc: 'Popusti i posebne ponude' },
+const CAT_ICONS = [
+  { id: 'news',   icon: 'newspaper-outline',  color: '#3B82F6', bg: '#DBEAFE' },
+  { id: 'events', icon: 'calendar-outline',   color: PURPLE,    bg: '#EDE9FE' },
+  { id: 'offers', icon: 'pricetag-outline',   color: '#F59E0B', bg: '#FEF3C7' },
 ];
 
 async function getExpoPushToken(): Promise<string | null> {
@@ -57,9 +55,19 @@ async function syncWithBackend(prefs: NotifPrefs) {
 export default function NotificationSettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useLanguage();
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
   const [saving, setSaving] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+
+  const CAT_OPTIONS = [
+    { id: 'news',   label: t('notifSettings', 'catNews'),   icon: 'newspaper-outline',  color: '#3B82F6', bg: '#DBEAFE',
+      desc: t('notifSettings', 'catNewsDesc') },
+    { id: 'events', label: t('notifSettings', 'catEvents'),  icon: 'calendar-outline',   color: PURPLE,    bg: '#EDE9FE',
+      desc: t('notifSettings', 'catEventsDesc') },
+    { id: 'offers', label: t('notifSettings', 'catOffers'),    icon: 'pricetag-outline',   color: '#F59E0B', bg: '#FEF3C7',
+      desc: t('notifSettings', 'catOffersDesc') },
+  ];
 
   useEffect(() => {
     (async () => {
@@ -78,7 +86,7 @@ export default function NotificationSettingsScreen() {
     const { status } = await Notifications.requestPermissionsAsync();
     setHasPermission(status === 'granted');
     if (status !== 'granted') {
-      Alert.alert('Dozvola odbijena', 'Dozvoli notifikacije u Podešavanjima telefona da bi primao/la obavještenja.');
+      Alert.alert(t('notifSettings', 'permDeniedTitle'), t('notifSettings', 'permDeniedMsg'));
     }
   };
 
@@ -97,15 +105,15 @@ export default function NotificationSettingsScreen() {
 
   const save = async () => {
     if (prefs.enabled && prefs.categories.length === 0) {
-      Alert.alert('Odaberi bar jednu kategoriju', 'Mora biti odabrana bar jedna kategorija obavještenja.');
+      Alert.alert(t('notifSettings', 'noCatTitle'), t('notifSettings', 'noCatMsg'));
       return;
     }
     setSaving(true);
     await AsyncStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(prefs));
     await syncWithBackend(prefs);
     setSaving(false);
-    Alert.alert('Sačuvano ✓', 'Podešavanja notifikacija su ažurirana.', [
-      { text: 'OK', onPress: () => router.back() },
+    Alert.alert(t('notifSettings', 'savedTitle'), t('notifSettings', 'savedMsg'), [
+      { text: t('common', 'ok'), onPress: () => router.back() },
     ]);
   };
 
@@ -120,7 +128,7 @@ export default function NotificationSettingsScreen() {
         <TouchableOpacity style={ns.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </TouchableOpacity>
-        <Text style={ns.title}>Podešavanja obavještenja</Text>
+        <Text style={ns.title}>{t('notifSettings', 'title')}</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -131,8 +139,8 @@ export default function NotificationSettingsScreen() {
           <TouchableOpacity style={ns.permBanner} onPress={requestPermission}>
             <Ionicons name="notifications-off" size={22} color="#D97706" />
             <View style={{ flex: 1 }}>
-              <Text style={ns.permTitle}>Notifikacije nisu dozvoljene</Text>
-              <Text style={ns.permSub}>Tapni ovdje da dozvoliš</Text>
+              <Text style={ns.permTitle}>{t('notifSettings', 'permBannerTitle')}</Text>
+              <Text style={ns.permSub}>{t('notifSettings', 'permBannerSub')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#D97706" />
           </TouchableOpacity>
@@ -140,14 +148,14 @@ export default function NotificationSettingsScreen() {
 
         {/* Master toggle */}
         <View style={ns.section}>
-          <Text style={ns.sectionTitle}>Opće podešavanja</Text>
+          <Text style={ns.sectionTitle}>{t('notifSettings', 'generalSection')}</Text>
           <View style={ns.card}>
             <View style={[ns.iconWrap, { backgroundColor: '#EDE9FE' }]}>
               <Ionicons name="notifications" size={22} color={PURPLE} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={ns.rowLabel}>Primaj obavještenja</Text>
-              <Text style={ns.rowSub}>Uključi ili isključi sve notifikacije</Text>
+              <Text style={ns.rowLabel}>{t('notifSettings', 'masterToggleLabel')}</Text>
+              <Text style={ns.rowSub}>{t('notifSettings', 'masterToggleSub')}</Text>
             </View>
             <Switch
               value={prefs.enabled}
@@ -160,7 +168,7 @@ export default function NotificationSettingsScreen() {
 
         {/* Category toggles */}
         <View style={ns.section}>
-          <Text style={ns.sectionTitle}>Kategorije</Text>
+          <Text style={ns.sectionTitle}>{t('notifSettings', 'categoriesSection')}</Text>
           <View style={[ns.card, { flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
             {CAT_OPTIONS.map((opt, idx) => (
               <TouchableOpacity
@@ -179,7 +187,7 @@ export default function NotificationSettingsScreen() {
                 </View>
                 <Switch
                   value={prefs.enabled && prefs.categories.includes(opt.id)}
-                  onValueChange={() => prefs.enabled && toggleCategory(opt.id)}
+                  onValueChange={() => { if (prefs.enabled) toggleCategory(opt.id); }}
                   disabled={!prefs.enabled}
                   trackColor={{ false: '#E5E7EB', true: opt.color + '70' }}
                   thumbColor={prefs.enabled && prefs.categories.includes(opt.id) ? opt.color : '#9CA3AF'}
@@ -194,11 +202,11 @@ export default function NotificationSettingsScreen() {
           <View style={ns.infoCard}>
             <Ionicons name="shield-checkmark-outline" size={22} color="#10B981" style={{ marginTop: 2 }} />
             <View style={{ flex: 1 }}>
-              <Text style={ns.infoTitle}>Bez neželjenih obavještenja</Text>
+              <Text style={ns.infoTitle}>{t('notifSettings', 'antispamTitle')}</Text>
               <Text style={ns.infoText}>
-                • Max. <Text style={ns.infoBold}>2 obavještenja dnevno</Text> po korisniku{'\n'}
-                • Nema slanja između <Text style={ns.infoBold}>22:00 – 08:00</Text>{'\n'}
-                • Samo sadržaj koji si odabrao/la
+                {t('notifSettings', 'antispamLine1')}{'\n'}
+                {t('notifSettings', 'antispamLine2')}{'\n'}
+                {t('notifSettings', 'antispamLine3')}
               </Text>
             </View>
           </View>
@@ -209,7 +217,7 @@ export default function NotificationSettingsScreen() {
           <TouchableOpacity style={ns.saveBtn} onPress={save} disabled={saving} activeOpacity={0.85}>
             {saving
               ? <ActivityIndicator color="#fff" size="small" />
-              : <><Ionicons name="checkmark" size={18} color="#fff" /><Text style={ns.saveTxt}>Sačuvaj podešavanja</Text></>
+              : <><Ionicons name="checkmark" size={18} color="#fff" /><Text style={ns.saveTxt}>{t('notifSettings', 'saveBtn')}</Text></>
             }
           </TouchableOpacity>
         </View>
