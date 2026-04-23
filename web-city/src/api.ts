@@ -7,6 +7,7 @@ export const api = {
   location: (id: string) => axios.get(`${BASE}/locations/${id}`).then(r => r.data),
   categories: () => axios.get(`${BASE}/categories`).then(r => r.data),
   events: () => axios.get(`${BASE}/events`).then(r => r.data),
+  event: (id: string) => axios.get(`${BASE}/events/${id}`).then(r => r.data),
   news: () => axios.get(`${BASE}/news`).then(r => r.data),
   offers: () => axios.get(`${BASE}/offers`).then(r => r.data),
   attractions: () => axios.get(`${BASE}/tourism/attractions`).then(r => r.data),

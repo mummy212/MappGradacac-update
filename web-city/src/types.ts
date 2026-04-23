@@ -30,11 +30,18 @@ export interface CityEvent {
   id: string;
   title: string;
   description: string;
+  short_description?: string;
+  content_html?: string;
   date: string;
   time?: string;
   location?: string;
   location_name?: string;
   image?: string;
+  images?: string[];
+  ticket_price?: string;
+  organizer?: string;
+  website?: string;
+  ticket_url?: string;
 }
 
 export interface NewsItem {

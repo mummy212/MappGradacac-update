@@ -123,6 +123,13 @@ class Event(BaseModel):
     date: str; time: Optional[str] = None
     location_id: Optional[str] = None
     image: Optional[str] = None
+    images: list = []
+    content_html: str = ""
+    short_description: str = ""
+    ticket_price: str = ""
+    organizer: str = ""
+    website: str = ""
+    ticket_url: str = ""
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -131,6 +138,13 @@ class EventCreate(BaseModel):
     date: str; time: Optional[str] = None
     location_id: Optional[str] = None
     image: Optional[str] = None
+    images: list = []
+    content_html: str = ""
+    short_description: str = ""
+    ticket_price: str = ""
+    organizer: str = ""
+    website: str = ""
+    ticket_url: str = ""
 
 class MenuItem(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -536,6 +550,12 @@ async def get_events():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return await db.events.find({"date": {"$gte": today}}, {"_id": 0}).sort("date", 1).to_list(50)
 
+@api_router.get("/events/{eid}")
+async def get_event(eid: str):
+    ev = await db.events.find_one({"id": eid}, {"_id": 0})
+    if not ev: raise HTTPException(404, "Event not found")
+    return ev
+
 @api_router.get("/notifications-feed")
 async def get_notifications_feed(limit: int = Query(30)):
     """Unified notifications feed: news + events + active offers, sorted by date."""
@@ -894,7 +914,10 @@ async def admin_create_event(inp: EventCreate, user: dict = Depends(require_busi
 
 @api_router.put("/admin/events/{eid}")
 async def admin_update_event(eid: str, inp: dict, user: dict = Depends(require_business_or_admin)):
-    allowed = {"title", "description", "location_name", "date", "time", "location_id", "image"}
+    allowed = {
+        "title", "description", "location_name", "date", "time", "location_id", "image",
+        "images", "content_html", "short_description", "ticket_price", "organizer", "website", "ticket_url"
+    }
     upd = {k: v for k, v in inp.items() if k in allowed}
     if not upd:
         raise HTTPException(400, "Nothing to update")

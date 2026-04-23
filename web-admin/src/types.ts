@@ -33,11 +33,18 @@ export interface Event {
   id: string
   title: string
   description: string
+  short_description?: string
+  content_html?: string
   location_name: string
   date: string
   time?: string
   location_id?: string
   image?: string
+  images?: string[]
+  ticket_price?: string
+  organizer?: string
+  website?: string
+  ticket_url?: string
 }
 
 export interface Attraction {
