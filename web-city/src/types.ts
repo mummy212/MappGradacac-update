@@ -4,15 +4,19 @@ export interface Location {
   description?: string;
   address?: string;
   phone?: string;
-  lat?: number;
-  lng?: number;
+  latitude?: number;
+  longitude?: number;
   category: string;
   images?: string[];
-  rating?: number;
-  rating_count?: number;
+  avg_rating?: number;
+  review_count?: number;
   is_open?: boolean;
-  tags?: string[];
+  service_tags?: string[];
   price_level?: number;
+  working_hours?: string;
+  is_premium?: boolean;
+  total_spots?: number;
+  is_free_parking?: boolean;
 }
 
 export interface Category {
@@ -54,10 +58,15 @@ export interface Attraction {
 
 export interface Emergency {
   id: string;
+  section: string;
+  section_emoji?: string;
   name: string;
-  phone: string;
-  description?: string;
-  category?: string;
+  number: string;
+  icon?: string;
+  color?: string;
+  bg?: string;
+  note?: string;
+  order?: number;
 }
 
 export interface Offer {
@@ -74,8 +83,8 @@ export interface Offer {
 
 export interface Review {
   id: string;
-  rating: number;
+  stars: number;
   comment?: string;
   created_at: string;
-  author?: string;
+  author_name?: string;
 }

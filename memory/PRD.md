@@ -24,6 +24,7 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
 - Backend API: /api/* (port 8001)
 - Admin Panel: /api/admin-panel
 - Business Panel: /api/business-panel
+- **Web City Guide (novo): /api/city/**
 
 ### Key Files
 - `/app/backend/server.py` - FastAPI main (~1000 lines)
@@ -151,8 +152,17 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
 
 ## Next Tasks
 - [x] Multi-language Support (BS/EN) (P0) - COMPLETED 2026-04-23
+- [x] Web City Guide (P0) - COMPLETED 2026-04-23 — dostupno na /api/city/
 - [ ] Stripe subscription integration (P1)
 - [ ] Loyalty card push reminders (P2)
+
+### Session 2026-04-23 - Web City Guide (Faza 3)
+- Deployed React+Vite+Tailwind public web app at `/api/city/`
+- **Stranice**: Home (hero + stats + kategorije), Lokacije (grid 23 lokacija sa filterom/pretragom), Detalj lokacije (mapa OpenStreetMap, zvjezdice, tagovi, recenzije, poziv, navigacija), Dogadjaji, Vijesti (filter po kategorijama), Znamenitosti, Hitni Brojevi (sa 112 crvenim dugmetom)
+- **Ispravke**: pogrešan kanton (Unsko-sanski → Tuzlanski), API polja (avg_rating vs rating, latitude vs lat, service_tags vs tags, author_name vs author, stars vs rating za recenzije, section/number za hitne kontakte)
+- Vite base path usklađen sa backend rutom: `/api/city/`
+- SPA fallback implementiran za client-side routing
+- Sve stranice testirane screenshotima — vizualno savršeno
 
 ### Session 2026-04-23 - Multi-language Support
 - Created `/app/frontend/i18n/translations.ts` - Full BS/EN dictionary (11 sections, 100+ keys)

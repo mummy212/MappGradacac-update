@@ -5,7 +5,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
     plugins: [react()],
-    base: env.VITE_BASE_PATH || '/api/web-city/',
+    base: env.VITE_BASE_PATH || '/api/city/',
     server: {
       port: 3002,
       proxy: {

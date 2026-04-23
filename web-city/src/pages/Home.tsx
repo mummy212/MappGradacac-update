@@ -71,7 +71,7 @@ export default function Home() {
             {/* Location pill */}
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white rounded-full px-5 py-2 text-sm font-600 mb-6 border border-white/30">
               <MapPin size={15} className="animate-bounce" />
-              Bosna i Hercegovina — Unsko-sanski kanton
+              Bosna i Hercegovina — Tuzlanski kanton
             </div>
 
             <h1 className="font-heading font-800 text-white text-4xl md:text-6xl leading-tight mb-4">

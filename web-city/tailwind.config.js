@@ -21,6 +21,12 @@ export default {
       boxShadow: {
         card: '0 2px 12px rgba(0,0,0,0.08)',
         hover: '0 8px 28px rgba(0,0,0,0.14)',
+      },
+      fontWeight: {
+        '500': '500',
+        '600': '600',
+        '700': '700',
+        '800': '800',
       }
     }
   },

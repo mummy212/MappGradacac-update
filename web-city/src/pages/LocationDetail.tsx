@@ -83,17 +83,17 @@ export default function LocationDetail() {
               </span>
             </div>
             <h1 className="font-heading font-700 text-gray-900 text-3xl mb-2">{loc.name}</h1>
-            {loc.rating && (
+            {loc.avg_rating ? (
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex">
                   {[1,2,3,4,5].map(s => (
-                    <Star key={s} size={18} className={s <= Math.round(loc.rating!) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'} />
+                    <Star key={s} size={18} className={s <= Math.round(loc.avg_rating!) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'} />
                   ))}
                 </div>
-                <span className="font-600 text-gray-800">{loc.rating.toFixed(1)}</span>
-                {loc.rating_count && <span className="text-gray-400 text-sm">({loc.rating_count} recenzija)</span>}
+                <span className="font-600 text-gray-800">{loc.avg_rating.toFixed(1)}</span>
+                {loc.review_count && <span className="text-gray-400 text-sm">({loc.review_count} recenzija)</span>}
               </div>
-            )}
+            ) : null}
             {loc.description && (
               <p className="text-gray-600 leading-relaxed mb-6 text-base">{loc.description}</p>
             )}
@@ -130,8 +130,8 @@ export default function LocationDetail() {
                 : reviews.map((r, i) => (
                     <div key={i} className="border-b border-gray-100 pb-4 mb-4 last:border-0 last:mb-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <div className="flex">{[1,2,3,4,5].map(s => <Star key={s} size={14} className={s<=r.rating?'text-amber-400 fill-amber-400':'text-gray-200 fill-gray-200'} />)}</div>
-                        {r.author && <span className="font-600 text-sm text-gray-700">{r.author}</span>}
+                        <div className="flex">{[1,2,3,4,5].map(s => <Star key={s} size={14} className={s<=r.stars?'text-amber-400 fill-amber-400':'text-gray-200 fill-gray-200'} />)}</div>
+                        {r.author_name && <span className="font-600 text-sm text-gray-700">{r.author_name}</span>}
                         <span className="text-xs text-gray-400 ml-auto">{formatDate(r.created_at)}</span>
                       </div>
                       {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
@@ -173,8 +173,8 @@ export default function LocationDetail() {
                     <Phone size={16} /> Pozovi
                   </a>
                 )}
-                {loc.lat && loc.lng && (
-                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`}
+                {loc.latitude && loc.longitude && (
+                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${loc.latitude},${loc.longitude}`}
                     target="_blank" rel="noopener"
                     className="btn-outline w-full justify-center text-sm py-3">
                     <Navigation size={16} /> Navigiraj
@@ -184,11 +184,11 @@ export default function LocationDetail() {
             </div>
 
             {/* Map mini */}
-            {loc.lat && loc.lng && (
+            {loc.latitude && loc.longitude && (
               <div className="card overflow-hidden">
                 <iframe
                   title={`Mapa - ${loc.name}`}
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${loc.lng-0.01}%2C${loc.lat-0.01}%2C${loc.lng+0.01}%2C${loc.lat+0.01}&layer=mapnik&marker=${loc.lat}%2C${loc.lng}`}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${loc.longitude-0.01}%2C${loc.latitude-0.01}%2C${loc.longitude+0.01}%2C${loc.latitude+0.01}&layer=mapnik&marker=${loc.latitude}%2C${loc.longitude}`}
                   className="w-full"
                   style={{ height: '220px', border: 0 }}
                   loading="lazy"
@@ -197,11 +197,11 @@ export default function LocationDetail() {
             )}
 
             {/* Tags */}
-            {loc.tags && loc.tags.length > 0 && (
+            {loc.service_tags && loc.service_tags.length > 0 && (
               <div className="card p-5">
                 <h4 className="font-heading font-600 text-sm mb-3">Tagovi</h4>
                 <div className="flex flex-wrap gap-2">
-                  {loc.tags.map(tag => (
+                  {loc.service_tags.map(tag => (
                     <Link key={tag} to={`/lokacije?q=${tag}`}
                       className="badge bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors text-xs">{tag}</Link>
                   ))}

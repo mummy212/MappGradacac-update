@@ -42,7 +42,7 @@ export default function Locations() {
           l.name.toLowerCase().includes(q) ||
           (l.description || '').toLowerCase().includes(q) ||
           (l.address || '').toLowerCase().includes(q) ||
-          (l.tags || []).some(t => t.toLowerCase().includes(q))
+          (l.service_tags || []).some((t: string) => t.toLowerCase().includes(q))
         );
       }
       return true;

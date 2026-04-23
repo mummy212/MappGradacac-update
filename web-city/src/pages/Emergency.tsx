@@ -5,10 +5,10 @@ import { Emergency as EmergencyType } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const FALLBACK: EmergencyType[] = [
-  { id: '1', name: 'Opći hitni poziv', phone: '112', description: 'Policija, vatrogasci, hitna pomoć', category: 'Hitno' },
-  { id: '2', name: 'Policija', phone: '122', description: 'MUP Bosansko-podrinjski kanton', category: 'Policija' },
-  { id: '3', name: 'Vatrogasci', phone: '123', description: 'Vatrogasna služba Gradačac', category: 'Vatrogasci' },
-  { id: '4', name: 'Hitna pomoć', phone: '124', description: 'Dom zdravlja Gradačac', category: 'Zdravlje' },
+  { id: '1', section: 'Hitni Servisi', section_emoji: '🚨', name: 'Opći hitni broj', number: '112', note: 'Policija, vatrogasci, hitna pomoć' },
+  { id: '2', section: 'Hitni Servisi', section_emoji: '🚨', name: 'Policija', number: '122' },
+  { id: '3', section: 'Hitni Servisi', section_emoji: '🚨', name: 'Vatrogasci', number: '123' },
+  { id: '4', section: 'Hitni Servisi', section_emoji: '🚨', name: 'Hitna pomoć', number: '124' },
 ];
 
 const CAT_COLORS: Record<string, { bg: string; icon: string }> = {
@@ -32,8 +32,9 @@ export default function Emergency() {
 
   if (loading) return <LoadingSpinner />;
 
+  // Group by section
   const groups = contacts.reduce<Record<string, EmergencyType[]>>((acc, c) => {
-    const g = c.category || 'Ostalo';
+    const g = c.section || 'Ostalo';
     if (!acc[g]) acc[g] = [];
     acc[g].push(c);
     return acc;
@@ -66,10 +67,10 @@ export default function Emergency() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-heading font-600 text-gray-900">{c.name}</div>
-                  {c.description && <div className="text-sm text-gray-500 mt-0.5 line-clamp-1">{c.description}</div>}
-                  <a href={`tel:${c.phone}`} className="font-heading font-700 text-primary-600 text-xl mt-1 block hover:text-primary-700">{c.phone}</a>
+                  {c.note && <div className="text-sm text-gray-500 mt-0.5 line-clamp-1">{c.note}</div>}
+                  <a href={`tel:${c.number}`} className="font-heading font-700 text-primary-600 text-xl mt-1 block hover:text-primary-700">{c.number}</a>
                 </div>
-                <a href={`tel:${c.phone}`}
+                <a href={`tel:${c.number}`}
                   className="flex-shrink-0 bg-primary-600 text-white p-3 rounded-xl hover:bg-primary-700 transition-colors shadow-sm">
                   <Phone size={20} />
                 </a>

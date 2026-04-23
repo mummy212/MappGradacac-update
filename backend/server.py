@@ -1209,6 +1209,30 @@ async def serve_business_panel(path: str):
         return FileResponse(index)
     return HTMLResponse("<h1>Not found</h1>")
 
+# ===== City Web Guide (Static Files) =====
+CITY_WEB_DIR = Path(__file__).parent / "web-city-dist"
+
+@api_router.get("/city", include_in_schema=False)
+@api_router.get("/city/", include_in_schema=False)
+async def serve_city_root():
+    index = CITY_WEB_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return HTMLResponse("<h1>City web guide nije izgrađen.</h1>")
+
+@api_router.get("/city/{path:path}", include_in_schema=False)
+async def serve_city_web(path: str):
+    if not CITY_WEB_DIR.exists():
+        return HTMLResponse("<h1>City web guide nije izgrađen.</h1>")
+    file_path = CITY_WEB_DIR / path
+    if file_path.exists() and file_path.is_file():
+        return FileResponse(file_path)
+    # SPA fallback: return index.html for all routes
+    index = CITY_WEB_DIR / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return HTMLResponse("<h1>Not found</h1>")
+
 app.include_router(api_router)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

@@ -46,11 +46,11 @@ export default function LocationCard({ loc }: { loc: Location }) {
           </p>
         )}
         <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-50">
-          {loc.rating ? (
+          {loc.avg_rating ? (
             <span className="flex items-center gap-1 text-sm">
               <Star size={14} className="text-amber-400 fill-amber-400" />
-              <span className="font-600 text-gray-800">{loc.rating.toFixed(1)}</span>
-              {loc.rating_count && <span className="text-gray-400 text-xs">({loc.rating_count})</span>}
+              <span className="font-600 text-gray-800">{loc.avg_rating.toFixed(1)}</span>
+              {loc.review_count && <span className="text-gray-400 text-xs">({loc.review_count})</span>}
             </span>
           ) : <span />}
           {loc.phone && (
