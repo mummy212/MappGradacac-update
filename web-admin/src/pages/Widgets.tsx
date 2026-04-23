@@ -17,6 +17,7 @@ const WIDGET_TYPES = [
   { key: 'text_block', label: 'Tekst Blok', icon: <Type size={15} /> },
   { key: 'featured_locations', label: 'Istaknute Lokacije', icon: <MapPin size={15} /> },
   { key: 'featured_events', label: 'Istaknuti Eventi', icon: <Calendar size={15} /> },
+  { key: 'stats_bar', label: 'Statistike (Stats Bar)', icon: <Tag size={15} /> },
   { key: 'promo_card', label: 'Promo Kartica', icon: <Tag size={15} /> },
   { key: 'html_block', label: 'HTML Blok', icon: <Code size={15} /> },
 ]
@@ -34,6 +35,7 @@ interface Widget {
   bg_color?: string
   text_color?: string
   location_ids?: string[]
+  event_ids?: string[]
   is_active: boolean
   order: number
 }
@@ -50,6 +52,7 @@ const EMPTY: Partial<Widget> = {
   bg_color: '#7C3AED',
   text_color: '#FFFFFF',
   location_ids: [],
+  event_ids: [],
   is_active: true,
   order: 0,
 }
@@ -62,17 +65,20 @@ export default function Widgets() {
   const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [locations, setLocations] = useState<{id:string,name:string}[]>([])
+  const [events, setEvents] = useState<{id:string,title:string,date?:string}[]>([])
   const [activePos, setActivePos] = useState('home_top')
 
   const load = async () => {
     setLoading(true)
     try {
-      const [wr, lr] = await Promise.all([
+      const [wr, lr, er] = await Promise.all([
         api.get('/admin/widgets'),
         api.get('/locations'),
+        api.get('/events'),
       ])
       setWidgets(wr.data)
       setLocations(lr.data)
+      setEvents(er.data)
     } finally { setLoading(false) }
   }
 
@@ -139,6 +145,14 @@ export default function Widgets() {
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Layout size={22} /> Moduli / Pozicije</h1>
           <p className="text-slate-500 text-sm mt-0.5">Upravljaj sadržajem na pojedinim pozicijama web stranice</p>
         </div>
+        <a
+          href="/api/city/"
+          target="_blank"
+          rel="noopener"
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          <Eye size={16} /> Live Preview
+        </a>
       </div>
 
       {/* Position tabs */}
@@ -271,6 +285,60 @@ export default function Widgets() {
                     aspectHint="Preporučeno: 1200×400px (panorama format)"
                     value={form.image || ''}
                     onChange={v => f('image', v)}
+                  />
+                </div>
+              )}
+
+              {form.widget_type === 'featured_events' && (
+                <div>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">Odaberi Događaje (ostavi prazno = automatski 3 najnovija)</label>
+                  <div className="border border-slate-200 rounded-lg p-2 max-h-40 overflow-y-auto space-y-1">
+                    {events.map(e => (
+                      <label key={e.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 px-2 py-1 rounded">
+                        <input type="checkbox"
+                          checked={(form.event_ids || []).includes(e.id)}
+                          onChange={ev => {
+                            const ids = form.event_ids || []
+                            f('event_ids', ev.target.checked ? [...ids, e.id] : ids.filter((x: string) => x !== e.id))
+                          }} />
+                        {e.title || '(bez naslova)'}
+                        {e.date && <span className="text-xs text-slate-400 ml-1">— {new Date(e.date).toLocaleDateString('bs-BA')}</span>}
+                      </label>
+                    ))}
+                    {events.length === 0 && <p className="text-xs text-slate-400 px-2">Nema događaja u bazi</p>}
+                  </div>
+                </div>
+              )}
+
+              {form.widget_type === 'stats_bar' && (
+                <div>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">
+                    Statistike (JSON format)
+                  </label>
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2">
+                    <p className="text-xs text-blue-700 font-medium mb-1">Format JSON polja:</p>
+                    <code className="text-xs text-blue-800 block font-mono whitespace-pre">{`[
+  {"icon": "📍", "value": "23+", "label": "Lokacija"},
+  {"icon": "🎭", "value": "10+", "label": "Događaja"},
+  {"icon": "🏛️", "value": "5+", "label": "Znamenitosti"}
+]`}</code>
+                    <button
+                      type="button"
+                      onClick={() => f('content', JSON.stringify([
+                        { icon: '📍', value: '23+', label: 'Lokacija' },
+                        { icon: '🎭', value: '5+', label: 'Događaja' },
+                        { icon: '🏛️', value: '3+', label: 'Znamenitosti' },
+                        { icon: '📰', value: '10+', label: 'Vijesti' },
+                      ], null, 2))}
+                      className="text-xs text-blue-600 underline mt-1"
+                    >
+                      Umetni primjer →
+                    </button>
+                  </div>
+                  <textarea className="input font-mono text-xs" rows={7}
+                    value={form.content || ''}
+                    onChange={e => f('content', e.target.value)}
+                    placeholder='[{"icon": "📍", "value": "23+", "label": "Lokacija"}]'
                   />
                 </div>
               )}

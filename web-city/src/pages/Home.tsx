@@ -26,6 +26,7 @@ const CATS = [
 export default function Home() {
   const navigate = useNavigate();
   const { settings } = useSiteSettings();
+  const widgetsHero = useWidgets('home_hero');
   const widgetsTop = useWidgets('home_top');
   const widgetsAfterCats = useWidgets('home_after_categories');
   const widgetsAfterOffers = useWidgets('home_after_offers');
@@ -130,6 +131,13 @@ export default function Home() {
           </svg>
         </div>
       </section>
+
+      {/* ===== WIDGET ZONE: hero zona (home_hero) ===== */}
+      {widgetsHero.length > 0 && (
+        <div className="container-city pt-6">
+          {widgetsHero.map(w => <WidgetRenderer key={w.id} widget={w} />)}
+        </div>
+      )}
 
       {/* ===== WIDGET ZONE: ispod heroa ===== */}
       {widgetsTop.length > 0 && (

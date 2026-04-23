@@ -6,6 +6,8 @@ import { Location } from '../types';
 import LocationCard from '../components/LocationCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EmptyState from '../components/EmptyState';
+import WidgetRenderer from '../components/WidgetRenderer';
+import { useWidgets } from '../hooks/useWidgets';
 
 const CATS_FILTER = [
   { value: '',            label: 'Sve kategorije' },
@@ -27,6 +29,7 @@ export default function Locations() {
   const [search, setSearch] = useState(params.get('q') || '');
   const [cat, setCat] = useState(params.get('kategorija') || '');
   const [openOnly, setOpenOnly] = useState(false);
+  const widgetsLocTop = useWidgets('locations_top');
 
   useEffect(() => {
     api.locations().then(d => { setLocs(Array.isArray(d) ? d : []); setLoading(false); });
@@ -54,6 +57,13 @@ export default function Locations() {
   return (
     <div className="py-10">
       <div className="container-city">
+        {/* Widget zona - locations_top */}
+        {widgetsLocTop.length > 0 && (
+          <div className="mb-6">
+            {widgetsLocTop.map(w => <WidgetRenderer key={w.id} widget={w} />)}
+          </div>
+        )}
+
         {/* Page title */}
         <div className="mb-8">
           <h1 className="section-title">📍 Sve lokacije</h1>
