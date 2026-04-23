@@ -397,39 +397,39 @@ test_plan:
 
   - task: "Notifications feed endpoint GET /api/notifications-feed"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "New endpoint added. Returns unified feed of recent news, upcoming events, and active offers. Sorted by created_at descending. Returns up to 30 items."
+      - working: true
+        agent: "testing"
+        comment: "14/14 backend tests PASS. Returns array with news/event/offer types, all required fields, sorted desc, limit param works."
 
   - task: "Notification Center screen (notifications.tsx)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/app/notifications.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "New screen with full notification feed. Features: type badges (Vijest/Dogadjaj/Ponuda), unread dot indicators, relative time, 'Mark all read' button, pull-to-refresh, navigate to offer location on press. Uses AsyncStorage notif_last_seen key."
+      - working: true
+        agent: "testing"
+        comment: "9/10 features verified (90%). All type badges work, Procitano button, back nav, CTA links. Pull-to-refresh limited by web preview."
 
   - task: "HomeTab bell icon badge shows unread count, navigates to /notifications"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/components/HomeTab.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Bell icon now shows red badge with unread count. Badge count fetched from /api/notifications-feed compared to AsyncStorage notif_last_seen. Navigates to /notifications on press."
+      - working: true
+        agent: "testing"
+        comment: "Bell icon shows red badge (count 3). Navigates to /notifications. Pročitano button reduces count. Bug fixed: event created_at now uses DB timestamp instead of future event date."
     file: "/app/frontend/app/index.tsx"
     stuck_count: 0
     priority: "high"

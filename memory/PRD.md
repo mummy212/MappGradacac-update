@@ -127,8 +127,13 @@ Extended requirements: QR code discounts, "nearby" push notifications, custom ca
   - ProfileTab.tsx updated with Loyalty Kartica menu item
 - All features tested: 100% pass rate (28 backend + 11 frontend tests)
 
-### Session 2026-04-22 (Part 3 - Bug Fix + Icon)
-- **Bug Fix**: Home screen "Brzi pristup" (Quick Access) icons navigation repaired
+### Session 2026-04-22 (Part 4 - Notification Center)
+- **Notification Center feature**: Complete bell notification system implemented
+  - `GET /api/notifications-feed` — unified feed (news + events + active offers), sorted by date
+  - New screen `/app/frontend/app/notifications.tsx` — full notification center with type badges, unread dot, relative time, "Mark all read", pull-to-refresh
+  - HomeTab bell icon updated: shows red badge with unread count (from AsyncStorage `notif_last_seen`), navigates to /notifications
+  - Bug fixed: events use DB `created_at` timestamp, not future `date` field (prevents permanent unread state)
+  - 23/24 total tests PASS (14/14 backend, 9/10 frontend)
   - Root fix: `index.tsx` now passes `handleTabChange` instead of raw `setActiveTab` to `HomeTab`
   - All 6 quick access icons verified: Događaji→Rezervacije, Restorani→Mapa+filter, Hitni br.→Emergency, Smještaj/Apoteke/Parkinzi→Mapa+filter
   - 9/9 frontend tests passed

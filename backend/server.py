@@ -543,7 +543,7 @@ async def get_notifications_feed(limit: int = Query(30)):
             "title": e["title"],
             "body": f"{e.get('date', '')} · {loc_label}",
             "category": "Događaj",
-            "created_at": e.get("date", e.get("created_at", "")),
+            "created_at": e.get("created_at", e.get("date", "")),
             "icon": "calendar-outline", "color": "#7C3AED",
         })
     # Active offers (latest 8)
