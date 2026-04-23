@@ -37,7 +37,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Mobile app - city map of Gradačac, Bosnia. Interactive map with GPS, categories (restaurants, markets, auto services, cafes, pharmacies, gas stations), search bar, location details with call and navigation. Latest task: Fix mobile app news/event detail screens - clicking on news/events in EventsTab should navigate to detail pages with rich content."
+user_problem_statement: "Mobile app - city map of Gradačac, Bosnia. Latest task: SEO optimizacija za web city guide - implementirati sve SEO značajke: dinamički meta tagovi, Open Graph, JSON-LD structured data, sitemap.xml, robots.txt, Google Search Console i Google Analytics podrška. Admin panel treba imati polje za Google verifikacijski kod."
 
 backend:
   - task: "GET /api/emergency-contacts - returns emergency contacts seeded from DB"

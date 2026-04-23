@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Tag, User, Share2, ChevronLeft, ChevronRight } from '
 import { api, getImgSrc, formatDate, timeAgo } from '../api';
 import { NewsItem } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SEOHead from '../components/SEOHead';
 
 export default function NewsDetail() {
   const { id } = useParams<{ id: string }>();
@@ -47,9 +48,33 @@ export default function NewsDetail() {
   const imgs: string[] = [...(n.images || []), ...(n.image && !(n.images?.length) ? [n.image] : [])]
     .map(getImgSrc).filter(Boolean);
   const isHtml = n.content && n.content.trim().startsWith('<');
+  const plainDesc = n.short_description || (isHtml
+    ? (n.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 160)
+    : (n.content || '').substring(0, 160));
 
   return (
     <div>
+      <SEOHead
+        title={item.title}
+        description={plainDesc}
+        canonical={`/vijesti/${item.id}`}
+        ogImage={imgs[0] || undefined}
+        ogType="article"
+        author={n.author}
+        publishedAt={item.created_at}
+        keywords={`${item.title}, vijesti, Gradačac, ${item.category}`}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'NewsArticle',
+          headline: item.title,
+          description: plainDesc,
+          image: imgs,
+          datePublished: item.created_at,
+          author: n.author ? { '@type': 'Person', name: n.author } : undefined,
+          publisher: { '@type': 'Organization', name: 'Gradačac Mapa', url: 'https://gradacac-mapa.ba' },
+          mainEntityOfPage: { '@type': 'WebPage' },
+        }}
+      />
       {/* Breadcrumb */}
       <div className="border-b border-gray-100 bg-gray-50 py-3">
         <div className="container-city flex items-center gap-2 text-sm text-gray-500">

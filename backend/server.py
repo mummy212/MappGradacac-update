@@ -1355,6 +1355,9 @@ DEFAULT_SITE_SETTINGS = {
     "meta_title": "Gradačac Mapa - Digitalni Vodič",
     "meta_description": "Pronađite restorane, markete, servise, znamenitosti i sve informacije o Gradačacu na jednom mjestu.",
     "og_image": "",
+    "google_verification": "",
+    "google_analytics_id": "",
+    "site_url": "",
 }
 
 @api_router.get("/site-settings")
@@ -1393,6 +1396,86 @@ async def get_leaderboard(limit: int = Query(10)):
     """Top locations by rating and review count"""
     locs = await db.locations.find({"review_count": {"$gt": 0}}, {"_id": 0}).sort([("avg_rating", -1), ("review_count", -1)]).to_list(limit)
     return [{"id": l["id"], "name": l["name"], "category": l["category"], "avg_rating": l.get("avg_rating", 0), "review_count": l.get("review_count", 0), "images": l.get("images", [])[:1]} for l in locs]
+
+# ===== SEO: Sitemap.xml =====
+@api_router.get("/sitemap.xml", response_class=Response)
+async def sitemap(request: Request):
+    # Get canonical base from site settings
+    settings = {}
+    async for doc in db.site_settings.find({}):
+        settings[doc["key"]] = doc["value"]
+    base_url = settings.get("site_url", "").rstrip("/") or str(request.base_url).rstrip("/")
+    city_base = f"{base_url}/api/city"
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    urls = []
+
+    def url_entry(loc: str, lastmod: str = today, priority: str = "0.8", changefreq: str = "weekly"):
+        return f"""  <url>
+    <loc>{city_base}{loc}</loc>
+    <lastmod>{lastmod}</lastmod>
+    <changefreq>{changefreq}</changefreq>
+    <priority>{priority}</priority>
+  </url>"""
+
+    # Static pages
+    urls.append(url_entry("/", priority="1.0", changefreq="daily"))
+    urls.append(url_entry("/lokacije", priority="0.9", changefreq="daily"))
+    urls.append(url_entry("/dogadjaji", priority="0.9", changefreq="daily"))
+    urls.append(url_entry("/vijesti", priority="0.9", changefreq="daily"))
+    urls.append(url_entry("/znamenitosti", priority="0.8", changefreq="weekly"))
+    urls.append(url_entry("/hitni-brojevi", priority="0.7", changefreq="monthly"))
+    urls.append(url_entry("/o-aplikaciji", priority="0.5", changefreq="monthly"))
+
+    # Dynamic: Locations
+    async for loc in db.locations.find({}, {"id": 1, "updated_at": 1}):
+        lid = loc.get("id") or str(loc.get("_id"))
+        lmod = loc.get("updated_at", today)[:10] if loc.get("updated_at") else today
+        urls.append(url_entry(f"/lokacije/{lid}", lastmod=lmod, priority="0.7"))
+
+    # Dynamic: Events
+    async for ev in db.events.find({}, {"id": 1, "updated_at": 1}):
+        eid = ev.get("id") or str(ev.get("_id"))
+        emod_raw = ev.get("updated_at", today)
+        emod = emod_raw.strftime("%Y-%m-%d") if hasattr(emod_raw, 'strftime') else str(emod_raw)[:10]
+        urls.append(url_entry(f"/dogadjaji/{eid}", lastmod=emod, priority="0.7"))
+
+    # Dynamic: News
+    async for n in db.news.find({}, {"id": 1, "created_at": 1}):
+        nid = n.get("id") or str(n.get("_id"))
+        nmod_raw = n.get("created_at", today)
+        nmod = nmod_raw.strftime("%Y-%m-%d") if hasattr(nmod_raw, 'strftime') else str(nmod_raw)[:10]
+        urls.append(url_entry(f"/vijesti/{nid}", lastmod=nmod, priority="0.7"))
+
+    # Dynamic: Attractions
+    async for a in db.attractions.find({}, {"id": 1}):
+        aid = a.get("id") or str(a.get("_id"))
+        urls.append(url_entry(f"/znamenitosti/{aid}", priority="0.6"))
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+{chr(10).join(urls)}
+</urlset>"""
+    return Response(content=xml, media_type="application/xml")
+
+# ===== SEO: robots.txt =====
+@api_router.get("/robots.txt", response_class=Response)
+async def robots(request: Request):
+    settings = {}
+    async for doc in db.site_settings.find({}):
+        settings[doc["key"]] = doc["value"]
+    base_url = settings.get("site_url", "").rstrip("/") or str(request.base_url).rstrip("/")
+    content = f"""User-agent: *
+Allow: /api/city/
+Disallow: /api/admin-panel/
+Disallow: /api/business-panel/
+Disallow: /api/admin/
+Disallow: /api/auth/
+
+Sitemap: {base_url}/api/sitemap.xml
+"""
+    return Response(content=content, media_type="text/plain")
 
 # ===== Admin Business List =====
 @api_router.get("/admin/admins")

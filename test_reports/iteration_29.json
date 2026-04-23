@@ -1,0 +1,62 @@
+{
+  "summary": "SEO optimization testing for Gradačac Mapa web city guide. Backend: 31/31 tests pass (sitemap.xml, robots.txt, admin SEO settings API). Frontend: Title tag and canonical link work correctly. CRITICAL BUG found: duplicate meta tags in DOM — index.html static tags (og:title='Gradačac Mapa - Digitalni vodič', og:type='website', meta description generic) appear BEFORE react-helmet-async dynamic tags, so scrapers/crawlers use static generic values instead of article-specific SEO. Admin panel SEO tab has all required fields.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/sitemap.xml",
+        "issue": "When site_url is not configured, sitemap falls back to internal cluster URL (http://gradacac-map.cluster-2.preview.emergentcf.cloud) instead of public URL. Admin must configure 'Kanonski URL sajta' in admin panel to fix this."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SEOHead + index.html",
+        "issue": "CRITICAL DUPLICATE META TAGS: index.html defines static og:title, og:description, og:type and meta[name=description]. react-helmet-async ADDS dynamic tags but cannot REMOVE the static ones. DOM has 2x og:title, 2x og:type, 2x meta description. Static (generic) values come first. Social media crawlers (Facebook, Twitter, Google) parse the FIRST occurrence — they see generic site-wide title/description instead of article-specific SEO content.",
+        "testID": "N/A - web app",
+        "priority": "HIGH"
+      },
+      {
+        "component": "SEOHead - canonical URL",
+        "issue": "VITE_CANONICAL_BASE env var not set in web-city/.env — canonical URLs are relative paths (/api/city/vijesti/...) instead of absolute URLs (https://gradacac-mapa.ba/api/city/vijesti/...). Absolute URLs are strongly preferred for SEO canonical links.",
+        "testID": "N/A",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_seo_features.py",
+    "/app/test_reports/pytest/pytest_seo_features.xml"
+  ],
+  "action_items": [
+    "CRITICAL FIX: Remove static meta tags from /app/web-city/index.html that conflict with react-helmet-async — specifically: meta[name=description], meta[property=og:title], meta[property=og:description], meta[property=og:type]. Move default values to a root-level <Helmet> component in App.tsx so they can be overridden by SEOHead on detail pages.",
+    "MEDIUM FIX: Create /app/web-city/.env with VITE_CANONICAL_BASE=https://gradacac-mapa.ba (or the production URL) so canonical tags use absolute URLs instead of relative paths.",
+    "INFO: When site_url is empty in admin settings, sitemap.xml uses internal cluster URL. Document this requirement for users — they must set 'Kanonski URL sajta' in admin panel SEO tab."
+  ],
+  "critical_code_review_comments": [
+    "index.html has static og:title, og:description, og:type, meta description — these CANNOT be replaced by react-helmet-async (only managed tags can be removed). This defeats the purpose of the dynamic SEO implementation. Fix: Remove from index.html, add as default Helmet in App.tsx.",
+    "SEOHead.tsx: SITE_BASE = import.meta.env.VITE_CANONICAL_BASE || '' — canonical URLs are relative when VITE_CANONICAL_BASE is not set. This is a missing env configuration.",
+    "sitemap.xml: base_url fallback to request.base_url returns internal cluster URL in production environment. Should provide a warning/default or document that site_url must be configured."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_seo_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (31/31 tests pass)",
+    "frontend": "60% — title (PASS), canonical (PASS), JSON-LD NewsArticle (PASS), og:title (PARTIAL - duplicated, first is generic), meta description (PARTIAL - duplicated, first is generic), og:type (PARTIAL - duplicated, first is 'website' not 'article'), admin panel SEO tab fields (PASS)"
+  },
+  "seed_data_creation": "None - used existing data. Test SEO settings (google_verification, google_analytics_id) were set and cleaned up during test_seo_features.py",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "SEO features are partially working. Backend is 100% working. Key bug: index.html has static meta tags that override/duplicate dynamic react-helmet-async tags. Fix is to remove static og: and meta description tags from index.html and move them into a root Helmet component. Admin panel SEO tab confirmed working with all 3 required fields: Google SC verifikacijski kod, Google Analytics 4 ID, Kanonski URL sajta.",
+  "rca_of_issue": {
+    "bug": "Duplicate meta tags - static index.html tags win over dynamic SEOHead tags",
+    "reproduction": "Navigate to /api/city/vijesti/e4c0a139-b14b-4411-bb4a-7b1021385d6f, inspect <head>. Find 2x og:title, 2x meta[description], 2x og:type. First occurrence is generic from index.html.",
+    "root_cause": "react-helmet-async manages only the tags it inserts. Static tags in index.html are not tracked by Helmet and cannot be removed/updated. When Helmet adds new og:title etc., both exist in DOM simultaneously. Crawlers parse first occurrence.",
+    "fix": "Remove from index.html: meta[name=description], meta[property=og:title], meta[property=og:description], meta[property=og:type]. Add <Helmet><meta name='description' content='...' /><meta property='og:title' content='...' /></Helmet> in App.tsx root component as defaults."
+  }
+}

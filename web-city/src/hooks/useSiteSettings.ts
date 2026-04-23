@@ -24,6 +24,9 @@ export interface SiteSettings {
   meta_title: string
   meta_description: string
   og_image: string
+  google_verification: string
+  google_analytics_id: string
+  site_url: string
 }
 
 const DEFAULTS: SiteSettings = {
@@ -48,6 +51,9 @@ const DEFAULTS: SiteSettings = {
   meta_title: 'Gradačac Mapa - Digitalni Vodič',
   meta_description: 'Pronađite restorane, markete, servise, znamenitosti i sve informacije o Gradačacu na jednom mjestu.',
   og_image: '',
+  google_verification: '',
+  google_analytics_id: '',
+  site_url: '',
 }
 
 export function useSiteSettings() {
@@ -62,15 +68,34 @@ export function useSiteSettings() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Apply CSS variables
+  // Apply CSS variables + global meta tags
   useEffect(() => {
     const root = document.documentElement
     root.style.setProperty('--color-primary', settings.primary_color)
     root.style.setProperty('--color-accent', settings.accent_color)
-    // Update meta tags
     document.title = settings.meta_title || settings.site_title
     const metaDesc = document.querySelector('meta[name="description"]')
     if (metaDesc) metaDesc.setAttribute('content', settings.meta_description)
+
+    // Google Search Console verification
+    if (settings.google_verification) {
+      let gv = document.querySelector('meta[name="google-site-verification"]')
+      if (!gv) { gv = document.createElement('meta'); document.head.appendChild(gv); }
+      gv.setAttribute('name', 'google-site-verification')
+      gv.setAttribute('content', settings.google_verification)
+    }
+
+    // Google Analytics (GA4)
+    if (settings.google_analytics_id && !document.getElementById('ga-script')) {
+      const script = document.createElement('script')
+      script.id = 'ga-script'
+      script.async = true
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${settings.google_analytics_id}`
+      document.head.appendChild(script)
+      const inline = document.createElement('script')
+      inline.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${settings.google_analytics_id}');`
+      document.head.appendChild(inline)
+    }
   }, [settings])
 
   return { settings, loading }

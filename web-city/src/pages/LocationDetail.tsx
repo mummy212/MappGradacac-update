@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Phone, Star, Clock, Navigation, ChevronLeft, Chevron
 import { api, getImgSrc, getCatMeta, formatDate } from '../api';
 import { Location, Offer, Review } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SEOHead from '../components/SEOHead';
 
 export default function LocationDetail() {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +32,24 @@ export default function LocationDetail() {
 
   return (
     <div>
+      <SEOHead
+        title={`${loc.name} — ${meta.label} u Gradačcu`}
+        description={loc.description || `${meta.label} ${loc.name} u Gradačcu. ${loc.address || ''}`}
+        canonical={`/lokacije/${loc.id}`}
+        ogImage={images[0] || undefined}
+        keywords={`${loc.name}, ${meta.label}, Gradačac, ${(loc.service_tags || []).join(', ')}`}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'LocalBusiness',
+          name: loc.name,
+          description: loc.description,
+          address: { '@type': 'PostalAddress', streetAddress: loc.address || '', addressLocality: 'Gradačac', addressCountry: 'BA' },
+          telephone: loc.phone,
+          geo: loc.latitude ? { '@type': 'GeoCoordinates', latitude: loc.latitude, longitude: loc.longitude } : undefined,
+          image: images,
+          aggregateRating: loc.avg_rating ? { '@type': 'AggregateRating', ratingValue: loc.avg_rating, reviewCount: loc.review_count || 0 } : undefined,
+        }}
+      />
       {/* Breadcrumb */}
       <div className="border-b border-gray-100 bg-gray-50 py-3">
         <div className="container-city flex items-center gap-2 text-sm text-gray-500">

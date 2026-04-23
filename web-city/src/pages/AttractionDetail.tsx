@@ -4,6 +4,7 @@ import { ArrowLeft, Navigation, Clock, Tag, Phone, Globe, ChevronLeft, ChevronRi
 import { api, getImgSrc } from '../api';
 import { Attraction } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SEOHead from '../components/SEOHead';
 
 export default function AttractionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -28,9 +29,27 @@ export default function AttractionDetail() {
 
   const imgs = (item.images || []).map(getImgSrc).filter(Boolean);
   const hasContent = item.content_html && item.content_html.trim().length > 10;
+  const attrDesc = item.description || `Znamenitost ${item.name} u Gradačcu.`;
 
   return (
     <div>
+      <SEOHead
+        title={`${item.name} — Znamenitost Gradačca`}
+        description={attrDesc}
+        canonical={`/znamenitosti/${item.id}`}
+        ogImage={imgs[0] || undefined}
+        keywords={`${item.name}, znamenitosti, turizam, Gradačac, ${item.category || ''}`}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'TouristAttraction',
+          name: item.name,
+          description: attrDesc,
+          image: imgs,
+          address: { '@type': 'PostalAddress', addressLocality: 'Gradačac', addressCountry: 'BA' },
+          geo: item.latitude ? { '@type': 'GeoCoordinates', latitude: item.latitude, longitude: item.longitude } : undefined,
+          touristType: item.category,
+        }}
+      />
       {/* Breadcrumb */}
       <div className="border-b border-gray-100 bg-gray-50 py-3">
         <div className="container-city flex items-center gap-2 text-sm text-gray-500">

@@ -4,6 +4,7 @@ import { Calendar, MapPin, Clock, ArrowLeft, Share2, ChevronLeft, ChevronRight, 
 import { api, getImgSrc } from '../api';
 import { CityEvent } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SEOHead from '../components/SEOHead';
 
 function formatFullDate(dateStr: string) {
   try {
@@ -59,9 +60,31 @@ export default function EventDetail() {
   const isPast = new Date(event.date) < new Date();
   const hasContent = ev.content_html && ev.content_html.trim().length > 10;
   const locationLabel = event.location_name || event.location;
+  const eventDesc = ev.short_description || event.description || `Događaj u Gradačcu: ${event.title}`;
 
   return (
     <div>
+      <SEOHead
+        title={event.title}
+        description={eventDesc}
+        canonical={`/dogadjaji/${event.id}`}
+        ogImage={imgs[0] || undefined}
+        ogType="event"
+        keywords={`${event.title}, događaji, Gradačac, ${locationLabel || ''}`}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Event',
+          name: event.title,
+          description: eventDesc,
+          startDate: event.date + (event.time ? 'T' + event.time : ''),
+          location: { '@type': 'Place', name: locationLabel || 'Gradačac', address: { '@type': 'PostalAddress', addressLocality: 'Gradačac', addressCountry: 'BA' } },
+          image: imgs,
+          organizer: ev.organizer ? { '@type': 'Organization', name: ev.organizer } : undefined,
+          offers: ev.ticket_price ? { '@type': 'Offer', name: ev.ticket_price, url: ev.ticket_url || undefined } : undefined,
+          eventStatus: isPast ? 'https://schema.org/EventScheduled' : 'https://schema.org/EventScheduled',
+        }}
+      />
+
       {/* Hero - big image or gradient */}
       {imgs.length > 0 ? (
         <div className="relative h-72 md:h-[420px] overflow-hidden">

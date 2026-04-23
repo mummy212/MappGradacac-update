@@ -209,34 +209,74 @@ export default function SiteSettings() {
 
           {/* SEO TAB */}
           {activeTab === 'seo' && (
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <h3 className="font-semibold text-slate-800 mb-4">SEO Podešavanja</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">Meta Naslov (title tag)</label>
-                  <input className="input" value={s('meta_title')} onChange={e => set('meta_title', e.target.value)}
-                    placeholder="Gradačac Mapa - Digitalni Vodič" />
-                  <p className="text-xs text-slate-400 mt-1">{s('meta_title').length}/60 znakova (preporučeno do 60)</p>
+            <div className="space-y-5">
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <h3 className="font-semibold text-slate-800 mb-4">Osnovni SEO</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Meta Naslov (title tag)</label>
+                    <input className="input" value={s('meta_title')} onChange={e => set('meta_title', e.target.value)}
+                      placeholder="Gradačac Mapa - Digitalni Vodič" />
+                    <p className="text-xs text-slate-400 mt-1">{s('meta_title').length}/60 znakova (preporučeno do 60)</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Meta Opis (description)</label>
+                    <textarea className="input" rows={3} value={s('meta_description')} onChange={e => set('meta_description', e.target.value)}
+                      placeholder="Pronađite restorane, markete..." />
+                    <p className="text-xs text-slate-400 mt-1">{s('meta_description').length}/160 znakova (preporučeno do 160)</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">OG Slika (za Facebook/WhatsApp dijeljenje)</label>
+                    <input className="input" value={s('og_image')} onChange={e => set('og_image', e.target.value)}
+                      placeholder="https://... URL slike (1200x630px)" />
+                    {s('og_image') && (
+                      <img src={s('og_image')} alt="OG preview" className="mt-2 h-24 rounded-lg object-cover" onError={e => (e.currentTarget.style.display='none')} />
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Kanonski URL sajta (npr. https://gradacac-mapa.ba)</label>
+                    <input className="input" value={s('site_url')} onChange={e => set('site_url', e.target.value)}
+                      placeholder="https://gradacac-mapa.ba" />
+                    <p className="text-xs text-slate-400 mt-1">Koristi se za sitemap.xml i kanonske URL-ove</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <p className="text-xs font-semibold text-slate-600 mb-2">📊 Pregled u Google pretrazi:</p>
+                    <div className="text-blue-600 text-base font-medium">{s('meta_title') || 'Gradačac Mapa - Digitalni Vodič'}</div>
+                    <div className="text-green-700 text-xs">{s('site_url') || 'gradacac-mapa.ba'}/</div>
+                    <div className="text-slate-600 text-sm mt-0.5 line-clamp-2">{s('meta_description') || 'Pronađite restorane, markete, servise...'}</div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">Meta Opis (description)</label>
-                  <textarea className="input" rows={3} value={s('meta_description')} onChange={e => set('meta_description', e.target.value)}
-                    placeholder="Pronađite restorane, markete..." />
-                  <p className="text-xs text-slate-400 mt-1">{s('meta_description').length}/160 znakova (preporučeno do 160)</p>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">OG Slika (za Facebook/WhatsApp dijeljenje)</label>
-                  <input className="input" value={s('og_image')} onChange={e => set('og_image', e.target.value)}
-                    placeholder="https://... URL slike (1200x630px)" />
-                  {s('og_image') && (
-                    <img src={s('og_image')} alt="OG preview" className="mt-2 h-24 rounded-lg object-cover" onError={e => (e.currentTarget.style.display='none')} />
-                  )}
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <p className="text-xs font-semibold text-slate-600 mb-2">📊 Pregled u Google pretrazi:</p>
-                  <div className="text-blue-600 text-base font-medium">{s('meta_title') || 'Gradačac Mapa - Digitalni Vodič'}</div>
-                  <div className="text-green-700 text-xs">gradacac-mapa.ba/</div>
-                  <div className="text-slate-600 text-sm mt-0.5 line-clamp-2">{s('meta_description') || 'Pronađite restorane, markete, servise...'}</div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <h3 className="font-semibold text-slate-800 mb-1">Google Alati</h3>
+                <p className="text-xs text-slate-500 mb-4">Povežite sajt s Google Search Console i Analytics</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">
+                      Google Search Console — verifikacijski kod
+                    </label>
+                    <input className="input font-mono text-sm" value={s('google_verification')} onChange={e => set('google_verification', e.target.value)}
+                      placeholder="abc123xyz (samo kod, bez html taga)" />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Dobijte ga na <a href="https://search.google.com/search-console" target="_blank" rel="noopener" className="text-blue-500 underline">search.google.com/search-console</a> → Postavke → Verifikacija vlasništva → HTML tag
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">
+                      Google Analytics 4 — ID mjerenja
+                    </label>
+                    <input className="input font-mono text-sm" value={s('google_analytics_id')} onChange={e => set('google_analytics_id', e.target.value)}
+                      placeholder="G-XXXXXXXXXX" />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Dobijte ga na <a href="https://analytics.google.com" target="_blank" rel="noopener" className="text-blue-500 underline">analytics.google.com</a> → Administracija → Tokovi podataka
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 text-xs text-blue-800 space-y-1">
+                    <p className="font-semibold">📌 Korisni linkovi:</p>
+                    <p>• <a href="/api/sitemap.xml" target="_blank" className="underline">Sitemap.xml</a> — pošaljite Google Search Consoleu</p>
+                    <p>• <a href="/api/robots.txt" target="_blank" className="underline">Robots.txt</a> — direktive za Google botove</p>
+                  </div>
                 </div>
               </div>
             </div>
