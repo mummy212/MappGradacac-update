@@ -75,49 +75,49 @@ export default function Home() {
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, #fff 1px, transparent 1px), radial-gradient(circle at 80% 20%, #fff 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
-        <div className="container-city relative z-10 py-20 md:py-28">
+        <div className="container-city relative z-10 py-10 md:py-28">
           <div className="max-w-2xl mx-auto text-center">
             {/* Location pill */}
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white rounded-full px-5 py-2 text-sm font-600 mb-6 border border-white/30">
-              <MapPin size={15} className="animate-bounce" />
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white rounded-full px-4 py-1.5 text-xs md:text-sm font-600 mb-4 md:mb-6 border border-white/30">
+              <MapPin size={14} className="animate-bounce" />
               Bosna i Hercegovina — Tuzlanski kanton
             </div>
 
-            <h1 className="font-heading font-800 text-white text-4xl md:text-6xl leading-tight mb-4">
+            <h1 className="font-heading font-800 text-white text-3xl md:text-6xl leading-tight mb-3 md:mb-4">
               {settings.hero_title?.split(' ').map((word, i) => i === 1
                 ? <span key={i} className="text-yellow-300"> {word}</span>
                 : <span key={i}>{i > 0 ? ' ' : ''}{word}</span>
               ) || <>Otkrij <span className="text-yellow-300">Gradačac</span></>}
             </h1>
-            <p className="text-primary-100 text-lg md:text-xl mb-10 leading-relaxed whitespace-pre-line">
+            <p className="text-primary-100 text-base md:text-xl mb-6 md:mb-10 leading-relaxed whitespace-pre-line px-2">
               {settings.hero_subtitle || 'Restorani, eventi, znamenitosti, hitni brojevi\ni sve korisne informacije na jednom mjestu.'}
             </p>
 
             {/* Search */}
-            <form onSubmit={handleSearch} className="flex gap-2 max-w-xl mx-auto mb-10">
+            <form onSubmit={handleSearch} className="flex gap-2 max-w-xl mx-auto mb-6 md:mb-10 px-2 md:px-0">
               <div className="flex-1 relative">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Pretraži restorane, hotele, servise..."
-                  className="w-full pl-11 pr-4 py-4 rounded-xl text-gray-900 bg-white shadow-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                  placeholder="Pretraži restorane, hotele..."
+                  className="w-full pl-10 pr-3 py-3.5 md:py-4 rounded-xl text-gray-900 bg-white shadow-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
                 />
               </div>
-              <button type="submit" className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 px-6 py-4 rounded-xl font-heading font-700 transition-colors shadow-xl">
+              <button type="submit" className="bg-yellow-400 hover:bg-yellow-300 text-gray-900 px-4 md:px-6 py-3.5 md:py-4 rounded-xl font-heading font-700 transition-colors shadow-xl text-sm md:text-base">
                 Traži
               </button>
             </form>
 
             {/* Stats */}
-            <div className="flex justify-center gap-8 text-white">
+            <div className="flex justify-center gap-6 md:gap-8 text-white">
               {[
                 { num: locs.length,        label: 'Lokacija' },
                 { num: events.length,      label: 'Događaja' },
                 { num: attractions.length, label: 'Znamenitosti' },
               ].map(s => (
                 <div key={s.label} className="text-center">
-                  <div className="font-heading font-700 text-2xl md:text-3xl">{s.num}</div>
-                  <div className="text-primary-200 text-xs mt-0.5">{s.label}</div>
+                  <div className="font-heading font-700 text-xl md:text-3xl">{s.num}</div>
+                  <div className="text-primary-200 text-[10px] md:text-xs mt-0.5">{s.label}</div>
                 </div>
               ))}
             </div>
@@ -147,18 +147,18 @@ export default function Home() {
       )}
 
       {/* ===== CATEGORIES ===== */}
-      <section className="py-14">
+      <section className="py-8 md:py-14">
         <div className="container-city">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6 md:mb-8">
             <h2 className="section-title">Istraži po kategoriji</h2>
             <p className="section-sub">Pronađi tačno ono što ti treba</p>
           </div>
-          <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-3">
+          <div className="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-3">
             {CATS.map(c => (
               <Link key={c.cat} to={`/lokacije?kategorija=${c.cat}`}
-                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all hover:-translate-y-1 hover:shadow-hover ${c.color}`}>
-                <span className="text-3xl">{c.icon}</span>
-                <span className="font-heading font-600 text-xs text-center leading-tight">{c.label}</span>
+                className={`flex flex-col items-center gap-1.5 md:gap-2 p-2.5 md:p-4 rounded-2xl border-2 transition-all hover:-translate-y-1 hover:shadow-hover active:scale-95 ${c.color}`}>
+                <span className="text-2xl md:text-3xl">{c.icon}</span>
+                <span className="font-heading font-600 text-[10px] md:text-xs text-center leading-tight">{c.label}</span>
               </Link>
             ))}
           </div>
@@ -176,12 +176,12 @@ export default function Home() {
       {featured.length > 0 && (
         <section className="py-14 bg-gray-50">
           <div className="container-city">
-            <div className="flex items-end justify-between mb-8">
+            <div className="flex items-start justify-between gap-2 mb-6 md:mb-8 flex-wrap">
               <div>
                 <h2 className="section-title">Istaknute lokacije</h2>
                 <p className="section-sub">Najpopularniji lokaliteti u Gradačcu</p>
               </div>
-              <Link to="/lokacije" className="flex items-center gap-1 text-primary-600 font-600 text-sm hover:underline">
+              <Link to="/lokacije" className="flex items-center gap-1 text-primary-600 font-600 text-sm hover:underline flex-shrink-0">
                 Sve lokacije <ChevronRight size={16} />
               </Link>
             </div>
@@ -212,7 +212,7 @@ export default function Home() {
                     <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">{offer.location_name}</div>
                     {offer.expires_at && (
                       <div className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                        <Clock size={10} /> Ističe: {new Date(offer.expires_at).toLocaleDateString('bs-BA')}
+                        <Clock size={10} /> Ističe: {new Date(offer.expires_at).toLocaleDateString('default')}
                       </div>
                     )}
                   </div>
@@ -252,14 +252,14 @@ export default function Home() {
 
       {/* ===== NEWS ===== */}
       {settings.show_news_section !== 'false' && latestNews.length > 0 && (
-        <section className="py-14">
+        <section className="py-8 md:py-14">
           <div className="container-city">
-            <div className="flex items-end justify-between mb-8">
+            <div className="flex items-start justify-between gap-2 mb-6 md:mb-8 flex-wrap">
               <div>
                 <h2 className="section-title">📰 Gradske Vijesti</h2>
                 <p className="section-sub">Najnovije iz Gradačca</p>
               </div>
-              <Link to="/vijesti" className="flex items-center gap-1 text-primary-600 font-600 text-sm hover:underline">
+              <Link to="/vijesti" className="flex items-center gap-1 text-primary-600 font-600 text-sm hover:underline flex-shrink-0">
                 Sve vijesti <ChevronRight size={16} />
               </Link>
             </div>
@@ -303,9 +303,9 @@ export default function Home() {
       )}
 
       {/* ===== MAP ===== */}
-      <section className="py-14">
+      <section className="py-8 md:py-14">
         <div className="container-city">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6 md:mb-8">
             <h2 className="section-title">🗺️ Mapa Gradačca</h2>
             <p className="section-sub">Interaktivna karta s localitetima</p>
           </div>
@@ -314,7 +314,7 @@ export default function Home() {
               title="Mapa Gradačca"
               src="https://www.openstreetmap.org/export/embed.html?bbox=18.40%2C44.84%2C18.48%2C44.90&amp;layer=mapnik&amp;marker=44.8655%2C18.4315"
               className="w-full"
-              style={{ height: '400px', border: 0 }}
+              style={{ height: 'clamp(220px, 40vw, 420px)', border: 0 }}
               loading="lazy"
             />
           </div>

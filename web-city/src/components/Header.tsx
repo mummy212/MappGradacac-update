@@ -76,25 +76,31 @@ export default function Header() {
 
       {/* Mobile drawer */}
       {open && (
-        <div className="md:hidden border-t border-gray-100 bg-white shadow-lg">
-          <div className="container-city py-3 flex flex-col gap-1">
-            {NAV.map(n => (
-              <Link key={n.to} to={n.to}
-                className={`px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                  pathname.startsWith(n.to)
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}>
-                {n.label}
-              </Link>
-            ))}
-            <Link to="/preuzmi-app"
-              className="mt-2 bg-primary-600 text-white px-4 py-3 rounded-xl text-sm font-600
-                text-center font-heading">
-              📱 Preuzmi App
-            </Link>
+        <>
+          {/* Backdrop */}
+          <div className="md:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setOpen(false)} />
+          {/* Drawer */}
+          <div className="md:hidden fixed top-16 left-0 right-0 z-50 border-t border-gray-100 bg-white shadow-xl">
+            <div className="container-city py-3 flex flex-col gap-1">
+              {NAV.map(n => (
+                <Link key={n.to} to={n.to}
+                  className={`px-4 py-3.5 rounded-xl text-sm font-medium transition-colors ${
+                    pathname.startsWith(n.to)
+                      ? 'bg-primary-50 text-primary-700 font-600'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}>
+                  {n.label}
+                </Link>
+              ))}
+              <div className="border-t border-gray-100 mt-2 pt-2">
+                <Link to="/preuzmi-app"
+                  className="bg-primary-600 text-white px-4 py-3.5 rounded-xl text-sm font-600 text-center font-heading block">
+                  📱 Preuzmi App
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </header>
   );

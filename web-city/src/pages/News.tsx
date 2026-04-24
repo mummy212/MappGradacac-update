@@ -28,11 +28,11 @@ export default function News() {
           <p className="section-sub">Najnovije iz Gradačca</p>
         </div>
 
-        {/* Category filter */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          <button onClick={() => setCat('')} className={`px-4 py-2 rounded-full text-sm font-600 transition-colors ${ cat === '' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }`}>Sve</button>
+        {/* Category filter - horizontally scrollable on mobile */}
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap scrollbar-none">
+          <button onClick={() => setCat('')} className={`px-4 py-2 rounded-full text-sm font-600 transition-colors whitespace-nowrap flex-shrink-0 ${ cat === '' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }`}>Sve</button>
           {ALL_CATS.map(c => (
-            <button key={c} onClick={() => setCat(c)} className={`px-4 py-2 rounded-full text-sm font-600 transition-colors ${ cat === c ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }`}>{c}</button>
+            <button key={c} onClick={() => setCat(c)} className={`px-4 py-2 rounded-full text-sm font-600 transition-colors whitespace-nowrap flex-shrink-0 ${ cat === c ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }`}>{c}</button>
           ))}
         </div>
 
