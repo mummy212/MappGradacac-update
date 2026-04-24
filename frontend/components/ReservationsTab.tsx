@@ -99,9 +99,11 @@ export default function ReservationsTab() {
   // Verification
   const [reservationId, setReservationId] = useState('');
   const [shownCode, setShownCode] = useState('');
-  const [enteredCode, setEnteredCode] = useState('');
+  const [showCodeInApp, setShowCodeInApp] = useState(true);
+  const [sentVia, setSentVia] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [codeError, setCodeError] = useState('');
+  const [enteredCode, setEnteredCode] = useState('');
 
   // My reservations
   const [searchPhone, setSearchPhone] = useState('');
@@ -153,7 +155,9 @@ export default function ReservationsTab() {
       if (!res.ok) { const e = await res.json(); Alert.alert('Greška', e.detail || 'Greška pri kreiranju rezervacije.'); return; }
       const data = await res.json();
       setReservationId(data.reservation_id);
-      setShownCode(data.verification_code);
+      setShownCode(data.verification_code || '');
+      setShowCodeInApp(data.show_code !== false);
+      setSentVia(data.sent_via || null);
       setEnteredCode('');
       setCodeError('');
       setStep('code');
@@ -401,7 +405,7 @@ export default function ReservationsTab() {
           <TextInput style={[s.input, s.textArea]} placeholder="Npr. sto kraj prozora, alergenije, rođendan..." placeholderTextColor={C.textMute}
             value={fSpecial} onChangeText={setFSpecial} multiline numberOfLines={3} textAlignVertical="top" />
 
-          <TouchableOpacity style={[s.submitBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitForm} disabled={submitting}>
+          <TouchableOpacity testID="submit-reservation-btn" style={[s.submitBtn, submitting && { opacity: 0.7 }]} onPress={handleSubmitForm} disabled={submitting}>
             {submitting ? <ActivityIndicator color="#fff" /> : (
               <>
                 <Ionicons name="calendar-outline" size={18} color="#fff" />
@@ -452,14 +456,30 @@ export default function ReservationsTab() {
           <Text style={[s.subHeaderTitle, { marginLeft: 8 }]}>Potvrda rezervacije</Text>
         </View>
         <ScrollView contentContainerStyle={s.codeCenter}>
-          <View style={s.codeBox}>
-            <View style={s.codeIconCircle}>
-              <Ionicons name="shield-checkmark" size={40} color={PURPLE} />
+          {showCodeInApp ? (
+            /* Fallback: prikaži kod u appu */
+            <View style={s.codeBox}>
+              <View style={s.codeIconCircle}>
+                <Ionicons name="shield-checkmark" size={40} color={PURPLE} />
+              </View>
+              <Text style={s.codeLabel}>Vaš verifikacioni kod</Text>
+              <Text style={s.codeValue}>{shownCode}</Text>
+              <Text style={s.codeNote}>⚠️ Zapišite ovaj kod! Važi 30 minuta.</Text>
             </View>
-            <Text style={s.codeLabel}>Vaš verifikacioni kod</Text>
-            <Text style={s.codeValue}>{shownCode}</Text>
-            <Text style={s.codeNote}>⚠️ Zapišite ovaj kod! Važi 30 minuta.</Text>
-          </View>
+          ) : (
+            /* Email ili SMS poslan */
+            <View style={s.codeBox}>
+              <View style={[s.codeIconCircle, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name={sentVia === 'sms' ? 'chatbubble-outline' : 'mail-outline'} size={40} color={GREEN} />
+              </View>
+              <Text style={[s.codeLabel, { color: GREEN }]}>
+                Kod poslan {sentVia === 'sms' ? 'putem SMS-a' : 'na email'}!
+              </Text>
+              <Text style={{ fontSize: 14, color: C.textSec, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>
+                Provjerite {sentVia === 'sms' ? `SMS poruke na broju ${fPhone}` : `inbox na adresi ${fEmail}`} i unesite 6-cifreni kod ispod.
+              </Text>
+            </View>
+          )}
 
           <Text style={s.codeInstruction}>Unesite kod za potvrdu rezervacije:</Text>
           <TextInput

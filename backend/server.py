@@ -1614,6 +1614,79 @@ async def delete_business_account(uid: str, user: dict = Depends(require_admin))
 
 # ===== Reservations =====
 import random as _random
+import asyncio as _asyncio
+
+async def _get_setting(key: str):
+    doc = await db.site_settings.find_one({"key": key})
+    return doc["value"] if doc and doc.get("value") else None
+
+def _format_phone_ba(phone: str) -> str:
+    """Format BiH phone number to E.164 format for Twilio"""
+    p = phone.strip().replace(" ", "").replace("-", "")
+    if p.startswith("+"):
+        return p
+    if p.startswith("00"):
+        return "+" + p[2:]
+    if p.startswith("0"):
+        return "+387" + p[1:]
+    return "+387" + p
+
+async def _send_verification_email(to_email: str, code: str, location_name: str, date: str, time: str) -> bool:
+    try:
+        import resend as _resend
+        api_key = await _get_setting("resend_api_key")
+        sender = await _get_setting("resend_sender_email") or "noreply@gradacac-mapa.ba"
+        if not api_key:
+            return False
+        _resend.api_key = api_key
+        html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px;">
+<div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+  <div style="background:linear-gradient(135deg,#7C3AED,#5B21B6);padding:28px 24px;text-align:center;">
+    <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;">🗓️ Gradačac Mapa</h1>
+    <p style="color:#e9d5ff;margin:6px 0 0;font-size:14px;">Verifikacija rezervacije</p>
+  </div>
+  <div style="padding:28px 24px;">
+    <p style="color:#374151;font-size:15px;margin:0 0 8px;">Vaša rezervacija u <strong>{location_name}</strong></p>
+    <p style="color:#6B7280;font-size:13px;margin:0 0 24px;">📅 {date} u {time}</p>
+    <p style="color:#374151;font-size:14px;margin:0 0 12px;">Unesite ovaj kod u aplikaciju za potvrdu:</p>
+    <div style="background:#F3F0FF;border:2px dashed #7C3AED;border-radius:12px;padding:20px;text-align:center;margin:0 0 20px;">
+      <span style="font-size:42px;font-weight:900;letter-spacing:10px;color:#7C3AED;">{code}</span>
+    </div>
+    <p style="color:#9CA3AF;font-size:12px;margin:0;">⚠️ Kod važi <strong>30 minuta</strong>. Ako niste napravili ovu rezervaciju, ignorirajte ovaj email.</p>
+  </div>
+  <div style="background:#F9FAFB;padding:16px 24px;text-align:center;border-top:1px solid #E5E7EB;">
+    <p style="color:#9CA3AF;font-size:11px;margin:0;">Gradačac Mapa – Digitalni vodič kroz grad</p>
+  </div>
+</div>
+</body></html>"""
+        await _asyncio.to_thread(_resend.Emails.send, {
+            "from": sender, "to": [to_email],
+            "subject": f"Kod za rezervaciju u {location_name}: {code}",
+            "html": html
+        })
+        return True
+    except Exception as e:
+        print(f"[EMAIL] Send failed: {e}")
+        return False
+
+async def _send_verification_sms(to_phone: str, code: str, location_name: str) -> bool:
+    try:
+        from twilio.rest import Client as _TwilioClient
+        sid = await _get_setting("twilio_account_sid")
+        token = await _get_setting("twilio_auth_token")
+        from_num = await _get_setting("twilio_from_number")
+        if not sid or not token or not from_num:
+            return False
+        client = _TwilioClient(sid, token)
+        msg = f"Gradacac Mapa: Vas verifikacioni kod za rezervaciju u {location_name} je: {code}. Vazi 30 min."
+        formatted = _format_phone_ba(to_phone)
+        await _asyncio.to_thread(client.messages.create, body=msg, from_=from_num, to=formatted)
+        return True
+    except Exception as e:
+        print(f"[SMS] Send failed: {e}")
+        return False
 
 @api_router.get("/reservations/locations")
 async def get_reservable_locations():
@@ -1652,7 +1725,24 @@ async def create_reservation(data: ReservationCreate):
         "created_at": datetime.now(timezone.utc),
     }
     await db.reservations.insert_one(reservation)
-    return {"reservation_id": reservation["id"], "verification_code": code, "message": "Rezervacija kreirana. Unesite kod za potvrdu."}
+
+    # Try to send via SMS then email
+    sent_via = None
+    sms_ok = await _send_verification_sms(data.customer_phone, code, loc["name"])
+    if sms_ok:
+        sent_via = "sms"
+    elif data.customer_email:
+        email_ok = await _send_verification_email(data.customer_email, code, loc["name"], data.date, data.time)
+        if email_ok:
+            sent_via = "email"
+
+    return {
+        "reservation_id": reservation["id"],
+        "verification_code": code if not sent_via else None,
+        "show_code": sent_via is None,
+        "sent_via": sent_via,
+        "message": f"Kod je poslan putem {'SMS-a' if sent_via == 'sms' else 'e-maila' if sent_via == 'email' else 'prikazan u aplikaciji'}."
+    }
 
 @api_router.post("/reservations/verify")
 async def verify_reservation(data: ReservationVerify):

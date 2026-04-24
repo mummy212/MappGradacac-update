@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
-import { Save, Globe, Palette, FileText, Share2, ChevronRight } from 'lucide-react'
+import { Save, Globe, Palette, FileText, Share2, ChevronRight, Zap } from 'lucide-react'
 
 const TABS = [
   { key: 'design', label: 'Dizajn', icon: Palette },
   { key: 'content', label: 'Sadržaj', icon: FileText },
   { key: 'seo', label: 'SEO', icon: Globe },
   { key: 'social', label: 'Društvene Mreže', icon: Share2 },
+  { key: 'integrations', label: 'Integracije', icon: Zap },
 ]
 
 const SECTIONS = [
@@ -307,6 +308,107 @@ export default function SiteSettings() {
                   <input className="input" value={s('tiktok_url')} onChange={e => set('tiktok_url', e.target.value)}
                     placeholder="https://tiktok.com/@gradacacmapa" />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* INTEGRATIONS TAB */}
+          {activeTab === 'integrations' && (
+            <div className="space-y-5">
+              {/* Info banner */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+                <p className="font-semibold mb-1">📧 📱 Email i SMS notifikacije za rezervacije</p>
+                <p>Kada korisnici naprave rezervaciju, sistem će im poslati verifikacioni kod putem SMS-a (Twilio) ili emaila (Resend). Ako nijedan servis nije konfiguriran, kod se prikazuje direktno u aplikaciji.</p>
+              </div>
+
+              {/* Resend Email */}
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white font-bold text-sm">R</div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Resend — Slanje Emaila</h3>
+                    <p className="text-xs text-slate-500">Besplatno do 3.000 emailova/mj. • <a href="https://resend.com" target="_blank" rel="noopener" className="text-blue-500 underline">resend.com</a></p>
+                  </div>
+                  {s('resend_api_key') && (
+                    <span className="ml-auto flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 px-2 py-1 rounded-full">✓ Aktivan</span>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Resend API Ključ</label>
+                    <input
+                      className="input font-mono text-sm"
+                      type="password"
+                      value={s('resend_api_key')}
+                      onChange={e => set('resend_api_key', e.target.value)}
+                      placeholder="re_xxxxxxxxxxxxxxxxxxxx"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Dobijte ga: resend.com → Dashboard → API Keys → Create API Key</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Email adresa pošiljaoca</label>
+                    <input
+                      className="input"
+                      value={s('resend_sender_email')}
+                      onChange={e => set('resend_sender_email', e.target.value)}
+                      placeholder="noreply@gradacac-mapa.ba"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">U besplatnom planu koristite: onboarding@resend.dev</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Twilio SMS */}
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">T</div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Twilio — Slanje SMS-a</h3>
+                    <p className="text-xs text-slate-500">~0.01–0.05$ po SMS-u • <a href="https://twilio.com" target="_blank" rel="noopener" className="text-blue-500 underline">twilio.com</a></p>
+                  </div>
+                  {s('twilio_account_sid') && s('twilio_auth_token') && s('twilio_from_number') && (
+                    <span className="ml-auto flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 px-2 py-1 rounded-full">✓ Aktivan</span>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Account SID</label>
+                    <input
+                      className="input font-mono text-sm"
+                      type="password"
+                      value={s('twilio_account_sid')}
+                      onChange={e => set('twilio_account_sid', e.target.value)}
+                      placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Auth Token</label>
+                    <input
+                      className="input font-mono text-sm"
+                      type="password"
+                      value={s('twilio_auth_token')}
+                      onChange={e => set('twilio_auth_token', e.target.value)}
+                      placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Twilio Telefonski broj (E.164 format)</label>
+                    <input
+                      className="input font-mono text-sm"
+                      value={s('twilio_from_number')}
+                      onChange={e => set('twilio_from_number', e.target.value)}
+                      placeholder="+12345678901"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Dobijte ga: twilio.com → Console → Phone Numbers. Format: +[pozivni][broj]</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                <p className="font-semibold mb-1">⚡ Prioritet slanja:</p>
+                <p>1. SMS (Twilio) — ako su postavljeni svi Twilio ključevi</p>
+                <p>2. Email (Resend) — ako je postavljen Resend ključ i korisnik unio email</p>
+                <p>3. Prikaz u appu — fallback ako nijedan servis nije konfiguriran</p>
               </div>
             </div>
           )}
