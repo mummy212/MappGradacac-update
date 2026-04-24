@@ -234,11 +234,19 @@ class ReservationCreate(BaseModel):
     customer_name: str
     customer_phone: str
     customer_email: Optional[str] = None
-    date: str  # YYYY-MM-DD
-    time: str  # HH:MM
+    reservation_type: str = "table"  # "table" | "room"
+    # Restaurant/Cafe fields
+    date: Optional[str] = None       # YYYY-MM-DD
+    time: Optional[str] = None       # HH:MM
+    table_preference: Optional[str] = None  # "unutra" | "vani" | "svejedno"
+    # Hotel fields
+    check_in_date: Optional[str] = None   # YYYY-MM-DD
+    check_out_date: Optional[str] = None  # YYYY-MM-DD
+    room_type: Optional[str] = None       # "soba" | "apartman" | "studio"
+    bed_type: Optional[str] = None        # "jedan_krevet" | "dva_kreveta" | "bracni_krevet"
+    # Common
     guests: int = Field(default=2, ge=1, le=20)
     special_requests: Optional[str] = None
-    table_preference: Optional[str] = None
 
 class ReservationVerify(BaseModel):
     reservation_id: str
@@ -1711,14 +1719,22 @@ async def create_reservation(data: ReservationCreate):
         "location_id": data.location_id,
         "location_name": loc["name"],
         "location_category": loc.get("category", ""),
+        "reservation_type": data.reservation_type,
         "customer_name": data.customer_name,
         "customer_phone": data.customer_phone,
         "customer_email": data.customer_email,
+        # Restaurant/Cafe
         "date": data.date,
         "time": data.time,
+        "table_preference": data.table_preference,
+        # Hotel
+        "check_in_date": data.check_in_date,
+        "check_out_date": data.check_out_date,
+        "room_type": data.room_type,
+        "bed_type": data.bed_type,
+        # Common
         "guests": data.guests,
         "special_requests": data.special_requests,
-        "table_preference": data.table_preference,
         "status": "pending_verification",
         "verification_code": code,
         "verification_expires_at": expires_at,
@@ -1728,11 +1744,14 @@ async def create_reservation(data: ReservationCreate):
 
     # Try to send via SMS then email
     sent_via = None
+    # Use check_in_date for hotels, date for restaurants
+    display_date = data.check_in_date or data.date or ""
+    display_time = data.time or "prijava"
     sms_ok = await _send_verification_sms(data.customer_phone, code, loc["name"])
     if sms_ok:
         sent_via = "sms"
     elif data.customer_email:
-        email_ok = await _send_verification_email(data.customer_email, code, loc["name"], data.date, data.time)
+        email_ok = await _send_verification_email(data.customer_email, code, loc["name"], display_date, display_time)
         if email_ok:
             sent_via = "email"
 
@@ -1770,7 +1789,12 @@ async def get_my_reservations(phone: str = Query(..., min_length=6)):
         {"customer_phone": phone, "status": {"$ne": "pending_verification"}}
     ).sort("created_at", -1).to_list(None)
     return [{"id": r["id"], "location_name": r["location_name"], "location_category": r.get("location_category", ""),
-              "date": r["date"], "time": r["time"], "guests": r["guests"],
+              "reservation_type": r.get("reservation_type", "table"),
+              "date": r.get("date"), "time": r.get("time"),
+              "table_preference": r.get("table_preference"),
+              "check_in_date": r.get("check_in_date"), "check_out_date": r.get("check_out_date"),
+              "room_type": r.get("room_type"), "bed_type": r.get("bed_type"),
+              "guests": r["guests"],
               "special_requests": r.get("special_requests"), "status": r["status"],
               "created_at": r["created_at"].isoformat() if r.get("created_at") else None} for r in rsvs]
 
@@ -1781,11 +1805,16 @@ async def get_business_reservations(user: dict = Depends(require_business_or_adm
         query["location_id"] = user["location_id"]
     rsvs = await db.reservations.find(query).sort("date", 1).to_list(None)
     return [{"id": r["id"], "location_id": r["location_id"], "location_name": r["location_name"],
+              "location_category": r.get("location_category", ""),
+              "reservation_type": r.get("reservation_type", "table"),
               "customer_name": r["customer_name"], "customer_phone": r["customer_phone"],
-              "customer_email": r.get("customer_email"), "date": r["date"], "time": r["time"],
+              "customer_email": r.get("customer_email"),
+              "date": r.get("date"), "time": r.get("time"),
+              "table_preference": r.get("table_preference"),
+              "check_in_date": r.get("check_in_date"), "check_out_date": r.get("check_out_date"),
+              "room_type": r.get("room_type"), "bed_type": r.get("bed_type"),
               "guests": r["guests"], "special_requests": r.get("special_requests"),
-              "table_preference": r.get("table_preference"), "status": r["status"],
-              "business_note": r.get("business_note"),
+              "status": r["status"], "business_note": r.get("business_note"),
               "created_at": r["created_at"].isoformat() if r.get("created_at") else None} for r in rsvs]
 
 @api_router.put("/business/reservations/{reservation_id}/status")

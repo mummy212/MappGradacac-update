@@ -1,0 +1,81 @@
+{
+  "summary": "Testiran dual rezervacijski sistem (table vs room tipovi). Pronađena i popravljena 2 kritična buga. Backend: 14/14 testova prošlo. Frontend: sve funkcionalnosti rade. Business panel: expandovane kartice ispravno prikazuju detalje za oba tipa rezervacije.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/my-reservations",
+        "issue": "FIXED: Response je nedostajao reservation_type, check_in_date, check_out_date, room_type, bed_type, table_preference. Mobilna app 'Moje rezervacije' uvijek prikazivala stolni format jer isRoom provjera (r.reservation_type === 'room') uvijek vraćala false.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/admin/reservations",
+        "issue": "Sličan problem: response nedostaje reservation_type, check_in_date, check_out_date, room_type, bed_type, table_preference - admin panel može ne prikazivati room detalje ispravno"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Business Panel - Reservations.tsx date block",
+        "issue": "FIXED: Date block koristio r.date za room rezervacije gdje je date=null, uzrokujući NaN prikaz. Popravak: uvjetno koristi r.check_in_date za room tip. Rebuild izvršen i deployovan.",
+        "testID": "N/A - web panel",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_reservation_types.py",
+    "/app/test_reports/pytest/pytest_reservation_types.xml"
+  ],
+  "action_items": [
+    "Fix /api/admin/reservations to include reservation_type, check_in_date, check_out_date, room_type, bed_type, table_preference fields (same fix as my-reservations)"
+  ],
+  "critical_code_review_comments": [
+    "FIXED: get_my_reservations response dict missing fields: reservation_type, check_in_date, check_out_date, room_type, bed_type, table_preference. All added to response.",
+    "FIXED: Business panel Reservations.tsx date block - r.date is null for room reservations, now uses check_in_date conditionally. Purple block for room, emerald for table.",
+    "Minor: get_admin/reservations also missing reservation_type and room/table specific fields - may affect admin panel views",
+    "No testID attributes on interactive elements in ReservationsTab.tsx (TouchableOpacity for filter chips, location cards, form buttons) - would improve future testability"
+  ],
+  "updated_files": [
+    "/app/backend/server.py (get_my_reservations response dict)",
+    "/app/web-business/src/pages/Reservations.tsx (date block fix)",
+    "/app/backend/business-panel-dist/ (rebuilt and deployed)",
+    "/app/backend/tests/test_reservation_types.py (new test file)"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 tests passed)",
+    "frontend": "100% - All verified: location list with cards, filter chips (Sve/Restorani/Kafici/Prenocista), table form (date/time/guests/preference), hotel form (check-in/out/room-type/bed-type), end-to-end submission+verification, business panel reservation display with expanded details"
+  },
+  "seed_data_creation": "Multiple TEST_* reservation entries created during testing (not cleaned up - 22 total in panel from various test iterations)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Dual reservation system (table/room) fully tested and bugs fixed. Backend POST /api/reservations works for both types. Business panel at /api/business-panel/ (NOT /business/). Room reservations show purple date block with check_in_date, table reservations show emerald date block with date. Expanded cards: table shows DATUM I VRIJEME + PREFERENCIJA STOLA; room shows DOLAZAK/ODLAZAK + nights + SMJEŠTAJ (room_type/bed_type). my-reservations endpoint now returns all fields including reservation_type for both types. Admin reservations endpoint still missing these fields.",
+  "rca_of_issue": "BUG 1 - get_my_reservations: Response dict hardcoded fields from table-only era (date/time/guests) without reservation_type, check_in_date, check_out_date, room_type, bed_type, table_preference. ReservationsTab.tsx 'isRoom' check always false → room reservations displayed as table format with empty fields. Fix: added all missing fields to response dict. BUG 2 - Business panel date block: new Date(r.date + 'T12:00:00') where r.date=null for rooms → Invalid Date → NaN. Fix: conditional date selection (r.check_in_date for room, r.date for table) with validity check. Rebuild + deploy of business-panel-dist.",
+  "test_verification": {
+    "backend_table_reservation_200": "PASS",
+    "backend_table_verification_code_6_digits": "PASS",
+    "backend_room_reservation_200": "PASS",
+    "backend_room_verification_code_6_digits": "PASS",
+    "backend_my_reservations_has_reservation_type": "PASS (after fix)",
+    "backend_my_reservations_room_fields": "PASS (after fix)",
+    "backend_business_panel_table_fields": "PASS",
+    "backend_business_panel_room_fields": "PASS",
+    "mobile_reservations_tab_loads": "PASS",
+    "mobile_filter_chips_work": "PASS - Sve/Restorani/Kafici/Prenocista all working",
+    "mobile_table_form_opens": "PASS - Datum/Vrijeme/Broj_mjesta/Preferencija_stola",
+    "mobile_hotel_form_opens": "PASS - Datum_dolaska/Datum_odlaska/Tip_smjestaja/Tip_kreveta",
+    "mobile_table_reservation_e2e": "PASS - submit → code → verify → success screen",
+    "business_panel_login": "PASS - /api/business-panel/",
+    "business_panel_rezervacije_tab": "PASS - visible in sidebar",
+    "business_panel_table_card": "PASS - shows date/time in emerald block",
+    "business_panel_room_card_nan_fixed": "PASS - shows check_in_date in purple block, no NaN",
+    "business_panel_table_expanded_preferencija_stola": "PASS - PREFERENCIJA STOLA shows Svejedno/Unutra",
+    "business_panel_room_expanded_dolazak_odlazak": "PASS - shows date range + nights count",
+    "business_panel_room_expanded_smjestaj": "PASS - shows room_type/bed_type"
+  }
+}

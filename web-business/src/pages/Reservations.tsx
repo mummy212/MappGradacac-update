@@ -6,17 +6,39 @@ import { Calendar, Clock, Users, Phone, Mail, CheckCircle2, XCircle, CheckCheck,
 interface Reservation {
   id: string
   location_name: string
+  location_category: string
+  reservation_type: 'table' | 'room'
   customer_name: string
   customer_phone: string
   customer_email?: string
-  date: string
-  time: string
+  // Restaurant/Cafe
+  date?: string
+  time?: string
+  table_preference?: string
+  // Hotel
+  check_in_date?: string
+  check_out_date?: string
+  room_type?: string
+  bed_type?: string
+  // Common
   guests: number
   special_requests?: string
-  table_preference?: string
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
   business_note?: string
   created_at?: string
+}
+
+const ROOM_LABELS: Record<string, string> = { soba: 'Soba', apartman: 'Apartman', studio: 'Studio' }
+const BED_LABELS: Record<string, string> = {
+  jedan_krevet: 'Jedan krevet',
+  dva_kreveta: 'Dva odvojena kreveta',
+  bracni_krevet: 'Bračni krevet',
+}
+const TABLE_PREF_LABELS: Record<string, string> = { unutra: 'Unutra', vani: 'Vani / Terasa', svejedno: 'Svejedno' }
+
+function calcNights(ci?: string, co?: string) {
+  if (!ci || !co) return 0
+  try { return Math.max(1, Math.round((new Date(co + 'T12:00:00').getTime() - new Date(ci + 'T12:00:00').getTime()) / 86400000)) } catch { return 0 }
 }
 
 const STATUS_CONFIG = {
@@ -99,11 +121,18 @@ export default function Reservations() {
             return (
               <div key={r.id} className={`bg-white border rounded-2xl overflow-hidden transition-all ${isExpanded ? 'shadow-md' : 'shadow-sm hover:shadow-md'}`}>
                 <div className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => setSelectedId(isExpanded ? null : r.id)}>
-                  {/* Date block */}
-                  <div className="w-14 h-14 bg-emerald-50 rounded-xl flex flex-col items-center justify-center flex-shrink-0 border border-emerald-100">
-                    <span className="text-xl font-bold text-emerald-700 leading-none">{new Date(r.date + 'T12:00:00').getDate()}</span>
-                    <span className="text-xs text-emerald-500 font-medium">{['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'][new Date(r.date + 'T12:00:00').getMonth()]}</span>
-                  </div>
+                  {/* Date block - use check_in_date for room reservations, date for table */}
+                  {(() => {
+                    const displayDate = r.reservation_type === 'room' ? r.check_in_date : r.date
+                    const d = displayDate ? new Date(displayDate + 'T12:00:00') : null
+                    const isValid = d && !isNaN(d.getTime())
+                    return (
+                      <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0 border ${r.reservation_type === 'room' ? 'bg-purple-50 border-purple-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                        <span className={`text-xl font-bold leading-none ${r.reservation_type === 'room' ? 'text-purple-700' : 'text-emerald-700'}`}>{isValid ? d!.getDate() : '—'}</span>
+                        <span className={`text-xs font-medium ${r.reservation_type === 'room' ? 'text-purple-500' : 'text-emerald-500'}`}>{isValid ? ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'][d!.getMonth()] : '—'}</span>
+                      </div>
+                    )
+                  })()}
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -113,8 +142,17 @@ export default function Reservations() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 flex-wrap">
-                      <span className="flex items-center gap-1"><Clock size={12} />{r.time}</span>
-                      <span className="flex items-center gap-1"><Users size={12} />{r.guests} {r.guests === 1 ? 'osoba' : 'osobe/a'}</span>
+                      {r.reservation_type === 'room' ? (
+                        <>
+                          <span className="flex items-center gap-1"><Calendar size={12} />{formatDate(r.check_in_date || '')} → {formatDate(r.check_out_date || '')}</span>
+                          <span className="flex items-center gap-1">🛏 {ROOM_LABELS[r.room_type || ''] || r.room_type}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex items-center gap-1"><Clock size={12} />{r.time}</span>
+                          <span className="flex items-center gap-1"><Users size={12} />{r.guests} {r.guests === 1 ? 'osoba' : 'osobe/a'}</span>
+                        </>
+                      )}
                       <span className="flex items-center gap-1"><Phone size={12} />{r.customer_phone}</span>
                     </div>
                   </div>
@@ -125,10 +163,33 @@ export default function Reservations() {
                 {isExpanded && (
                   <div className="border-t border-gray-100 p-4">
                     <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-                      <div className="bg-gray-50 rounded-xl p-3">
-                        <p className="text-xs text-gray-400 font-medium mb-1">DATUM I VRIJEME</p>
-                        <p className="font-medium text-gray-900">{formatDate(r.date)} u {r.time}</p>
-                      </div>
+                      {r.reservation_type === 'room' ? (
+                        <>
+                          <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
+                            <p className="text-xs text-purple-500 font-medium mb-1">DOLAZAK / ODLAZAK</p>
+                            <p className="font-medium text-gray-900">{formatDate(r.check_in_date || '')} → {formatDate(r.check_out_date || '')}</p>
+                            <p className="text-xs text-purple-400 mt-0.5">{calcNights(r.check_in_date, r.check_out_date)} noći</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl p-3">
+                            <p className="text-xs text-gray-400 font-medium mb-1">SMJEŠTAJ</p>
+                            <p className="font-medium text-gray-900">{ROOM_LABELS[r.room_type || ''] || r.room_type}</p>
+                            <p className="text-xs text-gray-500">{BED_LABELS[r.bed_type || ''] || r.bed_type}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="bg-gray-50 rounded-xl p-3">
+                            <p className="text-xs text-gray-400 font-medium mb-1">DATUM I VRIJEME</p>
+                            <p className="font-medium text-gray-900">{formatDate(r.date || '')} u {r.time}</p>
+                          </div>
+                          {r.table_preference && (
+                            <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                              <p className="text-xs text-emerald-500 font-medium mb-1">PREFERENCIJA STOLA</p>
+                              <p className="font-medium text-gray-900">{TABLE_PREF_LABELS[r.table_preference] || r.table_preference}</p>
+                            </div>
+                          )}
+                        </>
+                      )}
                       <div className="bg-gray-50 rounded-xl p-3">
                         <p className="text-xs text-gray-400 font-medium mb-1">KONTAKT</p>
                         <p className="font-medium text-gray-900">{r.customer_phone}</p>
@@ -138,12 +199,6 @@ export default function Reservations() {
                         <div className="col-span-2 bg-amber-50 rounded-xl p-3 border border-amber-100">
                           <p className="text-xs text-amber-600 font-medium mb-1">POSEBNI ZAHTJEVI</p>
                           <p className="text-gray-700 text-sm">{r.special_requests}</p>
-                        </div>
-                      )}
-                      {r.table_preference && (
-                        <div className="bg-blue-50 rounded-xl p-3">
-                          <p className="text-xs text-blue-500 font-medium mb-1">PREFERENCIJA</p>
-                          <p className="text-gray-700 text-sm">{r.table_preference}</p>
                         </div>
                       )}
                     </div>
