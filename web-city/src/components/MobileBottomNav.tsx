@@ -13,13 +13,13 @@ export default function MobileBottomNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg safe-area-pb">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg safe-area-pb">
       <div className="flex items-stretch">
         {ITEMS.map(({ to, label, Icon, end }) => {
           const active = end ? pathname === to : pathname.startsWith(to);
           return (
             <Link key={to} to={to}
-              className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[56px] transition-colors
+              className={`flex-1 relative flex flex-col items-center justify-center py-2 gap-0.5 min-h-[56px] transition-colors
                 ${active ? 'text-primary-600' : 'text-gray-400 active:text-gray-600'}`}>
               <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
               <span className={`text-[10px] font-medium leading-none ${active ? 'font-semibold' : ''}`}>{label}</span>

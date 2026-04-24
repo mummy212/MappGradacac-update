@@ -486,6 +486,30 @@ test_plan:
         agent: "main"
         comment: "Generated custom icon with Gradacac fortress tower + location pin on purple gradient. Placed in all icon slots."
 
+  - task: "web-city mobilni layout - MobileBottomNav, footer padding, safe area"
+    implemented: true
+    working: "NA"
+    file: "/app/web-city/src/components/MobileBottomNav.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "MobileBottomNav.tsx kreiran i integrisan u Layout.tsx. Footer dobio pb-24 na mobilnom. index.css dopunjen sa safe-area-pb, scrollbar-none CSS klasama. DownloadBanner telefon mockup skriven na xs ekranima (hidden sm:flex). Build i deploy završen."
+
+  - task: "Test podaci obrisani iz baze - TEST Admin Offer i TEST_Popust 20%"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Obrisane 3 test ponude iz MongoDB kolekcije offers. Preostala samo legitimna ponuda: 20% popusta na ćevape."
+
 agent_communication:
   - agent: "main"
     message: "Web Business Panel (Faza 2) implemented as React+Vite app. Accessible at /api/business-panel/ URL. Features: Login, Dashboard (stats+reviews), Moja Lokacija (edit info+images), Meni/Ponuda/Usluge (dynamic by category, add/delete), Recenzije (rating distribution + full list). Built from /app/web-business/, dist copied to /app/backend/business-panel-dist/. Backend serves static files at /api/business-panel/{path:path}. Test credentials: starigrad@test.ba / Test1234!"

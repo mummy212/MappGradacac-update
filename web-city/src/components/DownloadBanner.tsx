@@ -29,7 +29,7 @@ export default function DownloadBanner() {
               </Link>
             </div>
           </div>
-          <div className="flex-shrink-0">
+          <div className="hidden sm:flex flex-shrink-0">
             <div className="w-40 h-72 md:w-48 md:h-80 bg-white/10 rounded-[2.5rem] border-4 border-white/30 flex items-center justify-center shadow-2xl">
               <div className="text-center text-white">
                 <div className="text-6xl mb-3">🗺️</div>
