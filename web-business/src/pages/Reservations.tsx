@@ -92,12 +92,30 @@ export default function Reservations() {
           <h1 className="text-2xl font-bold text-gray-900">Rezervacije</h1>
           <p className="text-sm text-gray-500 mt-0.5">Upravljajte rezervacijama vaše lokacije</p>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full font-semibold">{counts.pending} novih</span>
-          <span className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full font-semibold">{counts.confirmed} potvrđenih</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full font-semibold">{counts.pending} novih</span>
+            <span className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full font-semibold">{counts.confirmed} potvrđenih</span>
+          </div>
+          {/* View toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl ml-2">
+            <button onClick={() => setView('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${view === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              <List size={14} />Lista
+            </button>
+            <button onClick={() => setView('calendar')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${view === 'calendar' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              <Calendar size={14} />Kalendar
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Calendar view */}
+      {view === 'calendar' && <ReservationCalendar />}
+
+      {/* List view */}
+      {view === 'list' && <>
       {/* Filter tabs */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 w-fit">
         {([['all', 'Sve'], ['pending', 'Čekaju'], ['confirmed', 'Potvrđene'], ['completed', 'Završene'], ['cancelled', 'Otkazane']] as [string, string][]).map(([key, label]) => (
@@ -246,6 +264,7 @@ export default function Reservations() {
           })}
         </div>
       )}
+      </>}
     </div>
   )
 }
