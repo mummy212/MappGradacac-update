@@ -85,6 +85,13 @@ Prošireno na: Detaljna, moderna, SEO-friendly web stranica i admin paneli za up
 - Test podaci obrisani iz MongoDB (3 test ponude: TEST Admin Offer x2, TEST_Popust 20%)
 - Testirano 100%: svih 8 funkcija prošle ✅
 
+### Faza 9: Sistem Rezervacija - Restorani, Kafići, Prenoćišta (DONE - Apr 2026)
+- **Backend**: Novi `reservations` MongoDB kolekcija. Modeli: `ReservationCreate`, `ReservationVerify`, `ReservationStatusUpdate`
+- **API Endpointi**: GET /api/reservations/locations, POST /api/reservations (6-digit kod), POST /api/reservations/verify, GET /api/my-reservations, GET/PUT /api/business/reservations, GET /api/admin/reservations
+- **Mobilna App**: `ReservationsTab.tsx` - 4-koračni wizard (odabir → forma → verifikacioni kod → uspjeh), "Moje rezervacije" tab sa pretragom po telefonu. Datum scroller (14 dana), time picker modal (08:00-23:00 u 30-min intervalima), guests counter, posebni zahtjevi
+- **Business Panel**: `Reservations.tsx` sa filter tabovima, expandable cards, potvrda/otkazivanje/završetak akcijama, opcionalna napomena
+- Testirano 100%: 20/20 backend + frontend testova prošlo ✅
+
 ## Test Credentials
 - Admin: admin@gradacac.ba / Gradacac2024!
 - Business: starigrad@test.ba / Test1234!
