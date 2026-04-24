@@ -75,6 +75,16 @@ Prošireno na: Detaljna, moderna, SEO-friendly web stranica i admin paneli za up
 - Admin panel SEO tab: Google Search Console verifikacijski kod, Google Analytics 4 ID, Kanonski URL, OG Slika, Google pretraga preview
 - Nema duplicate meta tagova (staticki tagovi uklonjeni iz index.html)
 
+### Faza 8: Mobilna Optimizacija web-city + Čišćenje Podataka (DONE - Apr 2026)
+- Kreiran `MobileBottomNav.tsx` - fiksna bottom navigacija sa 5 tabova (Početna, Lokacije, Događaji, Vijesti, Hitni)
+- `Layout.tsx` integriran sa MobileBottomNav i `pb-14 md:pb-0` na main elementu
+- `Footer.tsx` - `pt-14 pb-24` na mobilnom, osigurava da sadržaj nije prekriven bottom navom
+- `DownloadBanner.tsx` - telefon mockup skriven na xs ekranima (`hidden sm:flex`)
+- `index.css` - dodane CSS klase: `safe-area-pb` (env safe-area-inset-bottom), `scrollbar-none`, tap-highlight removal
+- `MobileBottomNav` - backdrop-blur-md efekt, `relative` class na Link za aktivni indikator
+- Test podaci obrisani iz MongoDB (3 test ponude: TEST Admin Offer x2, TEST_Popust 20%)
+- Testirano 100%: svih 8 funkcija prošle ✅
+
 ## Test Credentials
 - Admin: admin@gradacac.ba / Gradacac2024!
 - Business: starigrad@test.ba / Test1234!
