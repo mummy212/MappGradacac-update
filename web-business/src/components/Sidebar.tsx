@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LayoutDashboard, MapPin, Tag, Star, LogOut, Map, UtensilsCrossed, ShoppingCart, Wrench } from 'lucide-react'
+import { LayoutDashboard, MapPin, Tag, Star, LogOut, Map, UtensilsCrossed, ShoppingCart, Wrench, CalendarCheck } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import type { Location } from '../types'
@@ -40,6 +40,7 @@ export default function Sidebar() {
     { to: '/', label: 'Pregled', icon: <LayoutDashboard size={17} />, end: true },
     { to: '/lokacija', label: 'Moja Lokacija', icon: <MapPin size={17} />, end: false },
     { to: '/ponuda', label: catConfig.label, icon: catConfig.icon, end: false },
+    { to: '/rezervacije', label: 'Rezervacije', icon: <CalendarCheck size={17} />, end: false },
     { to: '/recenzije', label: 'Recenzije', icon: <Star size={17} />, end: false },
   ]
 

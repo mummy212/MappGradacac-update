@@ -228,6 +228,26 @@ class NewsUpdate(BaseModel):
     author: Optional[str] = None
     is_published: Optional[bool] = None
 
+# ===== Reservation Models =====
+class ReservationCreate(BaseModel):
+    location_id: str
+    customer_name: str
+    customer_phone: str
+    customer_email: Optional[str] = None
+    date: str  # YYYY-MM-DD
+    time: str  # HH:MM
+    guests: int = Field(default=2, ge=1, le=20)
+    special_requests: Optional[str] = None
+    table_preference: Optional[str] = None
+
+class ReservationVerify(BaseModel):
+    reservation_id: str
+    code: str
+
+class ReservationStatusUpdate(BaseModel):
+    status: str
+    note: Optional[str] = None
+
 DEFAULT_EMERGENCY_CONTACTS = [
     {"section": "Hitni Servisi", "section_emoji": "🚨", "name": "Opći hitni broj", "number": "112", "icon": "alert-circle", "color": "#fff", "bg": "#EF4444", "note": "EU standard — uvijek dostupan", "order": 0},
     {"section": "Hitni Servisi", "section_emoji": "🚨", "name": "Policija", "number": "122", "icon": "shield-checkmark", "color": "#EF4444", "bg": "#FEE2E2", "order": 1},
@@ -1591,6 +1611,116 @@ async def list_business_accounts(user: dict = Depends(require_admin)):
 async def delete_business_account(uid: str, user: dict = Depends(require_admin)):
     await db.users.delete_one({"_id": ObjectId(uid), "role": "business"})
     return {"message": "OK"}
+
+# ===== Reservations =====
+import random as _random
+
+@api_router.get("/reservations/locations")
+async def get_reservable_locations():
+    """Fetch locations that accept reservations: restaurants, cafes, prenociste"""
+    locs = await db.locations.find(
+        {"category": {"$in": ["restaurant", "cafe", "prenociste"]}},
+        {"_id": 0}
+    ).to_list(None)
+    return locs
+
+@api_router.post("/reservations")
+async def create_reservation(data: ReservationCreate):
+    loc = await db.locations.find_one({"id": data.location_id})
+    if not loc:
+        raise HTTPException(404, "Lokacija nije pronađena")
+    if loc["category"] not in ["restaurant", "cafe", "prenociste"]:
+        raise HTTPException(400, "Ova lokacija ne prima rezervacije")
+    code = str(_random.randint(100000, 999999))
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    reservation = {
+        "id": str(uuid.uuid4()),
+        "location_id": data.location_id,
+        "location_name": loc["name"],
+        "location_category": loc.get("category", ""),
+        "customer_name": data.customer_name,
+        "customer_phone": data.customer_phone,
+        "customer_email": data.customer_email,
+        "date": data.date,
+        "time": data.time,
+        "guests": data.guests,
+        "special_requests": data.special_requests,
+        "table_preference": data.table_preference,
+        "status": "pending_verification",
+        "verification_code": code,
+        "verification_expires_at": expires_at,
+        "created_at": datetime.now(timezone.utc),
+    }
+    await db.reservations.insert_one(reservation)
+    return {"reservation_id": reservation["id"], "verification_code": code, "message": "Rezervacija kreirana. Unesite kod za potvrdu."}
+
+@api_router.post("/reservations/verify")
+async def verify_reservation(data: ReservationVerify):
+    res = await db.reservations.find_one({"id": data.reservation_id})
+    if not res:
+        raise HTTPException(404, "Rezervacija nije pronađena")
+    if res["status"] != "pending_verification":
+        raise HTTPException(400, "Rezervacija je već verificirana")
+    if res.get("verification_code") != data.code:
+        raise HTTPException(400, "Netačan verifikacioni kod")
+    exp = res.get("verification_expires_at")
+    if exp:
+        exp_dt = exp.replace(tzinfo=timezone.utc) if exp.tzinfo is None else exp
+        if datetime.now(timezone.utc) > exp_dt:
+            raise HTTPException(400, "Verifikacioni kod je istekao. Molimo napravite novu rezervaciju.")
+    await db.reservations.update_one(
+        {"id": data.reservation_id},
+        {"$set": {"status": "pending", "verification_code": None, "verification_expires_at": None}}
+    )
+    return {"message": "Rezervacija uspješno verificirana! Čeka potvrdu lokacije."}
+
+@api_router.get("/my-reservations")
+async def get_my_reservations(phone: str = Query(..., min_length=6)):
+    rsvs = await db.reservations.find(
+        {"customer_phone": phone, "status": {"$ne": "pending_verification"}}
+    ).sort("created_at", -1).to_list(None)
+    return [{"id": r["id"], "location_name": r["location_name"], "location_category": r.get("location_category", ""),
+              "date": r["date"], "time": r["time"], "guests": r["guests"],
+              "special_requests": r.get("special_requests"), "status": r["status"],
+              "created_at": r["created_at"].isoformat() if r.get("created_at") else None} for r in rsvs]
+
+@api_router.get("/business/reservations")
+async def get_business_reservations(user: dict = Depends(require_business_or_admin)):
+    query: dict = {"status": {"$ne": "pending_verification"}}
+    if user["role"] == "business":
+        query["location_id"] = user["location_id"]
+    rsvs = await db.reservations.find(query).sort("date", 1).to_list(None)
+    return [{"id": r["id"], "location_id": r["location_id"], "location_name": r["location_name"],
+              "customer_name": r["customer_name"], "customer_phone": r["customer_phone"],
+              "customer_email": r.get("customer_email"), "date": r["date"], "time": r["time"],
+              "guests": r["guests"], "special_requests": r.get("special_requests"),
+              "table_preference": r.get("table_preference"), "status": r["status"],
+              "business_note": r.get("business_note"),
+              "created_at": r["created_at"].isoformat() if r.get("created_at") else None} for r in rsvs]
+
+@api_router.put("/business/reservations/{reservation_id}/status")
+async def update_reservation_status(reservation_id: str, data: ReservationStatusUpdate, user: dict = Depends(require_business_or_admin)):
+    res = await db.reservations.find_one({"id": reservation_id})
+    if not res:
+        raise HTTPException(404, "Rezervacija nije pronađena")
+    if user["role"] == "business" and res["location_id"] != user["location_id"]:
+        raise HTTPException(403, "Nema pristupa ovoj rezervaciji")
+    if data.status not in ["confirmed", "cancelled", "completed"]:
+        raise HTTPException(400, "Nevažeći status")
+    await db.reservations.update_one(
+        {"id": reservation_id},
+        {"$set": {"status": data.status, "business_note": data.note, "updated_at": datetime.now(timezone.utc)}}
+    )
+    return {"message": "Status rezervacije ažuriran"}
+
+@api_router.get("/admin/reservations")
+async def get_all_reservations(user: dict = Depends(require_admin)):
+    rsvs = await db.reservations.find({"status": {"$ne": "pending_verification"}}).sort("created_at", -1).to_list(None)
+    return [{"id": r["id"], "location_name": r["location_name"], "customer_name": r["customer_name"],
+              "customer_phone": r["customer_phone"], "customer_email": r.get("customer_email"),
+              "date": r["date"], "time": r["time"], "guests": r["guests"],
+              "special_requests": r.get("special_requests"), "status": r["status"],
+              "created_at": r["created_at"].isoformat() if r.get("created_at") else None} for r in rsvs]
 
 # ===== Admin Web Panel (Static Files) =====
 ADMIN_PANEL_DIR = Path(__file__).parent / "admin-panel-dist"

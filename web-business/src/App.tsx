@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import LocationEdit from './pages/LocationEdit'
 import Offers from './pages/Offers'
 import Reviews from './pages/Reviews'
+import Reservations from './pages/Reservations'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30000 } } })
 
@@ -26,6 +27,7 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="lokacija" element={<LocationEdit />} />
         <Route path="ponuda" element={<Offers />} />
+        <Route path="rezervacije" element={<Reservations />} />
         <Route path="recenzije" element={<Reviews />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -510,6 +510,42 @@ test_plan:
         agent: "main"
         comment: "Obrisane 3 test ponude iz MongoDB kolekcije offers. Preostala samo legitimna ponuda: 20% popusta na ćevape."
 
+  - task: "Sistem rezervacija - backend API (POST /api/reservations, POST /api/reservations/verify, GET /api/my-reservations, GET /api/business/reservations, PUT /api/business/reservations/{id}/status)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Dodani ReservationCreate, ReservationVerify, ReservationStatusUpdate modeli i svi rezervacijski endpointi. 6-cifarski verifikacioni kod se generira i prikazuje u appu (MVP). Kategorije: restaurant, cafe, prenociste prihvataju rezervacije."
+
+  - task: "ReservationsTab mobilna komponenta - multi-step wizard (lista, forma, verifikacioni kod, uspjeh, moje rezervacije)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/ReservationsTab.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Kreiran ReservationsTab.tsx sa 4 koraka: odabir lokacije, forma (datum scroller, time picker modal, guests counter, ime/telefon/email/posebni zahtjevi), verifikacioni kod ekran, success screen. Tablica Moje rezervacije po broju telefona. index.tsx ažuriran da koristi ReservationsTab umjesto EventsTab za rezervacije tab."
+
+  - task: "Business panel Rezervacije stranica - upravljanje rezervacijama (potvrda/otkazivanje/završetak)"
+    implemented: true
+    working: "NA"
+    file: "/app/web-business/src/pages/Reservations.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Kreirana Reservations.tsx stranica za biznis panel sa filter tabovima (sve/čekaju/potvrđene/završene/otkazane), expandable cards, akcijama (Potvrdi/Otkaži/Završeno), opcionalnom napomenom. Sidebar i App.tsx ažurirani. Build i deploy završen."
+
 agent_communication:
   - agent: "main"
     message: "Web Business Panel (Faza 2) implemented as React+Vite app. Accessible at /api/business-panel/ URL. Features: Login, Dashboard (stats+reviews), Moja Lokacija (edit info+images), Meni/Ponuda/Usluge (dynamic by category, add/delete), Recenzije (rating distribution + full list). Built from /app/web-business/, dist copied to /app/backend/business-panel-dist/. Backend serves static files at /api/business-panel/{path:path}. Test credentials: starigrad@test.ba / Test1234!"

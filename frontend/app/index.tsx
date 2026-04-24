@@ -10,6 +10,7 @@ import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700
 import HomeTab from '../components/HomeTab';
 import MapTab from '../components/MapTab';
 import EventsTab from '../components/EventsTab';
+import ReservationsTab from '../components/ReservationsTab';
 import FavoritesTab from '../components/FavoritesTab';
 import ProfileTab from '../components/ProfileTab';
 import { useLanguage } from '../context/LanguageContext';
@@ -83,7 +84,7 @@ export default function Index() {
             onCategoryChange={setMapCategory}
           />
         )}
-        {activeTab === 'rezervacije' && <EventsTab />}
+        {activeTab === 'rezervacije' && <ReservationsTab />}
         {activeTab === 'favoriti' && <FavoritesTab userLoc={userLoc} />}
         {activeTab === 'profil' && <ProfileTab />}
       </View>
