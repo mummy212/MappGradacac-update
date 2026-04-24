@@ -1,5 +1,7 @@
 # Gradačac Mapa - Product Requirements Document
 
+## Last Updated: April 2026
+
 ## Original Problem Statement
 Kreiraj mobilnu aplikaciju - mapu grada Gradačac (Bosna i Hercegovina) sa svim podacima o gradu, GPS integracijom, listom marketa, restorana i još mnogo toga.
 
