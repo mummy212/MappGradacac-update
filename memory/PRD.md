@@ -92,6 +92,15 @@ Prošireno na: Detaljna, moderna, SEO-friendly web stranica i admin paneli za up
 - **Business Panel**: `Reservations.tsx` sa filter tabovima, expandable cards, potvrda/otkazivanje/završetak akcijama, opcionalna napomena
 - Testirano 100%: 20/20 backend + frontend testova prošlo ✅
 
+### Faza 10: Email i SMS Verifikacija Rezervacija (DONE - Apr 2026)
+- Instalirani paketi: `resend==2.29.0`, `twilio==9.10.5` u requirements.txt
+- Backend helper funkcije: `_send_verification_email()` (Resend HTML email), `_send_verification_sms()` (Twilio SMS), `_get_setting()` za dohvat ključeva iz MongoDB, `_format_phone_ba()` za BiH → E.164 format
+- `create_reservation` endpoint: SMS → Email → fallback (kod u appu), vraća `show_code`, `sent_via`
+- Admin Panel: novi "Integracije" tab u SiteSettings.tsx sa Resend + Twilio sekcijama, "✓ Aktivan" badge, uputama za dobijanje ključeva
+- ReservationsTab.tsx: prikazuje "Kod poslan putem SMS-a/emaila" kada su servisi aktivni, fallback kod ekran kada nisu
+- Bug fix: dodan `const [enteredCode, setEnteredCode] = useState('')` koji je nedostajao
+- Testirano 100%: 15/15 testova prošlo ✅
+
 ## Test Credentials
 - Admin: admin@gradacac.ba / Gradacac2024!
 - Business: starigrad@test.ba / Test1234!
