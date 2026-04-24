@@ -1817,6 +1817,67 @@ async def get_business_reservations(user: dict = Depends(require_business_or_adm
               "status": r["status"], "business_note": r.get("business_note"),
               "created_at": r["created_at"].isoformat() if r.get("created_at") else None} for r in rsvs]
 
+@api_router.get("/business/reservations/calendar")
+async def get_reservations_calendar(
+    year: int = Query(..., ge=2024, le=2030),
+    month: int = Query(..., ge=1, le=12),
+    user: dict = Depends(require_business_or_admin)
+):
+    import calendar as _cal
+    import datetime as _dt
+    query: dict = {"status": {"$in": ["pending", "confirmed"]}}
+    if user["role"] == "business":
+        query["location_id"] = user["location_id"]
+    rsvs = await db.reservations.find(query).to_list(None)
+    _, days_in_month = _cal.monthrange(year, month)
+    daily: dict = {}
+
+    def _add_day(date_str: str, r: dict, as_item: bool = True):
+        if date_str not in daily:
+            daily[date_str] = {"count": 0, "pending": 0, "confirmed": 0, "items": []}
+        daily[date_str]["count"] += 1
+        daily[date_str][r["status"]] = daily[date_str].get(r["status"], 0) + 1
+        if as_item:
+            rtype = r.get("reservation_type", "table")
+            daily[date_str]["items"].append({
+                "id": r["id"], "customer_name": r["customer_name"],
+                "type": rtype, "status": r["status"], "guests": r.get("guests", 1),
+                "time": r.get("time"), "table_preference": r.get("table_preference"),
+                "check_in_date": r.get("check_in_date"), "check_out_date": r.get("check_out_date"),
+                "room_type": r.get("room_type"), "bed_type": r.get("bed_type"),
+            })
+
+    for r in rsvs:
+        rtype = r.get("reservation_type", "table")
+        if rtype == "table":
+            ds = r.get("date")
+            if ds:
+                try:
+                    d = _dt.date.fromisoformat(ds)
+                    if d.year == year and d.month == month:
+                        _add_day(ds, r, True)
+                except Exception:
+                    pass
+        else:
+            ci_s, co_s = r.get("check_in_date"), r.get("check_out_date")
+            if ci_s and co_s:
+                try:
+                    ci, co = _dt.date.fromisoformat(ci_s), _dt.date.fromisoformat(co_s)
+                    cur = ci
+                    while cur < co:
+                        if cur.year == year and cur.month == month:
+                            _add_day(cur.isoformat(), r, cur == ci)
+                        cur += _dt.timedelta(days=1)
+                except Exception:
+                    pass
+
+    return {
+        "year": year, "month": month,
+        "days_in_month": days_in_month,
+        "first_weekday": _cal.monthrange(year, month)[0],
+        "daily": daily,
+    }
+
 @api_router.put("/business/reservations/{reservation_id}/status")
 async def update_reservation_status(reservation_id: str, data: ReservationStatusUpdate, user: dict = Depends(require_business_or_admin)):
     res = await db.reservations.find_one({"id": reservation_id})

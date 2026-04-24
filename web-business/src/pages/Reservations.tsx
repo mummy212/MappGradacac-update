@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
-import { Calendar, Clock, Users, Phone, Mail, CheckCircle2, XCircle, CheckCheck, ChevronDown, Filter } from 'lucide-react'
+import { Calendar, Clock, Users, Phone, CheckCircle2, XCircle, CheckCheck, ChevronDown, List } from 'lucide-react'
+import ReservationCalendar from '../components/ReservationCalendar'
 
 interface Reservation {
   id: string
@@ -58,6 +59,7 @@ function formatDate(dateStr: string) {
 
 export default function Reservations() {
   const qc = useQueryClient()
+  const [view, setView] = useState<'list' | 'calendar'>('list')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [noteInput, setNoteInput] = useState('')
