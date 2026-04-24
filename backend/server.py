@@ -1835,10 +1835,17 @@ async def update_reservation_status(reservation_id: str, data: ReservationStatus
 @api_router.get("/admin/reservations")
 async def get_all_reservations(user: dict = Depends(require_admin)):
     rsvs = await db.reservations.find({"status": {"$ne": "pending_verification"}}).sort("created_at", -1).to_list(None)
-    return [{"id": r["id"], "location_name": r["location_name"], "customer_name": r["customer_name"],
-              "customer_phone": r["customer_phone"], "customer_email": r.get("customer_email"),
-              "date": r["date"], "time": r["time"], "guests": r["guests"],
-              "special_requests": r.get("special_requests"), "status": r["status"],
+    return [{"id": r["id"], "location_name": r["location_name"],
+              "location_category": r.get("location_category", ""),
+              "reservation_type": r.get("reservation_type", "table"),
+              "customer_name": r["customer_name"], "customer_phone": r["customer_phone"],
+              "customer_email": r.get("customer_email"),
+              "date": r.get("date"), "time": r.get("time"),
+              "table_preference": r.get("table_preference"),
+              "check_in_date": r.get("check_in_date"), "check_out_date": r.get("check_out_date"),
+              "room_type": r.get("room_type"), "bed_type": r.get("bed_type"),
+              "guests": r["guests"], "special_requests": r.get("special_requests"),
+              "status": r["status"],
               "created_at": r["created_at"].isoformat() if r.get("created_at") else None} for r in rsvs]
 
 # ===== Admin Web Panel (Static Files) =====
