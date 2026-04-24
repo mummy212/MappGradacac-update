@@ -222,7 +222,10 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
             renderItem={({ item: it, index }) => (
               <TouchableOpacity
                 style={[hs.heroCard, { width: HERO_W }]}
-                onPress={() => it.locationId && router.push(`/location/${it.locationId}`)}
+                onPress={() => {
+                  if (it.type === 'event') router.push(`/event/${it.id}` as any);
+                  else if (it.locationId) router.push(`/location/${it.locationId}` as any);
+                }}
                 activeOpacity={0.95}
               >
                 <Image
@@ -247,7 +250,10 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
                     {it.distance != null && <Text style={hs.heroDist}>{distStr(it.distance)}</Text>}
                     <TouchableOpacity
                       style={[hs.heroCta, { backgroundColor: it.ctaColor }]}
-                      onPress={() => it.locationId && router.push(`/location/${it.locationId}`)}
+                      onPress={() => {
+                        if (it.type === 'event') router.push(`/event/${it.id}` as any);
+                        else if (it.locationId) router.push(`/location/${it.locationId}` as any);
+                      }}
                     >
                       <Text style={hs.heroCtaTxt}>{it.ctaText}</Text>
                     </TouchableOpacity>
