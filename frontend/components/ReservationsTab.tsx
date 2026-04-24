@@ -214,7 +214,7 @@ export default function ReservationsTab() {
         </View>
 
         {mainTab === 'nova' ? (
-          <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
             {/* Category filter */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
               {[{ key: '', label: 'Sve' }, { key: 'restaurant', label: 'Restorani' }, { key: 'cafe', label: 'Kafići' }, { key: 'prenociste', label: 'Prenoćišta' }].map(f => (
@@ -565,10 +565,10 @@ const s = StyleSheet.create({
   centerPad: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
   emptyBox: { padding: 40, alignItems: 'center' },
   emptyTxt: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: C.textSec, marginTop: 12 },
-  locCard: { flexDirection: 'row', backgroundColor: C.white, marginHorizontal: 20, marginBottom: 12, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: C.border, elevation: 2 },
-  locImgWrap: { width: 110, position: 'relative' },
-  locImg: { width: 110, height: '100%' },
-  locImgPlaceholder: { width: 110, height: '100%', minHeight: 120, justifyContent: 'center', alignItems: 'center' },
+  locCard: { flexDirection: 'row', backgroundColor: C.white, marginHorizontal: 20, marginBottom: 12, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: C.border, elevation: 2, minHeight: 120 },
+  locImgWrap: { width: 110, height: 120, position: 'relative' },
+  locImg: { width: 110, height: 120 },
+  locImgPlaceholder: { width: 110, height: 120, justifyContent: 'center', alignItems: 'center' },
   catBadge: { position: 'absolute', bottom: 6, left: 6, flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
   catBadgeTxt: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: '#fff' },
   locInfo: { flex: 1, padding: 14 },
