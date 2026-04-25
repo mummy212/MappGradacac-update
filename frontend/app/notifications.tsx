@@ -78,10 +78,14 @@ export default function NotificationsScreen() {
   }, []);
 
   const handlePress = useCallback((item: NotifItem) => {
+    markAllRead();
     if (item.type === 'offer' && item.location_id) {
       router.push(`/location/${item.location_id}` as any);
+    } else if (item.type === 'event') {
+      router.push(`/event/${item.id}` as any);
+    } else if (item.type === 'news') {
+      router.push(`/news/${item.id}` as any);
     }
-    markAllRead();
   }, [router, markAllRead]);
 
   const isNew = (item: NotifItem) => !lastSeen || String(item.created_at) > lastSeen;
@@ -167,6 +171,18 @@ export default function NotificationsScreen() {
                       <View style={ns.ctaRow}>
                         <Text style={ns.ctaTxt}>{t('notifications', 'viewOffer')}</Text>
                         <Ionicons name="arrow-forward" size={13} color={PURPLE} />
+                      </View>
+                    )}
+                    {item.type === 'event' && (
+                      <View style={ns.ctaRow}>
+                        <Text style={ns.ctaTxt}>Pogledaj događaj</Text>
+                        <Ionicons name="arrow-forward" size={13} color={PURPLE} />
+                      </View>
+                    )}
+                    {item.type === 'news' && (
+                      <View style={ns.ctaRow}>
+                        <Text style={ns.ctaTxt}>Pročitaj vijest</Text>
+                        <Ionicons name="arrow-forward" size={13} color="#3B82F6" />
                       </View>
                     )}
                   </View>
