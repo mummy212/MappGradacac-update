@@ -863,6 +863,28 @@ async def admin_upload_image(file: UploadFile = File(...), user: dict = Depends(
     (UPLOADS_DIR / filename).write_bytes(content)
     return {"url": f"/api/uploads/{filename}", "filename": filename}
 
+@api_router.post("/admin/upload-apk")
+async def admin_upload_apk(file: UploadFile = File(...), user: dict = Depends(require_admin)):
+    """Upload APK file and save download link to site settings."""
+    allowed_types = {"application/vnd.android.package-archive", "application/octet-stream", "application/zip"}
+    ct = (file.content_type or "").lower()
+    filename_lower = (file.filename or "").lower()
+    if not filename_lower.endswith(".apk") and ct not in allowed_types:
+        raise HTTPException(400, "Dozvoljen je samo APK fajl (.apk)")
+    content = await file.read()
+    if len(content) > 300 * 1024 * 1024:
+        raise HTTPException(400, "Maksimalna veličina APK je 300 MB")
+    safe_name = f"app-release-{uuid.uuid4().hex[:8]}.apk"
+    (UPLOADS_DIR / safe_name).write_bytes(content)
+    apk_url = f"/api/uploads/{safe_name}"
+    apk_size_mb = round(len(content) / (1024 * 1024), 1)
+    from datetime import timezone
+    now_str = datetime.now(timezone.utc).strftime("%d.%m.%Y")
+    # Spremi u site_settings
+    for key, val in [("apk_url", apk_url), ("apk_filename", safe_name), ("apk_size", str(apk_size_mb)), ("apk_date", now_str)]:
+        await db.site_settings.update_one({"key": key}, {"$set": {"key": key, "value": val}}, upsert=True)
+    return {"url": apk_url, "filename": safe_name, "size_mb": apk_size_mb, "date": now_str}
+
 @api_router.post("/admin/locations/{lid}/images")
 async def upload_image(lid: str, file: UploadFile = File(...), user: dict = Depends(require_business_or_admin)):
     if user["role"] == "business" and lid != user.get("location_id"): raise HTTPException(403, "Not your location")

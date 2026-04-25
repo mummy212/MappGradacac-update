@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api } from '../api'
-import { Save, Globe, Palette, FileText, Share2, ChevronRight, Zap } from 'lucide-react'
+import { Save, Globe, Palette, FileText, Share2, ChevronRight, Zap, Smartphone, Upload, CheckCircle, Download } from 'lucide-react'
 
 const TABS = [
   { key: 'design', label: 'Dizajn', icon: Palette },
@@ -8,6 +8,7 @@ const TABS = [
   { key: 'seo', label: 'SEO', icon: Globe },
   { key: 'social', label: 'Društvene Mreže', icon: Share2 },
   { key: 'integrations', label: 'Integracije', icon: Zap },
+  { key: 'app', label: 'Aplikacija', icon: Smartphone },
 ]
 
 const SECTIONS = [
@@ -23,6 +24,10 @@ export default function SiteSettings() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [activeTab, setActiveTab] = useState('design')
+  const [apkUploading, setApkUploading] = useState(false)
+  const [apkDone, setApkDone] = useState(false)
+  const [apkError, setApkError] = useState('')
+  const apkInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     api.get('/admin/site-settings')
@@ -33,6 +38,32 @@ export default function SiteSettings() {
   const s = (key: string) => settings[key] || ''
   const set = (key: string, val: string) => setSettings(prev => ({ ...prev, [key]: val }))
   const toggle = (key: string) => set(key, settings[key] === 'true' ? 'false' : 'true')
+
+  const uploadApk = async (file: File) => {
+    setApkUploading(true)
+    setApkError('')
+    setApkDone(false)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await api.post('/admin/upload-apk', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setSettings(prev => ({
+        ...prev,
+        apk_url: res.data.url,
+        apk_filename: res.data.filename,
+        apk_size: String(res.data.size_mb),
+        apk_date: res.data.date,
+      }))
+      setApkDone(true)
+      setTimeout(() => setApkDone(false), 4000)
+    } catch (e: any) {
+      setApkError(e?.response?.data?.detail || 'Greška pri uploadu')
+    } finally {
+      setApkUploading(false)
+    }
+  }
 
   const save = async () => {
     setSaving(true)
@@ -409,6 +440,110 @@ export default function SiteSettings() {
                 <p>1. SMS (Twilio) — ako su postavljeni svi Twilio ključevi</p>
                 <p>2. Email (Resend) — ako je postavljen Resend ključ i korisnik unio email</p>
                 <p>3. Prikaz u appu — fallback ako nijedan servis nije konfiguriran</p>
+              </div>
+            </div>
+          )}
+
+          {/* APP TAB */}
+          {activeTab === 'app' && (
+            <div className="space-y-5">
+              {/* APK Upload */}
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center">
+                    <Smartphone size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Android APK</h3>
+                    <p className="text-xs text-slate-500">Upload APK fajla za direktno preuzimanje s web stranice</p>
+                  </div>
+                  {s('apk_url') && (
+                    <span className="ml-auto flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 px-2 py-1 rounded-full">
+                      <CheckCircle size={12} /> Aktivan
+                    </span>
+                  )}
+                </div>
+
+                {/* Trenutni APK */}
+                {s('apk_url') && (
+                  <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-emerald-800">✓ APK je uploadovan</p>
+                      <p className="text-xs text-emerald-600 mt-0.5">
+                        Veličina: {s('apk_size')} MB · Datum: {s('apk_date')}
+                      </p>
+                    </div>
+                    <a
+                      href={s('apk_url')}
+                      download
+                      className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 bg-white px-3 py-1.5 rounded-lg border border-emerald-200"
+                    >
+                      <Download size={13} /> Preuzmi
+                    </a>
+                  </div>
+                )}
+
+                {/* Upload zona */}
+                <div
+                  className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-colors cursor-pointer"
+                  onClick={() => apkInputRef.current?.click()}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => {
+                    e.preventDefault()
+                    const file = e.dataTransfer.files[0]
+                    if (file) uploadApk(file)
+                  }}
+                >
+                  <input
+                    ref={apkInputRef}
+                    type="file"
+                    accept=".apk,application/vnd.android.package-archive"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadApk(f) }}
+                  />
+                  {apkUploading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm text-blue-600 font-medium">Uploadovanje u toku... (može potrajati za veće fajlove)</p>
+                    </div>
+                  ) : apkDone ? (
+                    <div className="flex flex-col items-center gap-2 text-emerald-600">
+                      <CheckCircle size={32} />
+                      <p className="font-medium">APK uspješno uploadovan!</p>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload size={28} className="mx-auto text-slate-400 mb-2" />
+                      <p className="font-medium text-slate-700">Klikni ili prevuci APK fajl ovdje</p>
+                      <p className="text-xs text-slate-400 mt-1">Maksimalno 300 MB · Samo .apk fajlovi</p>
+                    </>
+                  )}
+                </div>
+                {apkError && (
+                  <p className="mt-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{apkError}</p>
+                )}
+              </div>
+
+              {/* Store linkovi */}
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <h3 className="font-semibold text-slate-800 mb-1">Store Linkovi</h3>
+                <p className="text-xs text-slate-500 mb-4">Ako je aplikacija objavljena na App Store / Google Play, unesite linkove ovdje.</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">Google Play URL</label>
+                    <input className="input" value={s('play_store_url')} onChange={e => set('play_store_url', e.target.value)}
+                      placeholder="https://play.google.com/store/apps/details?id=ba.gradacac.mapa" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">App Store URL</label>
+                    <input className="input" value={s('app_store_url')} onChange={e => set('app_store_url', e.target.value)}
+                      placeholder="https://apps.apple.com/ba/app/gradacac-mapa/..." />
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                  <p className="font-semibold">💡 Napomena:</p>
+                  <p>Ako je APK uploadovan, na web stranici će se prikazati direktan download dugme za Android. Store linkovi se prikazuju kao dodatna opcija.</p>
+                </div>
               </div>
             </div>
           )}
