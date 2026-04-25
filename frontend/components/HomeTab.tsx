@@ -37,7 +37,10 @@ const ATTR_DEFAULT_IMG = 'https://images.pexels.com/photos/1486976/pexels-photo-
 function attrImgUri(a: Attraction): string {
   if (a.images && a.images.length > 0) {
     const img = a.images[0];
+    if (!img) return ATTR_FALLBACK[a.category || ''] || ATTR_DEFAULT_IMG;
     if (img.startsWith('data:') || img.startsWith('http')) return img;
+    // Slike su sačuvane kao /api/uploads/xxx.jpg ili api/uploads/xxx.jpg
+    if (img.startsWith('/') || img.startsWith('api/')) return `${API}${img.startsWith('/') ? img : '/' + img}`;
     return `${API}/api/uploads/${img}`;
   }
   return ATTR_FALLBACK[a.category || ''] || ATTR_DEFAULT_IMG;
@@ -417,7 +420,7 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
                 {/* Tekst ispod */}
                 <View style={hs.attrInfo}>
                   <Text style={hs.attrName} numberOfLines={2}>{a.name}</Text>
-                  {(a.short_description || a.description) && (
+                  {!!(a.short_description || a.description) && (
                     <Text style={hs.attrDesc} numberOfLines={2}>
                       {a.short_description || a.description}
                     </Text>
@@ -429,7 +432,8 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
         </View>
       )}
 
-      {/* ── "Brzi pristup" ── */}      <View style={hs.sec}>
+      {/* ── "Brzi pristup" ── */}
+      <View style={hs.sec}>
         <View style={hs.secRow}>
           <Text style={hs.secEmoji}>⚡</Text>
           <Text style={hs.secTitle}>{t('home', 'quickAccessTitle')}</Text>
