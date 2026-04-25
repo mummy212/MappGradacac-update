@@ -85,7 +85,12 @@ export default function AttractionDetail() {
           <View style={s.divider} />
 
           <Text style={s.sectionTitle}>O znamenitosti</Text>
-          <Text testID="attraction-desc" style={s.desc}>{attraction.description}</Text>
+          {!!attraction.short_description && (
+            <Text style={s.lead}>{attraction.short_description}</Text>
+          )}
+          {!!attraction.description && attraction.description !== attraction.short_description && (
+            <Text style={s.desc}>{attraction.description}</Text>
+          )}
 
           <View style={s.divider} />
 
@@ -121,6 +126,7 @@ const s = StyleSheet.create({
   divider: { height: 1, backgroundColor: C.border, marginVertical: 20 },
   sectionTitle: { fontSize: 18, fontFamily: 'Outfit_600SemiBold', color: C.text, marginBottom: 12 },
   desc: { fontSize: 16, fontFamily: 'Manrope_400Regular', color: C.textSec, lineHeight: 26 },
+  lead: { fontSize: 16, fontFamily: 'Manrope_500Medium', color: C.text, lineHeight: 26, marginBottom: 12 },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   infoText: { fontSize: 15, fontFamily: 'Manrope_400Regular', color: C.text, marginLeft: 12 },
 });
