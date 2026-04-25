@@ -2,24 +2,32 @@ import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LanguageProvider } from '../context/LanguageContext';
 
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const PREFS_KEY = 'notif_prefs_v2';
 
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Expo Go u SDK 53 ne podrzava remote push notifikacije — preskacem
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Configure notification handler samo van Expo Go
+if (!isExpoGo) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch {}
+}
 
 async function registerPushToken() {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web' || isExpoGo) return;
   try {
     const { status } = await Notifications.getPermissionsAsync();
     if (status !== 'granted') return;
