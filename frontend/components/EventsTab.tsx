@@ -1,15 +1,37 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator, StatusBar, Share,
+  RefreshControl, ActivityIndicator, StatusBar, Share, Image, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useLanguage } from '../context/LanguageContext';
 
+const { width: SW } = Dimensions.get('window');
+
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL;
 const PURPLE = '#7C3AED';
+
+// Fallback slike po kategoriji znamenitosti
+const ATTR_FALLBACK: Record<string, string> = {
+  'Historija':   'https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?w=600&q=80',
+  'Kultura':     'https://images.unsplash.com/photo-1514539079130-25950c84af65?w=600&q=80',
+  'Priroda':     'https://images.pexels.com/photos/186077/pexels-photo-186077.jpeg?auto=compress&cs=tinysrgb&h=400&w=600',
+  'Religija':    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
+  'Sport':       'https://images.pexels.com/photos/46798/the-ball-stadion-football-the-pitch-46798.jpeg?auto=compress&cs=tinysrgb&h=400&w=600',
+  'Turizam':     'https://images.pexels.com/photos/1285625/pexels-photo-1285625.jpeg?auto=compress&cs=tinysrgb&h=400&w=600',
+};
+const ATTR_DEFAULT = 'https://images.pexels.com/photos/1486976/pexels-photo-1486976.jpeg?auto=compress&cs=tinysrgb&h=400&w=600';
+
+function attrImg(a: Attraction): string {
+  if (a.images && a.images.length > 0) {
+    const img = a.images[0];
+    if (img.startsWith('data:') || img.startsWith('http')) return img;
+    return `${BACKEND}/api/uploads/${img}`;
+  }
+  return ATTR_FALLBACK[a.category || ''] || ATTR_DEFAULT;
+}
 
 const CAT_COLORS: Record<string, { bg: string; text: string }> = {
   'Vijesti': { bg: '#DBEAFE', text: '#1D4ED8' },
@@ -26,7 +48,7 @@ interface EventItem {
   location_name?: string; location?: string; date: string; time?: string;
   ticket_price?: string; organizer?: string; short_description?: string;
 }
-interface Attraction { id: string; name: string; description?: string; short_description?: string; category?: string; }
+interface Attraction { id: string; name: string; description?: string; short_description?: string; category?: string; images?: string[]; }
 
 export default function EventsTab() {
   const insets = useSafeAreaInsets();
@@ -194,21 +216,48 @@ export default function EventsTab() {
                 <Text style={et.secEmoji}>🏛️</Text>
                 <Text style={et.secTitle}>{t('events', 'attractionsSection')}</Text>
               </View>
-              {attractions.map(a => (
-                <TouchableOpacity key={a.id} style={et.attrCard} onPress={() => router.push(`/attraction/${a.id}`)}>
-                  <View style={et.attrIcon}>
-                    <Ionicons name="business-outline" size={22} color={PURPLE} />
-                  </View>
-                  <View style={et.attrBody}>
-                    <Text style={et.attrName} numberOfLines={1}>{a.name}</Text>
-                    {(a.short_description || a.description) && (
-                      <Text style={et.attrDesc} numberOfLines={2}>{a.short_description || a.description}</Text>
-                    )}
-                    {a.category && <View style={et.attrCat}><Text style={et.attrCatTxt}>{a.category}</Text></View>}
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-                </TouchableOpacity>
-              ))}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+              >
+                {attractions.map(a => (
+                  <TouchableOpacity
+                    key={a.id}
+                    style={et.attrCard}
+                    onPress={() => router.push(`/attraction/${a.id}`)}
+                    activeOpacity={0.85}
+                  >
+                    {/* Slika */}
+                    <View style={et.attrImgWrap}>
+                      <Image
+                        source={{ uri: attrImg(a) }}
+                        style={et.attrImg}
+                        resizeMode="cover"
+                      />
+                      {/* Kategorija badge na slici */}
+                      {a.category && (
+                        <View style={et.attrCatBadge}>
+                          <Text style={et.attrCatBadgeTxt}>{a.category}</Text>
+                        </View>
+                      )}
+                    </View>
+                    {/* Tekst ispod slike */}
+                    <View style={et.attrBody}>
+                      <Text style={et.attrName} numberOfLines={2}>{a.name}</Text>
+                      {(a.short_description || a.description) && (
+                        <Text style={et.attrDesc} numberOfLines={2}>
+                          {a.short_description || a.description}
+                        </Text>
+                      )}
+                      <View style={et.attrFooter}>
+                        <Text style={et.attrMore}>Detalji</Text>
+                        <Ionicons name="arrow-forward" size={12} color={PURPLE} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
           )}
         </ScrollView>
@@ -253,12 +302,15 @@ const et = StyleSheet.create({
   chevronWrap: { alignItems: 'flex-end', justifyContent: 'center', gap: 6 },
   todayBadge: { backgroundColor: '#10B981', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
   todayTxt: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: '#fff' },
-  // Attractions
-  attrCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 10, backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#E5E7EB' },
-  attrIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: PURPLE + '12', justifyContent: 'center', alignItems: 'center', marginRight: 14 },
-  attrBody: { flex: 1 },
-  attrName: { fontSize: 15, fontFamily: 'Outfit_600SemiBold', color: '#111827' },
-  attrDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: '#6B7280', marginTop: 3, lineHeight: 18 },
-  attrCat: { backgroundColor: PURPLE + '12', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginTop: 6 },
-  attrCatTxt: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: PURPLE },
+  // Attractions - horizontalni scroll sa slikama
+  attrCard: { width: SW * 0.58, backgroundColor: '#fff', borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  attrImgWrap: { position: 'relative', width: '100%', height: 140 },
+  attrImg: { width: '100%', height: 140 },
+  attrCatBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: PURPLE + 'CC', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  attrCatBadgeTxt: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: '#fff', letterSpacing: 0.3 },
+  attrBody: { padding: 12 },
+  attrName: { fontSize: 14, fontFamily: 'Outfit_600SemiBold', color: '#111827', lineHeight: 20, marginBottom: 4 },
+  attrDesc: { fontSize: 12, fontFamily: 'Manrope_400Regular', color: '#6B7280', lineHeight: 17 },
+  attrFooter: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 },
+  attrMore: { fontSize: 12, fontFamily: 'Manrope_600SemiBold', color: PURPLE },
 });

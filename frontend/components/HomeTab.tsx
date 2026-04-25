@@ -24,6 +24,25 @@ const NC = {
 
 const HERO_COLORS = ['#1A1A2E', '#16213E', '#2D1B69', '#1B2838', '#1C3A2E', '#2C1A0E'];
 
+/* Fallback slike za atrakcije po kategoriji */
+const ATTR_FALLBACK: Record<string, string> = {
+  'Historija':   'https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?w=600&q=80',
+  'Kultura':     'https://images.unsplash.com/photo-1514539079130-25950c84af65?w=600&q=80',
+  'Priroda':     'https://images.pexels.com/photos/186077/pexels-photo-186077.jpeg?auto=compress&cs=tinysrgb&h=300&w=500',
+  'Religija':    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
+  'Sport':       'https://images.pexels.com/photos/46798/the-ball-stadion-football-the-pitch-46798.jpeg?auto=compress&cs=tinysrgb&h=300&w=500',
+};
+const ATTR_DEFAULT_IMG = 'https://images.pexels.com/photos/1486976/pexels-photo-1486976.jpeg?auto=compress&cs=tinysrgb&h=300&w=500';
+
+function attrImgUri(a: Attraction): string {
+  if (a.images && a.images.length > 0) {
+    const img = a.images[0];
+    if (img.startsWith('data:') || img.startsWith('http')) return img;
+    return `${API}/api/uploads/${img}`;
+  }
+  return ATTR_FALLBACK[a.category || ''] || ATTR_DEFAULT_IMG;
+}
+
 /* Fallback slike po kategoriji */
 const CAT_IMAGES: Record<string, string> = {
   restaurant:   'https://images.pexels.com/photos/33158981/pexels-photo-33158981.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=400&w=600',
@@ -59,6 +78,7 @@ interface Offer {
   location_name?: string; location_image?: string; distance?: number;
 }
 interface EvItem { id: string; title: string; description?: string; date: string; location?: string; }
+interface Attraction { id: string; name: string; short_description?: string; description?: string; category?: string; images?: string[]; }
 interface HeroItem {
   id: string; type: 'event' | 'offer'; title: string; subtitle: string;
   bgColor: string; image?: string; badge: string; badgeColor: string;
@@ -129,15 +149,17 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
   const [locs, setLocs] = useState<Loc[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [events, setEvents] = useState<EvItem[]>([]);
+  const [attractions, setAttractions] = useState<Attraction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
-      const [l, o, e] = await Promise.all([
+      const [l, o, e, a] = await Promise.all([
         fetch(`${API}/api/locations`).then(r => r.json()),
         fetch(`${API}/api/offers`).then(r => r.json()),
         fetch(`${API}/api/events`).then(r => r.json()),
+        fetch(`${API}/api/tourism/attractions`).then(r => r.json()),
       ]);
       const locsRaw: Loc[] = l;
       const withDist = userLoc
@@ -152,6 +174,7 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
         distance: locMap[of.location_id]?.distance,
       })));
       setEvents(e);
+      setAttractions(Array.isArray(a) ? a.slice(0, 8) : []);
     } catch (err) { console.log('HomeTab fetch error:', err); }
   }, [userLoc]);
 
@@ -358,8 +381,55 @@ export default function HomeTab({ userLoc, setActiveTab, setMapCategory }: {
         </View>
       )}
 
-      {/* ── "Brzi pristup" ── */}
-      <View style={hs.sec}>
+      {/* ── "Znamenitosti" ── */}
+      {attractions.length > 0 && (
+        <View style={hs.sec}>
+          <View style={hs.secRow}>
+            <Text style={hs.secEmoji}>🏛️</Text>
+            <Text style={hs.secTitle}>Znamenitosti</Text>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity><Text style={hs.secLink}>Sve</Text></TouchableOpacity>
+          </View>
+          <FlatList
+            data={attractions}
+            keyExtractor={a => a.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+            renderItem={({ item: a }) => (
+              <TouchableOpacity
+                style={hs.attrCard}
+                onPress={() => router.push(`/attraction/${a.id}` as any)}
+                activeOpacity={0.88}
+              >
+                {/* Slika */}
+                <Image
+                  source={{ uri: attrImgUri(a) }}
+                  style={hs.attrImg}
+                  resizeMode="cover"
+                />
+                {/* Kategorija badge na slici */}
+                {a.category && (
+                  <View style={hs.attrCatBadge}>
+                    <Text style={hs.attrCatBadgeTxt}>{a.category}</Text>
+                  </View>
+                )}
+                {/* Tekst ispod */}
+                <View style={hs.attrInfo}>
+                  <Text style={hs.attrName} numberOfLines={2}>{a.name}</Text>
+                  {(a.short_description || a.description) && (
+                    <Text style={hs.attrDesc} numberOfLines={2}>
+                      {a.short_description || a.description}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
+      {/* ── "Brzi pristup" ── */}      <View style={hs.sec}>
         <View style={hs.secRow}>
           <Text style={hs.secEmoji}>⚡</Text>
           <Text style={hs.secTitle}>{t('home', 'quickAccessTitle')}</Text>
@@ -458,6 +528,14 @@ const hs = StyleSheet.create({
   quickItem: { alignItems: 'center', gap: 6 },
   quickIcon: { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   quickLabel: { fontSize: 11, fontFamily: 'Manrope_600SemiBold', color: NC.text, textAlign: 'center' },
+  // Attractions
+  attrCard: { width: 160, backgroundColor: NC.surface, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: NC.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
+  attrImg: { width: '100%', height: 120 },
+  attrCatBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(124,58,237,0.85)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  attrCatBadgeTxt: { fontSize: 10, fontFamily: 'Manrope_700Bold', color: '#fff', letterSpacing: 0.3 },
+  attrInfo: { padding: 10, paddingTop: 9 },
+  attrName: { fontSize: 13, fontFamily: 'Outfit_600SemiBold', color: NC.text, lineHeight: 18, marginBottom: 3 },
+  attrDesc: { fontSize: 11, fontFamily: 'Manrope_400Regular', color: NC.textSec, lineHeight: 16 },
   // QR
   qrBanner: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, backgroundColor: '#EDE9FE', borderRadius: 18, padding: 16, gap: 12 },
   qrIconBox: { width: 52, height: 52, backgroundColor: '#fff', borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
