@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, LogBox } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import * as Font from 'expo-font';
+import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LanguageProvider } from '../context/LanguageContext';
@@ -9,8 +11,16 @@ import { LanguageProvider } from '../context/LanguageContext';
 const BACKEND = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const PREFS_KEY = 'notif_prefs_v2';
 
-// Expo Go u SDK 53 ne podrzava remote push notifikacije — preskacem
 const isExpoGo = Constants.appOwnership === 'expo';
+
+// Potisni poznate greške koje su kozmetičke (ne utiču na funkcionalnost)
+LogBox.ignoreLogs([
+  'Font file for ionicons is empty',
+  'ExpoFontLoader.loadAsync',
+  'shadow* style props are deprecated',
+  'Listening to push token changes',
+  'VirtualizedLists should never be nested',
+]);
 
 // Configure notification handler samo van Expo Go
 if (!isExpoGo) {
@@ -24,6 +34,21 @@ if (!isExpoGo) {
       }),
     });
   } catch {}
+}
+
+// Preloadaj sve icon fontove jednom sa error handlerom
+// da se izbjegnu višestruke uncaught rejection greške
+async function preloadIconFonts() {
+  try {
+    await Promise.all([
+      Font.loadAsync(Ionicons.font),
+      Font.loadAsync(MaterialIcons.font),
+      Font.loadAsync(FontAwesome5.font),
+    ]);
+  } catch {
+    // Font file nedostupan (Expo Go limitation) — ikonice će biti nevidljive
+    // App funkcioniše normalno
+  }
 }
 
 async function registerPushToken() {
@@ -51,6 +76,7 @@ async function registerPushToken() {
 
 export default function Layout() {
   useEffect(() => {
+    preloadIconFonts();
     registerPushToken();
   }, []);
 
