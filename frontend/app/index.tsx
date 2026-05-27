@@ -25,7 +25,7 @@ export default function Index() {
   const [mapCategory, setMapCategory] = useState('');
   const [userLoc, setUserLoc] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
     Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold,
   });
@@ -47,7 +47,7 @@ export default function Index() {
     if (key !== 'mapa') setMapCategory('');
   };
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={s.loadWrap}>
         <StatusBar barStyle="dark-content" />

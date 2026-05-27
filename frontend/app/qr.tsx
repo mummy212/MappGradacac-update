@@ -34,7 +34,7 @@ export default function QRScreen() {
   const [userName, setUserName] = useState('');
   const [qrData, setQrData] = useState<any>(null);
 
-  const [fontsLoaded] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
 
   useEffect(() => {
     if (params.offerId && mode === 'show') fetchQRData();
@@ -81,7 +81,7 @@ export default function QRScreen() {
     setActivating(false);
   };
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <View testID="qr-screen" style={[s.root, { paddingTop: insets.top }]}>

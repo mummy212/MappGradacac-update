@@ -36,7 +36,7 @@ export default function AboutScreen() {
   const [showHiddenMenu, setShowHiddenMenu] = useState(false);
   const tapTimer = useRef<any>(null);
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
     Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold,
   });
@@ -83,7 +83,7 @@ export default function AboutScreen() {
     handleDonate(amount);
   };
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <View testID="about-screen" style={[s.container, { paddingTop: insets.top }]}>

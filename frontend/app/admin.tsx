@@ -122,7 +122,7 @@ export default function AdminScreen() {
   const [editOffer, setEditOffer] = useState<any>({ location_id: '', title: '', description: '', discount_percent: 0, expires_at: '' });
   const [savingOffer, setSavingOffer] = useState(false);
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
     Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold,
   });
@@ -400,7 +400,7 @@ export default function AdminScreen() {
 
   const getCatName = (id: string) => CATEGORIES.find(x => x.id === id)?.name || id;
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded && !fontError) return null;
 
   // ===== LOGIN =====
   if (!isLoggedIn) return (

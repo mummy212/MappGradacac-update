@@ -59,7 +59,7 @@ export default function BusinessPanel() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState<any>({});
 
-  const [fontsLoaded] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -144,7 +144,7 @@ export default function BusinessPanel() {
     }) || Alert.alert('Odgovor', 'Funkcija odgovora dostupna na iOS uređaju');
   };
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded && !fontError) return null;
 
   // LOGIN
   if (!loggedIn) return (
