@@ -6,8 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useFonts, Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium } from '@expo-google-fonts/outfit';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
+import { useAppFonts } from '../utils/fontLoader';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -36,10 +35,7 @@ export default function AboutScreen() {
   const [showHiddenMenu, setShowHiddenMenu] = useState(false);
   const tapTimer = useRef<any>(null);
 
-  const [fontsLoaded, fontError] = useFonts({
-    Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
-    Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold,
-  });
+  const fontsLoaded = useAppFonts();
 
   const amounts = selectedCurrency === 'EUR' ? FIXED_AMOUNTS_EUR : FIXED_AMOUNTS_BAM;
   const symbol = selectedCurrency === 'EUR' ? '€' : 'KM';
@@ -83,7 +79,7 @@ export default function AboutScreen() {
     handleDonate(amount);
   };
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded) return null;
 
   return (
     <View testID="about-screen" style={[s.container, { paddingTop: insets.top }]}>

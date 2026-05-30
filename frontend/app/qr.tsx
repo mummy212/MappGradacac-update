@@ -6,8 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
+import { useAppFonts } from '../utils/fontLoader';
 import QRCode from 'react-qr-code';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import axios from 'axios';
@@ -34,7 +33,7 @@ export default function QRScreen() {
   const [userName, setUserName] = useState('');
   const [qrData, setQrData] = useState<any>(null);
 
-  const [fontsLoaded, fontError] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
+  const fontsLoaded = useAppFonts();
 
   useEffect(() => {
     if (params.offerId && mode === 'show') fetchQRData();
@@ -81,7 +80,7 @@ export default function QRScreen() {
     setActivating(false);
   };
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded) return null;
 
   return (
     <View testID="qr-screen" style={[s.root, { paddingTop: insets.top }]}>

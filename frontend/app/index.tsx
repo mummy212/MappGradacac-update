@@ -5,7 +5,7 @@ import {
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
+import { useAppFonts } from '../utils/fontLoader';
 
 import HomeTab from '../components/HomeTab';
 import MapTab from '../components/MapTab';
@@ -25,10 +25,7 @@ export default function Index() {
   const [mapCategory, setMapCategory] = useState('');
   const [userLoc, setUserLoc] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  const [fontsLoaded, fontError] = useFonts({
-    Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
-    Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold,
-  });
+  const fontsLoaded = useAppFonts();
 
   useEffect(() => { getGPS(); }, []);
 
@@ -47,7 +44,7 @@ export default function Index() {
     if (key !== 'mapa') setMapCategory('');
   };
 
-  if (!fontsLoaded && !fontError) {
+  if (!fontsLoaded) {
     return (
       <View style={s.loadWrap}>
         <StatusBar barStyle="dark-content" />

@@ -5,8 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
+import { useAppFonts } from '../../utils/fontLoader';
 import LeafletMap from '../../components/LeafletMap';
 import axios from 'axios';
 
@@ -24,7 +23,7 @@ export default function AttractionDetail() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [fontsLoaded] = useFonts({ Outfit_700Bold, Outfit_600SemiBold, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold });
+  const fontsLoaded = useAppFonts();
 
   useEffect(() => { if (id) fetchAttraction(); }, [id]);
 

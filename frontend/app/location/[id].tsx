@@ -7,8 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useFonts, Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium } from '@expo-google-fonts/outfit';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold } from '@expo-google-fonts/manrope';
+import { useAppFonts } from '../../utils/fontLoader';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -95,10 +94,7 @@ export default function LocationDetailScreen() {
   // Favorites
   const [isFav, setIsFav] = useState(false);
 
-  const [fontsLoaded] = useFonts({
-    Outfit_700Bold, Outfit_600SemiBold, Outfit_500Medium,
-    Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold,
-  });
+  const fontsLoaded = useAppFonts();
 
   useEffect(() => { if (id) { fetchData(); loadFavState(); } }, [id]);
 
