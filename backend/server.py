@@ -43,10 +43,12 @@ def make_token(uid: str, email: str, role: str = "user") -> str:
     return jwt.encode({"sub": uid, "email": email, "role": role, "exp": datetime.now(timezone.utc) + timedelta(hours=24), "type": "access"}, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 async def get_user(request: Request) -> dict:
-    token = request.cookies.get("access_token")
-    if not token:
-        auth = request.headers.get("Authorization", "")
-        if auth.startswith("Bearer "): token = auth[7:]
+    # Prefer Authorization header over cookie (prevents business cookie overriding admin token)
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        token = auth[7:]
+    else:
+        token = request.cookies.get("access_token")
     if not token: raise HTTPException(401, "Not authenticated")
     try:
         p = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
